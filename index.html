@@ -6,6 +6,7 @@
   <title>Infinite Code</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23111'/><text x='50' y='64' text-anchor='middle' font-size='42' font-weight='bold' font-family='Arial,sans-serif' fill='%23e8c8c8'>IC</text></svg>">
   <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div id="loginScreen">
@@ -158,14 +159,27 @@
             </div>
           </div>
           <div class="tab-content" id="tab-run">
-            <div class="run-terminal">
-              <div class="run-header">/run — Command Terminal</div>
-              <div class="run-output" id="runOutput">
-                <div class="run-line welcome">Welcome to /run. Owner-only commands available.</div>
+            <div class="run-layout">
+              <div class="run-terminal">
+                <div class="run-header">/run — Command Terminal <span id="friendNotif" class="friend-notif hidden"></span></div>
+                <div class="run-output" id="runOutput">
+                  <div class="run-line welcome">Welcome to /run. Owner-only commands available.</div>
+                  <div class="run-line welcome" style="color:#00c8b4">Chat: @add friend [user], @accept [user], @chat [user], @send [msg]</div>
+                </div>
+                <div class="run-input-line">
+                  <span class="run-prompt">&gt;</span>
+                  <input type="text" id="runInput" class="run-input" placeholder="Type a command..." autofocus>
+                </div>
               </div>
-              <div class="run-input-line">
-                <span class="run-prompt">&gt;</span>
-                <input type="text" id="runInput" class="run-input" placeholder="Type @link &lt;name&gt; to open a link..." autofocus>
+              <div class="chat-panel hidden" id="chatPanel">
+                <div class="chat-header">
+                  <span id="chatWith">Chat</span>
+                  <button class="chat-close" id="chatClose">&times;</button>
+                </div>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-input-line">
+                  <input type="text" id="chatInput" class="run-input" placeholder="Type a message...">
+                </div>
               </div>
             </div>
           </div>

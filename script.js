@@ -2,6 +2,56 @@ const OWNERS = ['TheAdminCreator', 'Amused'];
 const STORAGE_KEY = 'infinite_code_users_v2';
 const THEME_KEY = 'infinite_code_theme';
 
+// ===== SUPABASE =====
+const SUPABASE_URL = 'https://viuphflhwwjsaplqcore.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpdXBoZmxod3dqc2FwbHFjb3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxMzc1NDAsImV4cCI6MjEwMDcxMzU0MH0.tOrv0z8990wogEGOdI_-XqyliWaAkKFJNxyywTjGrp4';
+
+let supabase = null;
+try { supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch(e) {}
+
+async function sb(table) {
+  if (!supabase) return { ok: false };
+  return {
+    async upsert(data, conflict) {
+      try { await supabase.from(table).upsert(data, { onConflict: conflict }); return { ok: true }; }
+      catch(e) { return { ok: false, error: e }; }
+    },
+    async select(match) {
+      try {
+        let q = supabase.from(table).select();
+        for (const k of Object.keys(match||{})) q = q.eq(k, match[k]);
+        const { data } = await q;
+        return { ok: true, data };
+      } catch(e) { return { ok: false, error: e }; }
+    },
+    async delete(match) {
+      try {
+        let q = supabase.from(table).delete();
+        for (const k of Object.keys(match)) q = q.eq(k, match[k]);
+        await q; return { ok: true };
+      } catch(e) { return { ok: false, error: e }; }
+    }
+  };
+}
+
+async function migrateToSupabase() {
+  if (!supabase) return;
+  if (localStorage.getItem('ic_supabase_migrated')) return;
+  const users = localStorage.getItem(STORAGE_KEY);
+  if (users) for (const [u,p] of Object.entries(JSON.parse(users))) await sb('users').upsert({username:u,password:p},'username');
+  const db = localStorage.getItem('ic_database');
+  if (db) for (const e of JSON.parse(db).entries||[]) await sb('db_entries').upsert({id:e.id,command:e.command,description:e.description,tags:e.tags||[],added_by:e.addedBy||'system'},'id');
+  const lo = localStorage.getItem('ic_edit_layout');
+  if (lo) await sb('edit_layouts').upsert({id:1,layout:JSON.parse(lo)},'id');
+  localStorage.setItem('ic_supabase_migrated','1');
+}
+
+setTimeout(migrateToSupabase, 3000);
+
+// ===== CHAT STATE =====
+let chatPartner = null;
+let chatPoll = null;
+
 function getUsers() {
   const data = localStorage.getItem(STORAGE_KEY);
   return data ? JSON.parse(data) : {};
@@ -9,6 +59,7 @@ function getUsers() {
 
 function saveUsers(users) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+  for (const [u,p] of Object.entries(users)) sb('users').upsert({username:u,password:p},'username');
 }
 
 function seedGuest() {
@@ -29,6 +80,7 @@ function applyTheme(theme) {
   document.querySelectorAll('.theme-card').forEach(c => {
     c.classList.toggle('active', c.dataset.theme === theme);
   });
+  if (currentUser) sb('themes').upsert({username:currentUser,theme},'username');
 }
 
 const savedTheme = localStorage.getItem(THEME_KEY) || 'red';
@@ -188,6 +240,9 @@ function getProjects() {
 
 function saveProjects(projects) {
   localStorage.setItem(getProjectsKey(), JSON.stringify(projects));
+  if (!currentUser) return;
+  sb('projects').delete({username:currentUser});
+  projects.forEach(p => sb('projects').upsert({username:currentUser,name:p.name,code:p.code||''},'username,name'));
 }
 
 let currentProject = null;
@@ -1059,6 +1114,7 @@ function saveEditLayout() {
     if (Object.keys(styles).length) layout[getElKey(el)] = styles;
   });
   localStorage.setItem(EDIT_LAYOUT_KEY, JSON.stringify(layout));
+  sb('edit_layouts').upsert({id:1,layout},'id');
 }
 
 const SKIP_EDIT_IDS = ['lineNumbers', 'runOutput', 'cmdConsoleOutput', 'highlightCode', 'codeTextarea', 'previewOutput', 'projectList', 'runInput', 'cmdConsoleInput'];
@@ -1091,6 +1147,14 @@ const origEnterIDE = enterIDE;
 enterIDE = function(username) {
   origEnterIDE(username);
   loadEditLayout();
+  setTimeout(checkFriendRequests, 1000);
+  if (supabase) {
+    sb('themes').select({username}).then(r => {
+      if (r.ok && r.data && r.data.length && r.data[0].theme) {
+        applyTheme(r.data[0].theme);
+      }
+    });
+  }
 };
 
 function showSiteCode(output) {
@@ -1166,6 +1230,64 @@ document.getElementById('runInput').addEventListener('keydown', function(e) {
     msg.className = 'run-line success';
     msg.textContent = 'Opened Grandmaster Path search';
     output.appendChild(msg);
+  } else if (input.startsWith('@add friend ')) {
+    const friend = input.slice(12).trim();
+    if (!friend) { output.appendChild(err('Specify a username')); }
+    else if (friend === currentUser) { output.appendChild(err("Can't add yourself")); }
+    else { sb('friend_requests').upsert({from_user:currentUser,to_user:friend,status:'pending'},'').then(r => {
+        output.appendChild(r.ok ? ok('Friend request sent to ' + friend) : err('Failed (tables not created yet?)'));
+        output.scrollTop = output.scrollHeight;
+      });
+    }
+  } else if (input.startsWith('@accept ')) {
+    const friend = input.slice(8).trim();
+    if (!friend) { output.appendChild(err('Specify a username')); }
+    else { sb('friend_requests').select({from_user:friend,to_user:currentUser,status:'pending'}).then(r => {
+        if (!r.ok || !r.data.length) { output.appendChild(err('No pending request from ' + friend)); }
+        else { sb('friend_requests').upsert({id:r.data[0].id,from_user:friend,to_user:currentUser,status:'accepted'},'id').then(() => {
+            output.appendChild(ok('Friend request from ' + friend + ' accepted!'));
+            checkFriendRequests();
+          });
+        }
+        output.scrollTop = output.scrollHeight;
+      });
+    }
+  } else if (input.startsWith('@chat ')) {
+    const rest = input.slice(6).trim();
+    const space = rest.indexOf(' ');
+    if (space === -1) {
+      openChat(rest);
+      output.appendChild(ok('Chat opened with ' + rest));
+    } else {
+      const user = rest.substring(0, space);
+      const msg = rest.substring(space + 1).trim();
+      openChat(user);
+      sendMessage(user, msg);
+      output.appendChild(ok('Message sent to ' + user));
+    }
+    output.scrollTop = output.scrollHeight;
+  } else if (input === '@chat') {
+    sb('friend_requests').select({to_user:currentUser,status:'accepted'}).then(r => {
+      if (r.ok && r.data.length) {
+        const list = r.data.map(f => f.from_user).join(', ');
+        output.appendChild(ok('Friends: ' + list));
+      } else {
+        sb('friend_requests').select({from_user:currentUser,status:'accepted'}).then(r2 => {
+          const list = r2.ok && r2.data.length ? r2.data.map(f => f.to_user).join(', ') : 'No friends yet';
+          output.appendChild(ok('Friends: ' + list));
+        });
+      }
+      output.scrollTop = output.scrollHeight;
+    });
+  } else if (input.startsWith('@send ')) {
+    const msg = input.slice(6).trim();
+    if (!chatPartner) { output.appendChild(err('Open a chat first: @chat [username]')); }
+    else if (!msg) { output.appendChild(err('Message is empty')); }
+    else {
+      sendMessage(chatPartner, msg);
+      output.appendChild(ok('Message sent'));
+    }
+    output.scrollTop = output.scrollHeight;
   } else {
     const msg = document.createElement('div');
     msg.className = 'run-line error';
@@ -1175,6 +1297,75 @@ document.getElementById('runInput').addEventListener('keydown', function(e) {
 
   this.value = '';
   output.scrollTop = output.scrollHeight;
+});
+
+// ===== CHAT FUNCTIONS =====
+function ok(t) { const d=document.createElement('div');d.className='run-line success';d.textContent=t;return d; }
+function err(t) { const d=document.createElement('div');d.className='run-line error';d.textContent=t;return d; }
+
+function formatTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+}
+
+async function sendMessage(to, msg) {
+  await sb('chat_messages').upsert({from_user:currentUser,to_user:to,message:msg},'');
+  loadChatMessages();
+}
+
+function openChat(user) {
+  chatPartner = user;
+  document.getElementById('chatPanel').classList.remove('hidden');
+  document.getElementById('chatWith').textContent = 'Chat with ' + user;
+  document.getElementById('chatMessages').innerHTML = '';
+  loadChatMessages();
+  if (chatPoll) clearInterval(chatPoll);
+  chatPoll = setInterval(loadChatMessages, 3000);
+}
+
+function closeChat() {
+  chatPartner = null;
+  document.getElementById('chatPanel').classList.add('hidden');
+  if (chatPoll) { clearInterval(chatPoll); chatPoll = null; }
+}
+
+async function loadChatMessages() {
+  if (!chatPartner || !supabase) return;
+  const r = await sb('chat_messages').select();
+  if (!r.ok || !r.data) return;
+  const msgs = r.data.filter(m =>
+    (m.from_user === currentUser && m.to_user === chatPartner) ||
+    (m.from_user === chatPartner && m.to_user === currentUser)
+  ).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+  const container = document.getElementById('chatMessages');
+  container.innerHTML = msgs.map(m =>
+    '<div class="chat-msg ' + (m.from_user === currentUser ? 'self' : 'other') + '">' +
+      m.message +
+      '<span class="msg-time">' + formatTime(m.created_at) + '</span>' +
+    '</div>'
+  ).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+async function checkFriendRequests() {
+  if (!supabase || !currentUser) return;
+  const r = await sb('friend_requests').select({to_user:currentUser,status:'pending'});
+  const notif = document.getElementById('friendNotif');
+  if (r.ok && r.data && r.data.length) {
+    notif.classList.remove('hidden');
+    notif.title = r.data.length + ' pending friend request' + (r.data.length>1?'s':'');
+  } else {
+    notif.classList.add('hidden');
+  }
+}
+
+// Chat panel events
+document.getElementById('chatClose').addEventListener('click', closeChat);
+document.getElementById('chatInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && this.value.trim() && chatPartner) {
+    sendMessage(chatPartner, this.value.trim());
+    this.value = '';
+  }
 });
 
 // ===== TAB SWITCHING =====
@@ -1236,6 +1427,7 @@ function getDB() {
 
 function saveDB(db) {
   localStorage.setItem(DB_KEY, JSON.stringify(db));
+  db.entries.forEach(e => sb('db_entries').upsert({id:e.id,command:e.command,description:e.description,tags:e.tags||[],added_by:e.addedBy||'system'},'id'));
 }
 
 function getAllTags(db) {

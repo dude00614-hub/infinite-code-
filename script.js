@@ -21,42 +21,32 @@ function showStatus(msg, ok) {
 }
 showStatus('Script loaded', true);
 
-// ===== SUPABASE =====
+// ===== SUPABASE (REST API via fetch, no CDN dependency) =====
 const SUPABASE_URL = 'https://viuphflhwwjsaplqcore.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpdXBoZmxod3dqc2FwbHFjb3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxMzc1NDAsImV4cCI6MjEwMDcxMzU0MH0.tOrv0z8990wogEGOdI_-XqyliWaAkKFJNxyywTjGrp4';
 
-let supabase = null;
-try {
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  showStatus('Supabase OK', true);
-} catch(e) {
-  showStatus('Supabase FAILED: ' + (e.message||e), false);
-}
-
 function sb(table) {
-  if (!supabase) return makeStub();
-  const t = () => supabase.from(table);
+  const url = SUPABASE_URL + '/rest/v1/' + table;
+  const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
   return {
-    upsert: (data, conflict) => t().upsert(data,{onConflict:conflict}).then(()=>({ok:true})).catch(e=>({ok:false,error:e})),
-    insert: (data) => t().insert(data).then(()=>({ok:true})).catch(e=>({ok:false,error:e})),
+    upsert: (data, conflict) => fetch(url, { method:'POST', headers:{...headers,'Prefer':'resolution=merge-duplicates'}, body:JSON.stringify(Array.isArray(data)?data:[data]) }).then(r=>r.json()).then(()=>({ok:true})).catch(e=>({ok:false,error:e})),
+    insert: (data) => fetch(url, { method:'POST', headers, body:JSON.stringify(Array.isArray(data)?data:[data]) }).then(r=>r.json()).then(()=>({ok:true})).catch(e=>({ok:false,error:e})),
     select: (match) => {
-      let q = t().select();
-      for (const k of Object.keys(match||{})) q = q.eq(k, match[k]);
-      return q.then(({data})=>({ok:true,data})).catch(e=>({ok:false,error:e}));
+      const q = new URLSearchParams();
+      for (const k of Object.keys(match||{})) q.append(k, 'eq.'+match[k]);
+      return fetch(url+'?'+q.toString(), { method:'GET', headers }).then(r=>r.json()).then(data=>({ok:true,data})).catch(e=>({ok:false,error:e,data:[]}));
     },
     delete: (match) => {
-      let q = t().delete();
-      for (const k of Object.keys(match)) q = q.eq(k, match[k]);
-      return q.then(()=>({ok:true})).catch(e=>({ok:false,error:e}));
+      const q = new URLSearchParams();
+      for (const k of Object.keys(match)) q.append(k, 'eq.'+match[k]);
+      return fetch(url+'?'+q.toString(), { method:'DELETE', headers }).then(()=>({ok:true})).catch(e=>({ok:false,error:e}));
     }
   };
 }
-function makeStub() {
-  return { upsert:()=>Promise.resolve({ok:false}), insert:()=>Promise.resolve({ok:false}), select:()=>Promise.resolve({ok:false,data:[]}), delete:()=>Promise.resolve({ok:false}) };
-}
+
+showStatus('Supabase OK', true);
 
 async function migrateToSupabase() {
-  if (!supabase) return;
   if (localStorage.getItem('ic_supabase_migrated')) return;
   const users = localStorage.getItem(STORAGE_KEY);
   if (users) for (const [u,p] of Object.entries(JSON.parse(users))) await sb('users').upsert({username:u,password:p},'username');
@@ -1169,13 +1159,11 @@ enterIDE = function(username) {
   origEnterIDE(username);
   loadEditLayout();
   setTimeout(checkFriendRequests, 1000);
-  if (supabase) {
-    sb('themes').select({username}).then(r => {
-      if (r.ok && r.data && r.data.length && r.data[0].theme) {
-        applyTheme(r.data[0].theme);
-      }
-    });
-  }
+  sb('themes').select({username}).then(r => {
+    if (r.ok && r.data && r.data.length && r.data[0].theme) {
+      applyTheme(r.data[0].theme);
+    }
+  });
 };
 
 function showSiteCode(output) {
@@ -1358,7 +1346,7 @@ function closeChat() {
 }
 
 async function loadChatMessages() {
-  if (!chatPartner || !supabase) return;
+  if (!chatPartner) return;
   const r = await sb('chat_messages').select();
   if (!r.ok || !r.data) return;
   const msgs = r.data.filter(m =>
@@ -1376,7 +1364,7 @@ async function loadChatMessages() {
 }
 
 async function checkFriendRequests() {
-  if (!supabase || !currentUser) return;
+  if (!currentUser) return;
   const r = await sb('friend_requests').select({to_user:currentUser,status:'pending'});
   const notif = document.getElementById('friendNotif');
   if (r.ok && r.data && r.data.length) {

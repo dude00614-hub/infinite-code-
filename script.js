@@ -9,33 +9,26 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 let supabase = null;
 try { supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch(e) {}
 
-async function sb(table) {
-  if (!supabase) return { ok: false };
+function sb(table) {
+  if (!supabase) return makeStub();
+  const t = () => supabase.from(table);
   return {
-    async upsert(data, conflict) {
-      try { await supabase.from(table).upsert(data, { onConflict: conflict }); return { ok: true }; }
-      catch(e) { return { ok: false, error: e }; }
+    upsert: (data, conflict) => t().upsert(data,{onConflict:conflict}).then(()=>({ok:true})).catch(e=>({ok:false,error:e})),
+    insert: (data) => t().insert(data).then(()=>({ok:true})).catch(e=>({ok:false,error:e})),
+    select: (match) => {
+      let q = t().select();
+      for (const k of Object.keys(match||{})) q = q.eq(k, match[k]);
+      return q.then(({data})=>({ok:true,data})).catch(e=>({ok:false,error:e}));
     },
-    async insert(data) {
-      try { await supabase.from(table).insert(data); return { ok: true }; }
-      catch(e) { return { ok: false, error: e }; }
-    },
-    async select(match) {
-      try {
-        let q = supabase.from(table).select();
-        for (const k of Object.keys(match||{})) q = q.eq(k, match[k]);
-        const { data } = await q;
-        return { ok: true, data };
-      } catch(e) { return { ok: false, error: e }; }
-    },
-    async delete(match) {
-      try {
-        let q = supabase.from(table).delete();
-        for (const k of Object.keys(match)) q = q.eq(k, match[k]);
-        await q; return { ok: true };
-      } catch(e) { return { ok: false, error: e }; }
+    delete: (match) => {
+      let q = t().delete();
+      for (const k of Object.keys(match)) q = q.eq(k, match[k]);
+      return q.then(()=>({ok:true})).catch(e=>({ok:false,error:e}));
     }
   };
+}
+function makeStub() {
+  return { upsert:()=>Promise.resolve({ok:false}), insert:()=>Promise.resolve({ok:false}), select:()=>Promise.resolve({ok:false,data:[]}), delete:()=>Promise.resolve({ok:false}) };
 }
 
 async function migrateToSupabase() {

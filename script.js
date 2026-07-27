@@ -16,6 +16,10 @@ async function sb(table) {
       try { await supabase.from(table).upsert(data, { onConflict: conflict }); return { ok: true }; }
       catch(e) { return { ok: false, error: e }; }
     },
+    async insert(data) {
+      try { await supabase.from(table).insert(data); return { ok: true }; }
+      catch(e) { return { ok: false, error: e }; }
+    },
     async select(match) {
       try {
         let q = supabase.from(table).select();
@@ -1234,10 +1238,13 @@ document.getElementById('runInput').addEventListener('keydown', function(e) {
     const friend = input.slice(12).trim();
     if (!friend) { output.appendChild(err('Specify a username')); }
     else if (friend === currentUser) { output.appendChild(err("Can't add yourself")); }
-    else { sb('friend_requests').upsert({from_user:currentUser,to_user:friend,status:'pending'},'').then(r => {
+    else { sb('friend_requests').select({from_user:currentUser,to_user:friend,status:'pending'}).then(ex => {
+      if (ex.ok && ex.data && ex.data.length) { output.appendChild(err('Request already pending')); output.scrollTop = output.scrollHeight; return; }
+      sb('friend_requests').insert({from_user:currentUser,to_user:friend,status:'pending'}).then(r => {
         output.appendChild(r.ok ? ok('Friend request sent to ' + friend) : err('Failed (tables not created yet?)'));
         output.scrollTop = output.scrollHeight;
       });
+    });
     }
   } else if (input.startsWith('@accept ')) {
     const friend = input.slice(8).trim();
@@ -1267,17 +1274,21 @@ document.getElementById('runInput').addEventListener('keydown', function(e) {
     }
     output.scrollTop = output.scrollHeight;
   } else if (input === '@chat') {
-    sb('friend_requests').select({to_user:currentUser,status:'accepted'}).then(r => {
-      if (r.ok && r.data.length) {
-        const list = r.data.map(f => f.from_user).join(', ');
-        output.appendChild(ok('Friends: ' + list));
-      } else {
-        sb('friend_requests').select({from_user:currentUser,status:'accepted'}).then(r2 => {
-          const list = r2.ok && r2.data.length ? r2.data.map(f => f.to_user).join(', ') : 'No friends yet';
-          output.appendChild(ok('Friends: ' + list));
-        });
-      }
-      output.scrollTop = output.scrollHeight;
+    sb('friend_requests').select({status:'accepted'}).then(r => {
+      const all = [];
+      if (r.ok && r.data) r.data.forEach(f => {
+        if (f.from_user === currentUser) all.push(f.to_user);
+        if (f.to_user === currentUser) all.push(f.from_user);
+      });
+      const unique = [...new Set(all)];
+      output.appendChild(ok('Friends: ' + (unique.length ? unique.join(', ') : 'None yet')));
+      // Also show pending
+      sb('friend_requests').select({to_user:currentUser,status:'pending'}).then(r2 => {
+        if (r2.ok && r2.data && r2.data.length) {
+          output.appendChild(ok('Pending requests: ' + r2.data.map(f => f.from_user).join(', ') + ' (use @accept [name])'));
+        }
+        output.scrollTop = output.scrollHeight;
+      });
     });
   } else if (input.startsWith('@send ')) {
     const msg = input.slice(6).trim();
@@ -1309,7 +1320,7 @@ function formatTime(ts) {
 }
 
 async function sendMessage(to, msg) {
-  await sb('chat_messages').upsert({from_user:currentUser,to_user:to,message:msg},'');
+  await sb('chat_messages').insert({from_user:currentUser,to_user:to,message:msg});
   loadChatMessages();
 }
 

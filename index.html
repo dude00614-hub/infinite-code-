@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Infinite Code</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="loginScreen">
+    <div class="login-box">
+      <div class="login-logo">
+        <span class="logo-icon">&infin;</span>
+        <h1>Infinite Code</h1>
+      </div>
+      <form id="loginForm">
+        <div class="input-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" placeholder="Enter username" required>
+        </div>
+        <div class="input-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="Enter password" required>
+        </div>
+        <button type="submit">Sign In</button>
+        <p class="toggle-auth">Don't have an account? <a href="#" id="showSignup">Sign up</a></p>
+        <p id="loginError" class="error"></p>
+        <div class="guest-section">
+          <span class="guest-divider">or</span>
+          <button type="button" id="guestBtn">Continue as Guest</button>
+        </div>
+      </form>
+      <form id="signupForm" class="hidden">
+        <div class="input-group">
+          <label for="newUsername">Username</label>
+          <input type="text" id="newUsername" placeholder="Choose a username" required>
+        </div>
+        <div class="input-group">
+          <label for="newPassword">Password</label>
+          <input type="password" id="newPassword" placeholder="Choose a password" required>
+        </div>
+        <div class="input-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <input type="password" id="confirmPassword" placeholder="Confirm password" required>
+        </div>
+        <button type="submit">Sign Up</button>
+        <p class="toggle-auth">Already have an account? <a href="#" id="showLogin">Sign in</a></p>
+        <p id="signupError" class="error"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="ide" class="hidden">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="logo-icon-small">&infin;</span>
+        <span class="topbar-brand">Infinite Code</span>
+        <div class="topbar-tabs">
+          <button class="topbar-tab active" data-tab="code">&lt;/&gt; Code</button>
+          <button class="topbar-tab" data-tab="database">&#128451; Database</button>
+          <button class="topbar-tab owner-only" data-tab="run">&#9654; /run</button>
+          <button class="topbar-tab" data-tab="settings">&#9881; Settings</button>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="owner-badge hidden" id="ownerBadge">Owner</span>
+        <button id="logoutBtn">Sign Out</button>
+      </div>
+    </div>
+
+    <div class="ide-body">
+      <div class="editor-area">
+          <div class="tab-content active" id="tab-code">
+            <div class="code-layout">
+              <div class="project-sidebar">
+                <div class="sidebar-header">
+                  <span>PROJECTS</span>
+                  <button id="newProjectBtn" title="New Project">+</button>
+                </div>
+                <div class="project-list" id="projectList"></div>
+              </div>
+              <div class="code-editor-area">
+                <div class="editor-tabs" id="editorTabs">
+                  <button class="preview-toggle" id="previewToggle" title="Toggle Preview">&#9654; Preview</button>
+                </div>
+                  <div class="editor-content" id="editorContent">
+                  <div class="placeholder" id="noProjectPlaceholder">
+                    <span class="placeholder-icon">&infin;</span>
+                    <h2>No project open</h2>
+                    <p>Create or select a project to start coding</p>
+                  </div>
+                  <div class="editor-split hidden" id="editorSplit">
+                    <div class="editor-input hidden" id="editorInput">
+                      <div class="editor-line-numbers" id="lineNumbers"></div>
+                      <div class="editor-input-body">
+                        <div class="editor-highlight-wrap">
+                          <pre class="editor-highlight" id="editorHighlight"><code id="highlightCode"></code></pre>
+                          <textarea class="editor-textarea" id="codeTextarea" spellcheck="false" placeholder="Start typing your Infinite Code..."></textarea>
+                        </div>
+                        <div class="suggestions" id="suggestionsDropdown"></div>
+                      </div>
+                    </div>
+                    <div class="preview-panel hidden" id="previewPanel">
+                      <div class="preview-header">Output</div>
+                      <div class="preview-actions">
+                        <button class="run-btn" id="runCodeBtn">&#9654; Run</button>
+                      </div>
+                      <div class="preview-output" id="previewOutput">
+                        <div class="output-placeholder">Click Run to execute your code</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="cmd-console hidden" id="cmdConsole">
+                    <div class="cmd-console-header">
+                      <span class="cmd-console-title">&#9654; Console</span>
+                      <button class="cmd-console-close" id="cmdConsoleClose">&times;</button>
+                    </div>
+                    <div class="cmd-console-output" id="cmdConsoleOutput"></div>
+                    <div class="cmd-console-input-line">
+                      <span class="cmd-console-prompt">&gt;</span>
+                      <input type="text" class="cmd-console-input" id="cmdConsoleInput" placeholder="Type a command...">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-content" id="tab-database">
+            <div class="db-layout">
+              <div class="db-toolbar">
+                <input type="text" class="db-search" id="dbSearch" placeholder="Search commands...">
+                <button class="db-add-btn owner-only" id="dbAddBtn" title="Add entry">+</button>
+              </div>
+              <div class="db-tags" id="dbTags"></div>
+              <div class="db-list" id="dbList"></div>
+            </div>
+            <div class="db-form-overlay hidden" id="dbFormOverlay">
+              <div class="db-form-box">
+                <h3>Add Code Explanation</h3>
+                <div class="input-group">
+                  <label>Command</label>
+                  <input type="text" id="dbFormCommand" placeholder="@command">
+                </div>
+                <div class="input-group">
+                  <label>Description</label>
+                  <textarea id="dbFormDesc" rows="3" placeholder="Explain what this command does..."></textarea>
+                </div>
+                <div class="input-group">
+                  <label>Tags (comma-separated)</label>
+                  <input type="text" id="dbFormTags" placeholder="preview, owner, upcoming codes">
+                </div>
+                <div class="create-project-actions">
+                  <button class="btn-cancel" id="dbFormCancel">Cancel</button>
+                  <button class="btn-create" id="dbFormSave">Save</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-content" id="tab-run">
+            <div class="run-terminal">
+              <div class="run-header">/run — Command Terminal</div>
+              <div class="run-output" id="runOutput">
+                <div class="run-line welcome">Welcome to /run. Owner-only commands available.</div>
+              </div>
+              <div class="run-input-line">
+                <span class="run-prompt">&gt;</span>
+                <input type="text" id="runInput" class="run-input" placeholder="Type @link &lt;name&gt; to open a link..." autofocus>
+              </div>
+            </div>
+          </div>
+          <div class="tab-content" id="tab-settings">
+            <div class="settings-panel">
+              <h2 class="settings-title">Theme Settings</h2>
+              <p class="settings-subtitle">Choose your color theme</p>
+              <div class="theme-grid">
+                <div class="theme-card" data-theme="red">
+                  <span class="theme-name">Crimson</span>
+                </div>
+                <div class="theme-card" data-theme="teal">
+                  <span class="theme-name">Teal</span>
+                </div>
+                <div class="theme-card" data-theme="purple">
+                  <span class="theme-name">Purple</span>
+                </div>
+              </div>
+              <hr class="settings-divider">
+              <h2 class="settings-title">Data Transfer</h2>
+              <p class="settings-subtitle">Export your data to move it to another domain</p>
+              <div class="data-actions">
+                <button class="data-btn" id="exportBtn">&#128229; Export All Data</button>
+                <button class="data-btn" id="importBtn">&#128228; Import Data</button>
+                <input type="file" id="importFileInput" accept=".json" class="hidden">
+              </div>
+              <p id="dataStatus" class="data-status"></p>
+            </div>
+          </div>
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -2,12 +2,36 @@ const OWNERS = ['TheAdminCreator', 'Amused'];
 const STORAGE_KEY = 'infinite_code_users_v2';
 const THEME_KEY = 'infinite_code_theme';
 
+window.onerror = function(msg, url, line, col, err) {
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ff4444;color:#fff;padding:12px;z-index:9999;font-size:13px;font-family:monospace;word-break:break-all';
+  d.textContent = 'ERROR line ' + line + ': ' + msg + (err ? ' | ' + err.stack : '');
+  document.body.prepend(d);
+};
+
+function showStatus(msg, ok) {
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:'+(ok?'#22aa44':'#cc6600')+';color:#fff;padding:8px;z-index:9999;font-size:12px;font-family:monospace;text-align:center';
+  d.textContent = msg;
+  d.id = 'statusBar';
+  const old = document.getElementById('statusBar');
+  if (old) old.remove();
+  document.body.appendChild(d);
+  setTimeout(()=>d.remove(), 10000);
+}
+showStatus('Script loaded', true);
+
 // ===== SUPABASE =====
 const SUPABASE_URL = 'https://viuphflhwwjsaplqcore.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpdXBoZmxod3dqc2FwbHFjb3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxMzc1NDAsImV4cCI6MjEwMDcxMzU0MH0.tOrv0z8990wogEGOdI_-XqyliWaAkKFJNxyywTjGrp4';
 
 let supabase = null;
-try { supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch(e) {}
+try {
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  showStatus('Supabase OK', true);
+} catch(e) {
+  showStatus('Supabase FAILED: ' + (e.message||e), false);
+}
 
 function sb(table) {
   if (!supabase) return makeStub();

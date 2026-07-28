@@ -485,26 +485,42 @@ function getCurrentWord() {
 
 document.getElementById('codeTextarea').addEventListener('keydown', function(e) {
   const dropdown = document.getElementById('suggestionsDropdown');
-  if (!dropdown.classList.contains('active')) return;
-  if (e.key === 'ArrowDown') {
+  if (dropdown.classList.contains('active')) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const items = dropdown.querySelectorAll('.suggestion-item');
+      items[suggestionIndex]?.classList.remove('active');
+      suggestionIndex = Math.min(suggestionIndex + 1, items.length - 1);
+      items[suggestionIndex]?.classList.add('active');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const items = dropdown.querySelectorAll('.suggestion-item');
+      items[suggestionIndex]?.classList.remove('active');
+      suggestionIndex = Math.max(suggestionIndex - 1, 0);
+      items[suggestionIndex]?.classList.add('active');
+    } else if (e.key === 'Tab' || e.key === 'Enter') {
+      e.preventDefault();
+      acceptSuggestion();
+    } else if (e.key === 'Escape') {
+      dropdown.classList.remove('active');
+      dropdown.innerHTML = '';
+      suggestionIndex = -1;
+    }
+    return;
+  }
+  // Auto-indent on Enter
+  if (e.key === 'Enter') {
     e.preventDefault();
-    const items = dropdown.querySelectorAll('.suggestion-item');
-    items[suggestionIndex]?.classList.remove('active');
-    suggestionIndex = Math.min(suggestionIndex + 1, items.length - 1);
-    items[suggestionIndex]?.classList.add('active');
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    const items = dropdown.querySelectorAll('.suggestion-item');
-    items[suggestionIndex]?.classList.remove('active');
-    suggestionIndex = Math.max(suggestionIndex - 1, 0);
-    items[suggestionIndex]?.classList.add('active');
-  } else if (e.key === 'Tab' || e.key === 'Enter') {
-    e.preventDefault();
-    acceptSuggestion();
-  } else if (e.key === 'Escape') {
-    dropdown.classList.remove('active');
-    dropdown.innerHTML = '';
-    suggestionIndex = -1;
+    const start = this.selectionStart;
+    const value = this.value;
+    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+    const currentLine = value.substring(lineStart, start);
+    const indent = currentLine.match(/^\s*/)[0];
+    const insertion = '\n' + indent;
+    this.value = value.substring(0, start) + insertion + value.substring(this.selectionEnd);
+    const pos = start + insertion.length;
+    this.selectionStart = this.selectionEnd = pos;
+    this.dispatchEvent(new Event('input'));
   }
 });
 

@@ -833,6 +833,7 @@ function openCroshWindow() {
     d.textContent = text;
     d.style.color = '#e8c8c8';
     output.appendChild(d);
+    output.scrollTop = output.scrollHeight;
   }
 
   input.addEventListener('keydown', function(e) {

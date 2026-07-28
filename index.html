@@ -83,6 +83,7 @@
               <div class="code-editor-area">
                 <div class="editor-tabs" id="editorTabs">
                   <button class="preview-toggle" id="previewToggle" title="Toggle Preview">&#9654; Preview</button>
+                  <button class="quick-code-btn" id="quickCodeBtn" title="Quick Code">+</button>
                 </div>
                   <div class="editor-content" id="editorContent">
                   <div class="placeholder" id="noProjectPlaceholder">
@@ -121,6 +122,18 @@
                     <div class="cmd-console-input-line">
                       <span class="cmd-console-prompt">&gt;</span>
                       <input type="text" class="cmd-console-input" id="cmdConsoleInput" placeholder="Type a command...">
+                    </div>
+                  </div>
+                  <div class="quick-code-overlay hidden" id="quickCodeOverlay">
+                    <div class="quick-code-window" id="quickCodeWindow">
+                      <div class="quick-code-header" id="quickCodeHeader">
+                        <span class="quick-code-title">Quick Code</span>
+                        <button class="quick-code-close" id="quickCodeClose">&times;</button>
+                      </div>
+                      <textarea class="quick-code-textarea" id="quickCodeTextarea" placeholder="Type one line of code..."></textarea>
+                      <div class="quick-code-actions">
+                        <button class="quick-code-approve" id="quickCodeApprove">Approve</button>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -308,7 +308,7 @@ function openProject(name) {
   let code = proj.code || '';
   if (!code.startsWith('@inf\n')) code = '@inf\n' + code;
   document.getElementById('codeTextarea').value = code;
-  document.getElementById('editorTabs').innerHTML = '<div class="editor-tab active">' + proj.name + '</div><button class="preview-toggle" id="previewToggle" title="Toggle Preview">&#9654; Preview</button><button class="console-toggle" id="consoleToggle" title="Toggle Console">&#8801; Console</button>';
+  document.getElementById('editorTabs').innerHTML = '<div class="editor-tab active">' + proj.name + '</div><button class="preview-toggle" id="previewToggle" title="Toggle Preview">&#9654; Preview</button><button class="quick-code-btn" id="quickCodeBtn" title="Quick Code">+</button><button class="console-toggle" id="consoleToggle" title="Toggle Console">&#8801; Console</button>';
   updateLineNumbers();
   updateHighlight();
   document.getElementById('previewPanel').classList.add('hidden');
@@ -330,6 +330,67 @@ function openProject(name) {
       document.getElementById('cmdConsoleInput').focus();
     }
   });
+  // Re-bind quick code (+ button)
+  document.getElementById('quickCodeBtn').addEventListener('click', function() {
+    document.getElementById('quickCodeOverlay').classList.remove('hidden');
+    document.getElementById('quickCodeTextarea').value = '';
+    document.getElementById('quickCodeTextarea').focus();
+  });
+  document.getElementById('quickCodeClose').addEventListener('click', function() {
+    document.getElementById('quickCodeOverlay').classList.add('hidden');
+  });
+  document.getElementById('quickCodeTextarea').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      document.getElementById('quickCodeApprove').click();
+    }
+  });
+  document.getElementById('quickCodeApprove').addEventListener('click', function() {
+    const text = document.getElementById('quickCodeTextarea').value.trim();
+    if (!text) { document.getElementById('quickCodeOverlay').classList.add('hidden'); return; }
+    const ta = document.getElementById('codeTextarea');
+    const start = ta.selectionStart;
+    const val = ta.value;
+    const before = val.substring(0, start);
+    const after = val.substring(ta.selectionEnd);
+    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+    const lineEnd = val.indexOf('\n', start);
+    const end = lineEnd >= 0 ? lineEnd : val.length;
+    const beforeLine = val.substring(lineStart, end);
+    const indent = beforeLine.match(/^\s*/)[0];
+    ta.value = before + (start > 0 && before[before.length-1] !== '\n' ? '\n' : '') + indent + text + '\n' + after;
+    ta.selectionStart = ta.selectionEnd = lineStart + indent.length + text.length + 1;
+    ta.focus();
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('quickCodeOverlay').classList.add('hidden');
+  });
+  // Quick code window drag
+  (function() {
+    const win = document.getElementById('quickCodeWindow');
+    const handle = document.getElementById('quickCodeHeader');
+    let dx = 0, dy = 0;
+    handle.addEventListener('mousedown', function(e) {
+      if (e.target.closest('.quick-code-close')) return;
+      const rect = win.getBoundingClientRect();
+      win.style.transform = 'none';
+      win.style.left = rect.left + 'px';
+      win.style.top = rect.top + 'px';
+      dx = e.clientX - rect.left;
+      dy = e.clientY - rect.top;
+      const onMove = function(ev) {
+        win.style.left = (ev.clientX - dx) + 'px';
+        win.style.top = (ev.clientY - dy) + 'px';
+        win.style.right = 'auto';
+        win.style.bottom = 'auto';
+      };
+      const onUp = function() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  })();
 }
 
 function deleteProject(name) {

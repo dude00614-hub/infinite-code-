@@ -814,6 +814,16 @@ document.getElementById('runCodeBtn').addEventListener('click', function() {
   executeCode(code, document.getElementById('previewOutput'));
 });
 
+// Fullscreen preview
+document.getElementById('fullscreenBtn').addEventListener('click', function() {
+  const panel = document.getElementById('previewPanel');
+  const goingFull = !panel.classList.contains('fullscreen');
+  panel.classList.toggle('fullscreen');
+  if (goingFull) panel.classList.remove('hidden');
+  this.classList.toggle('active');
+  this.innerHTML = goingFull ? '&#10006;' : '&#9974;';
+});
+
 // New project overlay
 document.getElementById('newProjectBtn').addEventListener('click', function() {
   const overlay = document.createElement('div');

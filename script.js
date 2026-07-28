@@ -370,7 +370,7 @@ const suggestionList = [
   { label: '@inf', desc: 'required first line' },
   { label: '@background [#hex]', desc: 'set preview background' },
   { label: '@open', desc: 'open code in a new tab' },
-  { label: '@open [blob]', desc: 'open with a shareable blob link' },
+  { label: '@open [web]', desc: 'open with a shareable blob link' },
   { label: '@project [open]', desc: 'open a project' },
   { label: '@project tic tac toe', desc: 'create a tic tac toe game' },
   { label: '@project tic tac toe /', desc: 'create a tic tac toe game with a number' },
@@ -587,7 +587,7 @@ function executeCode(code, outputEl) {
     const trimmed = line.trim();
     if (trimmed === '@open') {
       openCodeInTab();
-    } else if (trimmed === '@open [blob]') {
+    } else if (trimmed === '@open [web]') {
       const url = openCodeInTab();
       outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">Blob link: <a href="' + url + '" target="_blank" style="color:#50e3c2;text-decoration:underline;">' + url + '</a></div>';
     } else if (trimmed === '@project [open]') {
@@ -757,12 +757,12 @@ document.getElementById('cmdConsoleInput').addEventListener('keydown', function(
   line.innerHTML = '<span class="cmd-console-prompt">&gt;</span> ' + input;
   output.appendChild(line);
 
-  if (input === '@open' || input === '@open [blob]') {
+  if (input === '@open' || input === '@open [web]') {
     const url = openCodeInTab();
     const msg = document.createElement('div');
     msg.className = 'cmd-console-line';
     msg.style.color = '#50e3c2';
-    const label = input === '@open [blob]' ? 'Blob link' : 'Preview opened';
+    const label = input === '@open [web]' ? 'Blob link' : 'Preview opened';
     msg.innerHTML = label + ': <a href="' + url + '" target="_blank" style="color:#50e3c2;text-decoration:underline;">' + url + '</a>';
     output.appendChild(msg);
   } else if (input === '@run') {
@@ -1434,7 +1434,7 @@ function getDefaultDB() {
     { id: 1, command: '@inf', description: 'Must be the first line of all Infinite Code. Required for execution.', tags: ['required'], addedBy: 'system' },
     { id: 2, command: '@background [#hex]', description: 'Changes the preview background to the specified hex color. Example: @background [#ff0000]', tags: ['preview'], addedBy: 'system' },
     { id: 3, command: '@open', description: 'Opens the current code preview in a new browser tab.', tags: ['preview', 'console'], addedBy: 'system' },
-    { id: 4, command: '@open [blob]', description: 'Opens the preview in a new tab and displays a shareable blob URL in the output.', tags: ['preview', 'console'], addedBy: 'system' },
+    { id: 4, command: '@open [web]', description: 'Opens the preview in a new tab and displays a shareable blob URL in the output.', tags: ['preview', 'console'], addedBy: 'system' },
     { id: 5, command: '@run', description: 'Executes the current editor code from the command console.', tags: ['console'], addedBy: 'system' },
     { id: 6, command: '@edit [.inf] / @edit /edit', description: 'Toggles visual edit mode for owners. Allows clicking and dragging UI elements.', tags: ['edit-mode', 'owner'], addedBy: 'system' },
     { id: 7, command: '@edit /reset', description: 'Clears all saved edit layout changes and reloads the page.', tags: ['edit-mode', 'owner'], addedBy: 'system' },

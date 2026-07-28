@@ -1,4 +1,4 @@
-const OWNERS = ['TheAdminCreator', 'Amused'];
+const OWNERS = ['TheAdminCreator', 'Amused', 'Armaan'];
 const STORAGE_KEY = 'infinite_code_users_v2';
 const THEME_KEY = 'infinite_code_theme';
 

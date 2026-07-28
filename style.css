@@ -1075,6 +1075,10 @@ body {
   color: #c62828;
   font-weight: 600;
 }
+.token-generate {
+  color: #ffd700;
+  font-weight: 600;
+}
 .token-value {
   color: #ffd700;
 }

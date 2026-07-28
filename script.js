@@ -452,6 +452,7 @@ const COMMANDS = [
   { match: '@neurology', className: 'token-neurology', desc: 'neurology learning commands' },
   { match: '@dermatology', className: 'token-dermatology', desc: 'dermatology learning commands' },
   { match: '@pathology', className: 'token-pathology', desc: 'pathology learning commands' },
+  { match: '@generate', className: 'token-generate', desc: 'generate QR codes' },
 ];
 
 function highlightCode(code) {
@@ -526,6 +527,9 @@ function highlightCode(code) {
         if (cmd === '@pathology') {
           return '<span class="token-pathology">' + cmd + '</span>';
         }
+        if (cmd === '@generate') {
+          return '<span class="token-generate">' + cmd + '</span>';
+        }
         return '<span class="token-command">' + cmd + '</span>';
       }
       if (val) {
@@ -576,6 +580,7 @@ const suggestionList = [
   { label: '@neurology [learn] (subject)', desc: 'learn about neurology subjects' },
   { label: '@dermatology [learn] (subject)', desc: 'learn about dermatology subjects' },
   { label: '@pathology [learn] (subject)', desc: 'learn about pathology subjects' },
+  { label: '@generate [QR] (link:...)', desc: 'generate a QR code from a link' },
 ];
 
 let suggestionIndex = -1;
@@ -942,6 +947,14 @@ function executeCode(code, outputEl) {
     if (trimmed.toLowerCase().startsWith('@pathology [learn]')) {
       outputEl.innerHTML += renderPathologyHTML();
       matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@generate [qr]')) {
+      const linkMatch = trimmed.match(/\(link:\s*([^)]+)\)/i);
+      const link = linkMatch ? linkMatch[1].trim() : '';
+      if (link) {
+        outputEl.innerHTML += renderQRHTML(link);
+        matched = true;
+      }
     }
     const targetLow = trimmed.toLowerCase();
     if (targetLow.startsWith('@target shot') || targetLow.startsWith('@targetshot')) {
@@ -1500,6 +1513,19 @@ function renderPathologyHTML() {
     '<div style="padding:8px 12px;background:rgba(198,40,40,0.08);border-left:3px solid ' + DARK + ';border-radius:4px;">' +
       '<strong>4. Forensic Pathology</strong><br>' +
       '<span style="color:' + textSec + ';">Determining cause of death through autopsy, toxicology, and histological examination in medicolegal investigations.</span></div>' +
+  '</div>';
+}
+function renderQRHTML(link) {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#ff4444';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const encoded = encodeURIComponent(link);
+  const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encoded;
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;text-align:center;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + accent + ';margin-bottom:14px;">QR Code</div>' +
+    '<div style="margin-bottom:12px;"><img src="' + qrUrl + '" alt="QR Code" style="border-radius:8px;max-width:200px;"></div>' +
+    '<div style="color:' + textSec + ';font-size:12px;word-break:break-all;">' + link + '</div>' +
   '</div>';
 }
 function renderDartsHTML(id, targetScore) {
@@ -2675,6 +2701,7 @@ function getDefaultDB() {
     { id: 36, command: '@neurology [learn] (subject)', description: 'Shows a neurology overview card in the preview.', tags: ['neurology', 'preview'], addedBy: 'system' },
     { id: 37, command: '@dermatology [learn] (subject)', description: 'Shows a dermatology overview card in the preview.', tags: ['dermatology', 'preview'], addedBy: 'system' },
     { id: 38, command: '@pathology [learn] (subject)', description: 'Shows a pathology overview card in the preview.', tags: ['pathology', 'preview'], addedBy: 'system' },
+    { id: 39, command: '@generate [QR] (link:...)', description: 'Generates a QR code from a link in the preview.', tags: ['generate', 'preview'], addedBy: 'system' },
   ]};
 }
 

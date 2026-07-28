@@ -444,6 +444,14 @@ const COMMANDS = [
   { match: '@bryology', className: 'token-bryology', desc: 'bryology learning commands' },
   { match: '@dendrology', className: 'token-dendrology', desc: 'dendrology learning commands' },
   { match: '@pomology', className: 'token-pomology', desc: 'pomology learning commands' },
+  { match: '@meteorology', className: 'token-meteorology', desc: 'meteorology learning commands' },
+  { match: '@oceanology', className: 'token-oceanology', desc: 'oceanology learning commands' },
+  { match: '@technology', className: 'token-technology', desc: 'technology learning commands' },
+  { match: '@marinebiology', className: 'token-marinebiology', desc: 'marinebiology learning commands' },
+  { match: '@cardiology', className: 'token-cardiology', desc: 'cardiology learning commands' },
+  { match: '@neurology', className: 'token-neurology', desc: 'neurology learning commands' },
+  { match: '@dermatology', className: 'token-dermatology', desc: 'dermatology learning commands' },
+  { match: '@pathology', className: 'token-pathology', desc: 'pathology learning commands' },
 ];
 
 function highlightCode(code) {
@@ -494,6 +502,30 @@ function highlightCode(code) {
         if (cmd === '@pomology') {
           return '<span class="token-pomology">' + cmd + '</span>';
         }
+        if (cmd === '@meteorology') {
+          return '<span class="token-meteorology">' + cmd + '</span>';
+        }
+        if (cmd === '@oceanology') {
+          return '<span class="token-oceanology">' + cmd + '</span>';
+        }
+        if (cmd === '@technology') {
+          return '<span class="token-technology">' + cmd + '</span>';
+        }
+        if (cmd === '@marinebiology') {
+          return '<span class="token-marinebiology">' + cmd + '</span>';
+        }
+        if (cmd === '@cardiology') {
+          return '<span class="token-cardiology">' + cmd + '</span>';
+        }
+        if (cmd === '@neurology') {
+          return '<span class="token-neurology">' + cmd + '</span>';
+        }
+        if (cmd === '@dermatology') {
+          return '<span class="token-dermatology">' + cmd + '</span>';
+        }
+        if (cmd === '@pathology') {
+          return '<span class="token-pathology">' + cmd + '</span>';
+        }
         return '<span class="token-command">' + cmd + '</span>';
       }
       if (val) {
@@ -536,6 +568,14 @@ const suggestionList = [
   { label: '@bryology [learn] (subject)', desc: 'learn about bryology subjects' },
   { label: '@dendrology [learn] (subject)', desc: 'learn about dendrology subjects' },
   { label: '@pomology [learn] (subject)', desc: 'learn about pomology subjects' },
+  { label: '@meteorology [learn] (subject)', desc: 'learn about meteorology subjects' },
+  { label: '@oceanology [learn] (subject)', desc: 'learn about oceanology subjects' },
+  { label: '@technology [learn] (subject)', desc: 'learn about technology subjects' },
+  { label: '@marinebiology [learn] (subject)', desc: 'learn about marine biology subjects' },
+  { label: '@cardiology [learn] (subject)', desc: 'learn about cardiology subjects' },
+  { label: '@neurology [learn] (subject)', desc: 'learn about neurology subjects' },
+  { label: '@dermatology [learn] (subject)', desc: 'learn about dermatology subjects' },
+  { label: '@pathology [learn] (subject)', desc: 'learn about pathology subjects' },
 ];
 
 let suggestionIndex = -1;
@@ -869,6 +909,38 @@ function executeCode(code, outputEl) {
     }
     if (trimmed.toLowerCase().startsWith('@pomology [learn]')) {
       outputEl.innerHTML += renderPomologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@meteorology [learn]')) {
+      outputEl.innerHTML += renderMeteorologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@oceanology [learn]')) {
+      outputEl.innerHTML += renderOceanologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@technology [learn]')) {
+      outputEl.innerHTML += renderTechnologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@marinebiology [learn]')) {
+      outputEl.innerHTML += renderMarineBiologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@cardiology [learn]')) {
+      outputEl.innerHTML += renderCardiologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@neurology [learn]')) {
+      outputEl.innerHTML += renderNeurologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@dermatology [learn]')) {
+      outputEl.innerHTML += renderDermatologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@pathology [learn]')) {
+      outputEl.innerHTML += renderPathologyHTML();
       matched = true;
     }
     const targetLow = trimmed.toLowerCase();
@@ -1228,6 +1300,206 @@ function renderPomologyHTML() {
     '<div style="padding:8px 12px;background:rgba(255,145,0,0.08);border-left:3px solid ' + ORANGE + ';border-radius:4px;">' +
       '<strong>4. Post-Harvest Physiology</strong><br>' +
       '<span style="color:' + textSec + ';">Ripening processes (ethylene control), cold storage, transportation, and prevention of spoilage and physiological disorders.</span></div>' +
+  '</div>';
+}
+function renderMeteorologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const SKY = '#4fc3f7';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + SKY + ';margin-bottom:14px;">Meteorology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + SKY + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(79,195,247,0.08);border-left:3px solid ' + SKY + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Meteorology is the scientific study of the atmosphere, weather, and climate. It applies physics and chemistry to understand atmospheric phenomena and predict weather patterns.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + SKY + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(79,195,247,0.08);border-left:3px solid ' + SKY + ';border-radius:4px;">' +
+      '<strong>1. Atmospheric Dynamics</strong><br>' +
+      '<span style="color:' + textSec + ';">Study of air motion, pressure systems, jet streams, cyclones, and the general circulation of the atmosphere.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(79,195,247,0.08);border-left:3px solid ' + SKY + ';border-radius:4px;">' +
+      '<strong>2. Weather Forecasting</strong><br>' +
+      '<span style="color:' + textSec + ';">Numerical weather prediction using satellite data, radar, radiosondes, and computer models (GFS, ECMWF).</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(79,195,247,0.08);border-left:3px solid ' + SKY + ';border-radius:4px;">' +
+      '<strong>3. Cloud Physics &amp; Precipitation</strong><br>' +
+      '<span style="color:' + textSec + ';">Cloud formation (cumulus, stratus, cirrus), microphysics, rain/snow/hail formation, and severe storms (thunderstorms, tornadoes).</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(79,195,247,0.08);border-left:3px solid ' + SKY + ';border-radius:4px;">' +
+      '<strong>4. Climatology</strong><br>' +
+      '<span style="color:' + textSec + ';">Long-term climate patterns, climate change (greenhouse effect, ENSO), paleoclimatology, and climate modeling.</span></div>' +
+  '</div>';
+}
+function renderOceanologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const DEEP = '#0288d1';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + DEEP + ';margin-bottom:14px;">Oceanology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + DEEP + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(2,136,209,0.08);border-left:3px solid ' + DEEP + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Oceanology (or oceanography) is the scientific study of the ocean, its physical and chemical properties, currents, marine life, and interactions with the atmosphere and seafloor.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + DEEP + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(2,136,209,0.08);border-left:3px solid ' + DEEP + ';border-radius:4px;">' +
+      '<strong>1. Physical Oceanography</strong><br>' +
+      '<span style="color:' + textSec + ';">Ocean currents (Gulf Stream, thermohaline circulation), waves, tides, and the interaction between ocean and atmosphere (ENSO).</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(2,136,209,0.08);border-left:3px solid ' + DEEP + ';border-radius:4px;">' +
+      '<strong>2. Chemical Oceanography</strong><br>' +
+      '<span style="color:' + textSec + ';">Salinity, nutrient cycles, ocean acidification, dissolved gases, and biogeochemical processes in seawater.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(2,136,209,0.08);border-left:3px solid ' + DEEP + ';border-radius:4px;">' +
+      '<strong>3. Marine Geology</strong><br>' +
+      '<span style="color:' + textSec + ';">Seafloor spreading, mid-ocean ridges, trenches, hydrothermal vents, sedimentology, and plate tectonics.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(2,136,209,0.08);border-left:3px solid ' + DEEP + ';border-radius:4px;">' +
+      '<strong>4. Biological Oceanography</strong><br>' +
+      '<span style="color:' + textSec + ';">Marine food webs, phytoplankton primary production, deep-sea ecosystems, and the role of oceans in the global carbon cycle.</span></div>' +
+  '</div>';
+}
+function renderTechnologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const ELEC = '#448aff';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + ELEC + ';margin-bottom:14px;">Technology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + ELEC + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(68,138,255,0.08);border-left:3px solid ' + ELEC + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Technology is the application of scientific knowledge, tools, and techniques to solve problems and extend human capabilities, encompassing fields from computing to engineering to biotechnology.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + ELEC + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(68,138,255,0.08);border-left:3px solid ' + ELEC + ';border-radius:4px;">' +
+      '<strong>1. Information Technology</strong><br>' +
+      '<span style="color:' + textSec + ';">Computing, software development, networking, databases, AI, and cybersecurity that power the digital world.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(68,138,255,0.08);border-left:3px solid ' + ELEC + ';border-radius:4px;">' +
+      '<strong>2. Engineering Disciplines</strong><br>' +
+      '<span style="color:' + textSec + ';">Mechanical, electrical, civil, aerospace, chemical, and biomedical engineering — designing systems from microchips to skyscrapers.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(68,138,255,0.08);border-left:3px solid ' + ELEC + ';border-radius:4px;">' +
+      '<strong>3. Biotechnology &amp; Medicine</strong><br>' +
+      '<span style="color:' + textSec + ';">Genetic engineering, pharmaceuticals, medical imaging, prosthetics, and diagnostic technologies transforming healthcare.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(68,138,255,0.08);border-left:3px solid ' + ELEC + ';border-radius:4px;">' +
+      '<strong>4. Energy &amp; Environment</strong><br>' +
+      '<span style="color:' + textSec + ';">Renewable energy (solar, wind, nuclear), smart grids, battery storage, and green technologies for sustainable development.</span></div>' +
+  '</div>';
+}
+function renderMarineBiologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const SEA = '#1de9b6';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + SEA + ';margin-bottom:14px;">Marine Biology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + SEA + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(29,233,182,0.08);border-left:3px solid ' + SEA + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Marine biology is the scientific study of organisms in the ocean and saltwater environments, from microscopic plankton to great whales, and their interactions with marine ecosystems.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + SEA + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(29,233,182,0.08);border-left:3px solid ' + SEA + ';border-radius:4px;">' +
+      '<strong>1. Marine Ecosystems</strong><br>' +
+      '<span style="color:' + textSec + ';">Coral reefs, kelp forests, open ocean, deep sea, intertidal zones, and estuaries — each with unique biodiversity and adaptations.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(29,233,182,0.08);border-left:3px solid ' + SEA + ';border-radius:4px;">' +
+      '<strong>2. Marine Organisms</strong><br>' +
+      '<span style="color:' + textSec + ';">Fish, marine mammals (whales, dolphins), sea turtles, cephalopods, crustaceans, and the incredible diversity of invertebrates.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(29,233,182,0.08);border-left:3px solid ' + SEA + ';border-radius:4px;">' +
+      '<strong>3. Plankton &amp; Primary Production</strong><br>' +
+      '<span style="color:' + textSec + ';">Phytoplankton and zooplankton form the base of marine food webs. Phytoplankton produce ~50% of Earth\'s oxygen through photosynthesis.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(29,233,182,0.08);border-left:3px solid ' + SEA + ';border-radius:4px;">' +
+      '<strong>4. Conservation &amp; Threats</strong><br>' +
+      '<span style="color:' + textSec + ';">Overfishing, plastic pollution, ocean acidification, coral bleaching, and marine protected areas (MPAs) as conservation tools.</span></div>' +
+  '</div>';
+}
+function renderCardiologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const HEART = '#ff1744';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + HEART + ';margin-bottom:14px;">Cardiology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + HEART + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,23,68,0.08);border-left:3px solid ' + HEART + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Cardiology is the branch of medicine focused on the diagnosis and treatment of disorders of the heart and circulatory system, including coronary artery disease, arrhythmias, and heart failure.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + HEART + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,23,68,0.08);border-left:3px solid ' + HEART + ';border-radius:4px;">' +
+      '<strong>1. Cardiac Anatomy &amp; Physiology</strong><br>' +
+      '<span style="color:' + textSec + ';">Structure of the heart (chambers, valves, conduction system), cardiac cycle, blood pressure regulation, and coronary circulation.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,23,68,0.08);border-left:3px solid ' + HEART + ';border-radius:4px;">' +
+      '<strong>2. Diagnostic Techniques</strong><br>' +
+      '<span style="color:' + textSec + ';">ECG (electrocardiogram), echocardiography, stress testing, cardiac catheterization, and biomarkers (troponin).</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,23,68,0.08);border-left:3px solid ' + HEART + ';border-radius:4px;">' +
+      '<strong>3. Common Diseases</strong><br>' +
+      '<span style="color:' + textSec + ';">Atherosclerosis, myocardial infarction (heart attack), hypertension, atrial fibrillation, valvular disease, and cardiomyopathy.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(255,23,68,0.08);border-left:3px solid ' + HEART + ';border-radius:4px;">' +
+      '<strong>4. Treatments &amp; Interventions</strong><br>' +
+      '<span style="color:' + textSec + ';">Angioplasty and stenting, bypass surgery, pacemakers, defibrillators, and pharmaceutical management (statins, beta-blockers).</span></div>' +
+  '</div>';
+}
+function renderNeurologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const NERVE = '#d500f9';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + NERVE + ';margin-bottom:14px;">Neurology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + NERVE + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(213,0,249,0.08);border-left:3px solid ' + NERVE + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Neurology is the branch of medicine dealing with disorders of the nervous system — the brain, spinal cord, peripheral nerves, and muscles, including stroke, epilepsy, and neurodegenerative diseases.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + NERVE + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(213,0,249,0.08);border-left:3px solid ' + NERVE + ';border-radius:4px;">' +
+      '<strong>1. Neuroanatomy &amp; Neurophysiology</strong><br>' +
+      '<span style="color:' + textSec + ';">Structure of the brain (cortex, cerebellum, brainstem), neuron signaling, synaptic transmission, and neurotransmitter systems.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(213,0,249,0.08);border-left:3px solid ' + NERVE + ';border-radius:4px;">' +
+      '<strong>2. Neurological Disorders</strong><br>' +
+      '<span style="color:' + textSec + ';">Alzheimer\'s disease, Parkinson\'s disease, multiple sclerosis, stroke, epilepsy, migraine, and peripheral neuropathy.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(213,0,249,0.08);border-left:3px solid ' + NERVE + ';border-radius:4px;">' +
+      '<strong>3. Diagnostic Tools</strong><br>' +
+      '<span style="color:' + textSec + ';">MRI, CT, EEG (electroencephalography), EMG (electromyography), lumbar puncture, and neurological examination.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(213,0,249,0.08);border-left:3px solid ' + NERVE + ';border-radius:4px;">' +
+      '<strong>4. Therapeutics</strong><br>' +
+      '<span style="color:' + textSec + ';">Pharmacological treatments (antiepileptics, dopaminergic drugs), neurosurgery, rehabilitation, and emerging therapies (deep brain stimulation).</span></div>' +
+  '</div>';
+}
+function renderDermatologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const PINK = '#f48fb1';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + PINK + ';margin-bottom:14px;">Dermatology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + PINK + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(244,143,177,0.08);border-left:3px solid ' + PINK + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Dermatology is the branch of medicine concerned with the skin, hair, nails, and mucous membranes — the largest organ system — encompassing diagnosis and treatment of over 3,000 skin conditions.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + PINK + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(244,143,177,0.08);border-left:3px solid ' + PINK + ';border-radius:4px;">' +
+      '<strong>1. Skin Structure &amp; Function</strong><br>' +
+      '<span style="color:' + textSec + ';">Epidermis, dermis, and hypodermis layers; keratinocytes, melanocytes, sebaceous glands, and the skin barrier role.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(244,143,177,0.08);border-left:3px solid ' + PINK + ';border-radius:4px;">' +
+      '<strong>2. Common Conditions</strong><br>' +
+      '<span style="color:' + textSec + ';">Acne, eczema (atopic dermatitis), psoriasis, rosacea, fungal infections, warts, and contact dermatitis.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(244,143,177,0.08);border-left:3px solid ' + PINK + ';border-radius:4px;">' +
+      '<strong>3. Skin Cancer</strong><br>' +
+      '<span style="color:' + textSec + ';">Basal cell carcinoma, squamous cell carcinoma, and melanoma — risk factors (UV exposure), ABCDE rule, and treatment (excision, immunotherapy).</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(244,143,177,0.08);border-left:3px solid ' + PINK + ';border-radius:4px;">' +
+      '<strong>4. Cosmetic Dermatology</strong><br>' +
+      '<span style="color:' + textSec + ';">Laser therapy, Botox, fillers, chemical peels, microneedling, and treatments for aging, scarring, and pigmentation disorders.</span></div>' +
+  '</div>';
+}
+function renderPathologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const DARK = '#c62828';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + DARK + ';margin-bottom:14px;">Pathology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + DARK + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(198,40,40,0.08);border-left:3px solid ' + DARK + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Pathology is the study of the causes and effects of disease, examining structural and functional changes in cells, tissues, and organs through laboratory analysis and microscopic examination.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + DARK + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(198,40,40,0.08);border-left:3px solid ' + DARK + ';border-radius:4px;">' +
+      '<strong>1. Anatomical Pathology</strong><br>' +
+      '<span style="color:' + textSec + ';">Examination of surgical specimens, biopsies, and autopsies — gross and microscopic analysis to diagnose diseases including cancer.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(198,40,40,0.08);border-left:3px solid ' + DARK + ';border-radius:4px;">' +
+      '<strong>2. Clinical Pathology</strong><br>' +
+      '<span style="color:' + textSec + ';">Laboratory analysis of blood, urine, and other body fluids — hematology, microbiology, immunology, and clinical chemistry.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(198,40,40,0.08);border-left:3px solid ' + DARK + ';border-radius:4px;">' +
+      '<strong>3. Molecular Pathology</strong><br>' +
+      '<span style="color:' + textSec + ';">DNA/RNA analysis, genetic testing, biomarker identification, and precision medicine approaches to disease classification and treatment.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(198,40,40,0.08);border-left:3px solid ' + DARK + ';border-radius:4px;">' +
+      '<strong>4. Forensic Pathology</strong><br>' +
+      '<span style="color:' + textSec + ';">Determining cause of death through autopsy, toxicology, and histological examination in medicolegal investigations.</span></div>' +
   '</div>';
 }
 function renderDartsHTML(id, targetScore) {
@@ -2395,6 +2667,14 @@ function getDefaultDB() {
     { id: 28, command: '@bryology [learn] (subject)', description: 'Shows a bryology overview card in the preview.', tags: ['bryology', 'preview'], addedBy: 'system' },
     { id: 29, command: '@dendrology [learn] (subject)', description: 'Shows a dendrology overview card in the preview.', tags: ['dendrology', 'preview'], addedBy: 'system' },
     { id: 30, command: '@pomology [learn] (subject)', description: 'Shows a pomology overview card in the preview.', tags: ['pomology', 'preview'], addedBy: 'system' },
+    { id: 31, command: '@meteorology [learn] (subject)', description: 'Shows a meteorology overview card in the preview.', tags: ['meteorology', 'preview'], addedBy: 'system' },
+    { id: 32, command: '@oceanology [learn] (subject)', description: 'Shows an oceanology overview card in the preview.', tags: ['oceanology', 'preview'], addedBy: 'system' },
+    { id: 33, command: '@technology [learn] (subject)', description: 'Shows a technology overview card in the preview.', tags: ['technology', 'preview'], addedBy: 'system' },
+    { id: 34, command: '@marinebiology [learn] (subject)', description: 'Shows a marine biology overview card in the preview.', tags: ['marinebiology', 'preview'], addedBy: 'system' },
+    { id: 35, command: '@cardiology [learn] (subject)', description: 'Shows a cardiology overview card in the preview.', tags: ['cardiology', 'preview'], addedBy: 'system' },
+    { id: 36, command: '@neurology [learn] (subject)', description: 'Shows a neurology overview card in the preview.', tags: ['neurology', 'preview'], addedBy: 'system' },
+    { id: 37, command: '@dermatology [learn] (subject)', description: 'Shows a dermatology overview card in the preview.', tags: ['dermatology', 'preview'], addedBy: 'system' },
+    { id: 38, command: '@pathology [learn] (subject)', description: 'Shows a pathology overview card in the preview.', tags: ['pathology', 'preview'], addedBy: 'system' },
   ]};
 }
 

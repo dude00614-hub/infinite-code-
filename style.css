@@ -1043,6 +1043,38 @@ body {
   color: #ff9100;
   font-weight: 600;
 }
+.token-meteorology {
+  color: #4fc3f7;
+  font-weight: 600;
+}
+.token-oceanology {
+  color: #0288d1;
+  font-weight: 600;
+}
+.token-technology {
+  color: #448aff;
+  font-weight: 600;
+}
+.token-marinebiology {
+  color: #1de9b6;
+  font-weight: 600;
+}
+.token-cardiology {
+  color: #ff1744;
+  font-weight: 600;
+}
+.token-neurology {
+  color: #d500f9;
+  font-weight: 600;
+}
+.token-dermatology {
+  color: #f48fb1;
+  font-weight: 600;
+}
+.token-pathology {
+  color: #c62828;
+  font-weight: 600;
+}
 .token-value {
   color: #ffd700;
 }

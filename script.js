@@ -522,7 +522,13 @@ document.getElementById('codeTextarea').addEventListener('keydown', function(e) 
     let newIndent = indent + '  ';
     if (newIndent.length > 4) newIndent = newIndent.substring(0, 4);
     this.setRangeText('\n' + newIndent, start, this.selectionEnd, 'end');
-    this.dispatchEvent(new Event('input', { bubbles: true }));
+    if (currentProject) {
+      currentProject.code = this.value;
+      saveProjects(getProjects().map(p => p.name === currentProject.name ? currentProject : p));
+    }
+    updateLineNumbers();
+    updateHighlight();
+    showSuggestions(getCurrentWord());
   }
   // Smart Backspace on empty indented lines
   if (e.key === 'Backspace') {

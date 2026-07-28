@@ -568,13 +568,16 @@ function executeCode(code, outputEl) {
     return;
   }
   const lines = code.split('\n');
-  let bgColor = null;
   const bgRegex = /^@background\s+\[(#?[0-9a-fA-F]{3,8})\]$/;
   const usedNums = [];
   let projectOpen = false;
   for (const line of lines) {
     const bgM = line.match(bgRegex);
-    if (bgM) { bgColor = bgM[1]; continue; }
+    if (bgM) { 
+      let c = bgM[1];
+      previewPanel.style.background = c.startsWith('#') ? c : '#' + c;
+      continue; 
+    }
     const trimmed = line.trim();
     if (trimmed === '@open') {
       openCodeInTab();
@@ -603,13 +606,10 @@ function executeCode(code, outputEl) {
       let color = '', msg = rest;
       if (cMatch) { color = cMatch[1]; msg = cMatch[2].trim(); }
       if (msg) {
-        const style = color ? 'color:' + (color.startsWith('#')?color:'#'+color) + ';' : '';
+        const style = color ? 'color:' + color + ';' : '';
         outputEl.innerHTML += '<div class="output-line" style="' + style + '">' + msg + '</div>';
       }
     }
-  }
-  if (bgColor) {
-    previewPanel.style.background = bgColor.startsWith('#') ? bgColor : '#' + bgColor;
   }
 }
 

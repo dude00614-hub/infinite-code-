@@ -2,11 +2,6 @@ const OWNERS = ['TheAdminCreator', 'Amused', 'Armaan'];
 const STORAGE_KEY = 'infinite_code_users_v2';
 const THEME_KEY = 'infinite_code_theme';
 
-// ===== PWA registration (for macOS/Linux browser install) =====
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/infinite-code-/sw.js').catch(() => {});
-}
-
 // ===== SUPABASE (REST API via fetch, no CDN dependency) =====
 const SUPABASE_URL = 'https://viuphflhwwjsaplqcore.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpdXBoZmxod3dqc2FwbHFjb3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxMzc1NDAsImV4cCI6MjEwMDcxMzU0MH0.tOrv0z8990wogEGOdI_-XqyliWaAkKFJNxyywTjGrp4';

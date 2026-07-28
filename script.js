@@ -331,13 +331,19 @@ function openProject(name) {
     }
   });
   // Re-bind quick code (+ button)
+  const QC_KEY = 'ic_quickcode_' + (currentProject ? currentProject.name : 'default');
   document.getElementById('quickCodeBtn').addEventListener('click', function() {
     document.getElementById('quickCodeOverlay').classList.remove('hidden');
-    document.getElementById('quickCodeTextarea').value = '';
+    document.getElementById('quickCodeTextarea').value = localStorage.getItem(QC_KEY) || '';
     document.getElementById('quickCodeTextarea').focus();
   });
   document.getElementById('quickCodeClose').addEventListener('click', function() {
+    const val = document.getElementById('quickCodeTextarea').value;
+    localStorage.setItem(QC_KEY, val);
     document.getElementById('quickCodeOverlay').classList.add('hidden');
+  });
+  document.getElementById('quickCodeTextarea').addEventListener('input', function() {
+    localStorage.setItem(QC_KEY, this.value);
   });
   document.getElementById('quickCodeTextarea').addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -346,8 +352,9 @@ function openProject(name) {
     }
   });
   document.getElementById('quickCodeApprove').addEventListener('click', function() {
-    const text = document.getElementById('quickCodeTextarea').value.trim();
-    if (!text) { document.getElementById('quickCodeOverlay').classList.add('hidden'); return; }
+    const text = document.getElementById('quickCodeTextarea').value;
+    localStorage.setItem(QC_KEY, text);
+    if (!text.trim()) return;
     const ta = document.getElementById('codeTextarea');
     const start = ta.selectionStart;
     const val = ta.value;
@@ -358,11 +365,10 @@ function openProject(name) {
     const end = lineEnd >= 0 ? lineEnd : val.length;
     const beforeLine = val.substring(lineStart, end);
     const indent = beforeLine.match(/^\s*/)[0];
-    ta.value = before + (start > 0 && before[before.length-1] !== '\n' ? '\n' : '') + indent + text + '\n' + after;
-    ta.selectionStart = ta.selectionEnd = lineStart + indent.length + text.length + 1;
+    ta.value = before + (start > 0 && before[before.length-1] !== '\n' ? '\n' : '') + indent + text.trim() + '\n' + after;
+    ta.selectionStart = ta.selectionEnd = lineStart + indent.length + text.trim().length + 1;
     ta.focus();
     ta.dispatchEvent(new Event('input', { bubbles: true }));
-    document.getElementById('quickCodeOverlay').classList.add('hidden');
   });
   // Quick code window drag
   (function() {

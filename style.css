@@ -615,10 +615,11 @@ body {
 .quick-code-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.4);
+  pointer-events: none;
   z-index: 10002;
 }
 .quick-code-overlay.hidden { display: none; }
+.quick-code-overlay:not(.hidden) .quick-code-window { pointer-events: auto; }
 .quick-code-window {
   background: var(--bg-card, #1f1111);
   border: 1px solid var(--border, #3a1a1a);

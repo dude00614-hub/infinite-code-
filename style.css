@@ -414,6 +414,24 @@ body {
   border-color: var(--accent);
 }
 
+.install-btn {
+  background: linear-gradient(135deg, var(--accent-grad-1), var(--accent-grad-2));
+  border: none;
+  color: #fff;
+  padding: 4px 14px;
+  font-size: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.install-btn:hover {
+  box-shadow: 0 2px 12px var(--accent-glow);
+  transform: scale(1.03);
+}
+
 /* Body */
 .ide-body {
   flex: 1;

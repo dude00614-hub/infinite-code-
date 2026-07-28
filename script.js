@@ -7,6 +7,26 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
+// ===== PWA Install Button =====
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.classList.remove('hidden');
+});
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.classList.add('hidden');
+});
+document.addEventListener('click', e => {
+  if (e.target.id === 'installBtn' && deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+  }
+});
+
 // ===== SUPABASE (REST API via fetch, no CDN dependency) =====
 const SUPABASE_URL = 'https://viuphflhwwjsaplqcore.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpdXBoZmxod3dqc2FwbHFjb3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxMzc1NDAsImV4cCI6MjEwMDcxMzU0MH0.tOrv0z8990wogEGOdI_-XqyliWaAkKFJNxyywTjGrp4';

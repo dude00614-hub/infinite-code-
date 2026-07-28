@@ -1344,8 +1344,10 @@ document.getElementById('runInput').addEventListener('keydown', function(e) {
     if (!chatPartner) { output.appendChild(err('Open a chat first: @chat [username]')); }
     else if (!msg) { output.appendChild(err('Message is empty')); }
     else {
-      sendMessage(chatPartner, msg);
-      output.appendChild(ok('Message sent'));
+      sendMessage(chatPartner, msg).then(() => {
+        output.appendChild(ok('Message sent'));
+        output.scrollTop = output.scrollHeight;
+      });
     }
     output.scrollTop = output.scrollHeight;
   } else {
@@ -1369,7 +1371,12 @@ function formatTime(ts) {
 }
 
 async function sendMessage(to, msg) {
-  await sb('chat_messages').insert({from_user:currentUser,to_user:to,message:msg});
+  const url = SUPABASE_URL + '/rest/v1/chat_messages';
+  const headers = {'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Content-Type':'application/json'};
+  try {
+    const r = await fetch(url, { method:'POST', headers:{...headers,'Prefer':'return=representation'}, body:JSON.stringify({from_user:currentUser,to_user:to,message:msg}) });
+    if (!r.ok) console.error('sendMessage failed:', r.status, await r.text());
+  } catch(e) { console.error('sendMessage error:', e); }
   loadChatMessages();
 }
 
@@ -1391,20 +1398,26 @@ function closeChat() {
 
 async function loadChatMessages() {
   if (!chatPartner) return;
-  const r = await sb('chat_messages').select();
-  if (!r.ok || !r.data) return;
-  const msgs = r.data.filter(m =>
-    (m.from_user === currentUser && m.to_user === chatPartner) ||
-    (m.from_user === chatPartner && m.to_user === currentUser)
-  ).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-  const container = document.getElementById('chatMessages');
-  container.innerHTML = msgs.map(m =>
-    '<div class="chat-msg ' + (m.from_user === currentUser ? 'self' : 'other') + '">' +
-      m.message +
-      '<span class="msg-time">' + formatTime(m.created_at) + '</span>' +
-    '</div>'
-  ).join('');
-  container.scrollTop = container.scrollHeight;
+  const url = SUPABASE_URL + '/rest/v1/chat_messages';
+  const headers = {'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY};
+  try {
+    const r = await fetch(url, { method:'GET', headers });
+    if (!r.ok) { console.error('loadChatMessages status:', r.status); return; }
+    const all = await r.json();
+    if (!Array.isArray(all)) return;
+    const msgs = all.filter(m =>
+      (m.from_user === currentUser && m.to_user === chatPartner) ||
+      (m.from_user === chatPartner && m.to_user === currentUser)
+    ).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+    const container = document.getElementById('chatMessages');
+    container.innerHTML = msgs.map(m =>
+      '<div class="chat-msg ' + (m.from_user === currentUser ? 'self' : 'other') + '">' +
+        m.message +
+        '<span class="msg-time">' + formatTime(m.created_at) + '</span>' +
+      '</div>'
+    ).join('');
+    container.scrollTop = container.scrollHeight;
+  } catch(e) { console.error('loadChatMessages error:', e); }
 }
 
 async function checkFriendRequests() {

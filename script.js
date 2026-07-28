@@ -544,12 +544,18 @@ document.getElementById('previewToggle').addEventListener('click', function() {
 
 // ===== EXECUTE CODE (shared by Run button and console) =====
 function openCodeInTab() {
+  const code = document.getElementById('codeTextarea').value || '';
   const output = document.getElementById('previewOutput');
-  const previewPanel = document.getElementById('previewPanel');
-  const bg = previewPanel.style.background || '';
   const content = output.innerHTML.replace(/<div class="output-placeholder">.*?<\/div>/, '').trim();
-  const bgStyle = bg ? 'background:' + bg + ';' : '';
-  const html = '<!DOCTYPE html><html><head><title>Infinite Code - Preview</title><meta charset="utf-8"><style>body{margin:0;min-height:100vh;' + bgStyle + 'display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#140a0a;color:#e8c8c8;}.output-line{padding:4px 16px;font-size:16px;}.ttt-wrap{display:flex;flex-direction:column;align-items:center;margin:12px 0;padding:16px;border-radius:10px;}.ttt-cell{cursor:pointer;}</style></head><body>' + content + '</body></html>';
+  let bgColor = '';
+  const bgRegex = /^@background\s+\[(#?[0-9a-fA-F]{3,8})\]\s*$/;
+  for (const line of code.split('\n')) {
+    const m = line.trim().match(bgRegex);
+    if (m) { bgColor = m[1].startsWith('#') ? m[1] : '#' + m[1]; }
+  }
+  const bgStyle = bgColor ? 'background:' + bgColor + ';' : '';
+  const tttScript = `(function(){document.querySelectorAll('.ttt-wrap').forEach(function(g){var c=g.querySelectorAll('.ttt-cell');var s=g.querySelector('.ttt-status');var r=g.querySelector('.ttt-reset');var b=Array(9).fill(null);var p='X';var o=false;c.forEach(function(el,i){el.onclick=function(){if(b[i]||o)return;b[i]=p;el.textContent=p;el.style.color=p==='X'?'#ff4444':'#50e3c2';var w=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];for(var k=0;k<w.length;k++){if(b[w[k][0]]&&b[w[k][0]]===b[w[k][1]]&&b[w[k][1]]===b[w[k][2]]){o=true;s.textContent='Player '+b[w[k][0]]+' wins!';w[k].forEach(function(j){c[j].style.background='rgba(255,68,68,0.3)';});return;}}if(b.every(function(v){return v!==null})){o=true;s.textContent='Draw!';return;}p=p==='X'?'O':'X';s.textContent='Player '+p+\"'s turn\";};});r.onclick=function(){b=Array(9).fill(null);p='X';o=false;c.forEach(function(x){x.textContent='';x.style.background='';x.style.color='';});s.textContent=\"Player X's turn\";};});})();`;
+  const html = '<!DOCTYPE html><html><head><title>Infinite Code - Preview</title><meta charset="utf-8"><style>body{margin:0;min-height:100vh;' + bgStyle + 'display:flex;flex-direction:column;align-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#140a0a;color:#e8c8c8;}.output-line{padding:4px 16px;font-size:16px;}.ttt-wrap{display:flex;flex-direction:column;align-items:center;margin:12px 0;padding:16px;border-radius:10px;}.ttt-cell{cursor:pointer;}</style></head><body>' + content + '<script>' + tttScript + '<\/script></body></html>';
   const win = window.open('', '_blank');
   if (win) {
     win.document.write(html);

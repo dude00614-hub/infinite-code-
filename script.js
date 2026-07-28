@@ -626,11 +626,12 @@ function openCodeInTab() {
 }
 
 function executeCode(code, outputEl) {
+  console.log('executeCode called, first 30 chars:', JSON.stringify(code.substring(0, 30)));
   outputEl.innerHTML = '';
   const previewPanel = document.getElementById('previewPanel');
   previewPanel.style.background = '';
-  if (!code.startsWith('@inf\n')) {
-    outputEl.innerHTML = '<div class="output-line" style="color:#ff6b6b">&#10060; Error: Code must start with @inf</div>';
+  if (!/^@inf\b/.test(code)) {
+    outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Error: Code must start with @inf (starts with: ' + JSON.stringify(code.substring(0, 20)) + ')</div>';
     return;
   }
   const lines = code.split('\n');
@@ -638,6 +639,7 @@ function executeCode(code, outputEl) {
   const usedNums = [];
   const usedTargets = [];
   let projectOpen = false;
+  let matched = false;
   for (const line of lines) {
     const bgM = line.match(bgRegex);
     if (bgM) { 
@@ -651,6 +653,7 @@ function executeCode(code, outputEl) {
     } else if (trimmed === '@open [web]') {
       const url = openCodeInTab();
       outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">Blob link: <a href="' + url + '" target="_blank" style="color:#50e3c2;text-decoration:underline;">' + url + '</a></div>';
+      matched = true;
     } else if (trimmed === '@project [open]') {
       projectOpen = true;
     } else if (trimmed === '@project [close]') {
@@ -665,23 +668,33 @@ function executeCode(code, outputEl) {
           usedNums.push(num);
           outputEl.innerHTML += renderTicTacToeHTML(num);
         }
+        matched = true;
       }
     }
     if (trimmed.toLowerCase().startsWith('@maths [learn] (factorization)')) {
       outputEl.innerHTML += renderFactorizationHTML();
+      matched = true;
     }
     if (trimmed.toLowerCase().startsWith('@maths [learn] (linear function)')) {
       outputEl.innerHTML += renderLinearFunctionHTML();
+      matched = true;
     }
-    const targetM = trimmed.match(/^@Target\s+shot\s+\/(\d+)\s+"([^"]+)"\s*$/i);
-    if (targetM) {
-      const id = targetM[1];
-      const score = targetM[2];
-      if (usedTargets.includes(id)) {
-        outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Error: Target #' + id + ' already exists</div>';
-      } else {
+    const targetLow = trimmed.toLowerCase();
+    if (targetLow.startsWith('@target shot') || targetLow.startsWith('@targetshot')) {
+      const parts = trimmed.split(/\s+/);
+      let score = null;
+      for (const p of parts) {
+        const sm = p.match(/^"(.+)"$/);
+        if (sm) { score = sm[1]; break; }
+      }
+      if (score) {
+        const id = String(usedTargets.length + 1);
         usedTargets.push(id);
         outputEl.innerHTML += renderDartsHTML(id, score);
+        matched = true;
+        console.log('Target shot rendered: id=' + id + ' score=' + score);
+      } else {
+        console.log('Target shot line parsed but no score found:', trimmed);
       }
     }
     if (trimmed.startsWith('@text') && trimmed.toLowerCase().includes('[set-true]')) {
@@ -696,8 +709,12 @@ function executeCode(code, outputEl) {
         }
         const style = color ? 'color:' + color + ';' : '';
         outputEl.innerHTML += '<div class="output-line" style="' + style + '">' + msg + '</div>';
+        matched = true;
       }
     }
+  }
+  if (!matched) {
+    outputEl.innerHTML += '<div class="output-line" style="color:#888">No commands matched. Lines processed: ' + lines.length + '</div>';
   }
 }
 

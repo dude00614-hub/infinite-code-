@@ -509,18 +509,14 @@ document.getElementById('codeTextarea').addEventListener('keydown', function(e) 
     return;
   }
   // Auto-indent on Enter
-  if (e.key === 'Enter') {
+  if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     const start = this.selectionStart;
     const value = this.value;
     const lineStart = value.lastIndexOf('\n', start - 1) + 1;
     const currentLine = value.substring(lineStart, start);
     const indent = currentLine.match(/^\s*/)[0];
-    const insertion = '\r\n' + indent;
-    this.value = value.substring(0, start) + insertion + value.substring(this.selectionEnd);
-    const pos = start + insertion.length;
-    this.selectionStart = this.selectionEnd = pos;
-    this.dispatchEvent(new Event('input'));
+    document.execCommand('insertText', false, '\n' + indent);
   }
 });
 

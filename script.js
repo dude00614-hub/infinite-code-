@@ -1243,24 +1243,63 @@ document.getElementById('runInput').addEventListener('keydown', function(e) {
     const friend = input.slice(12).trim();
     if (!friend) { output.appendChild(err('Specify a username')); }
     else if (friend === currentUser) { output.appendChild(err("Can't add yourself")); }
-    else { sb('friend_requests').select({from_user:currentUser,to_user:friend,status:'pending'}).then(ex => {
-      if (ex.ok && ex.data && ex.data.length) { output.appendChild(err('Request already pending')); output.scrollTop = output.scrollHeight; return; }
-      sb('friend_requests').insert({from_user:currentUser,to_user:friend,status:'pending'}).then(r => {
-        output.appendChild(r.ok ? ok('Friend request sent to ' + friend) : err('Failed (tables not created yet?)'));
+    else {
+      const url = SUPABASE_URL + '/rest/v1/friend_requests';
+      const headers = {'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Content-Type':'application/json'};
+      fetch(url+'?from_user=eq.'+encodeURIComponent(currentUser)+'&to_user=eq.'+encodeURIComponent(friend)+'&status=eq.pending', { method:'GET', headers }).then(raw => {
+        return raw.text().then(text => {
+          output.appendChild(ok('Check status: ' + raw.status + ' body: ' + (text||'(empty)')));
+          try { return JSON.parse(text); } catch(e) { return []; }
+        }).then(existing => {
+          if (existing.length) { output.appendChild(err('Request already pending')); output.scrollTop = output.scrollHeight; return; }
+          fetch(url, { method:'POST', headers:{...headers,'Prefer':'return=representation'}, body:JSON.stringify({from_user:currentUser,to_user:friend,status:'pending'}) }).then(r2 => {
+            return r2.text().then(t2 => {
+              output.appendChild(ok('Insert status: ' + r2.status + ' body: ' + (t2||'(empty)')));
+              if (r2.ok) { output.appendChild(ok('Friend request sent to ' + friend + '!')); }
+              else { output.appendChild(err('Insert failed')); }
+              output.scrollTop = output.scrollHeight;
+            });
+          }).catch(e => {
+            output.appendChild(err('Insert fetch error: ' + e.message));
+            output.scrollTop = output.scrollHeight;
+          });
+        });
+      }).catch(e => {
+        output.appendChild(err('Fetch error: ' + e.message));
         output.scrollTop = output.scrollHeight;
       });
-    });
     }
   } else if (input.startsWith('@accept ')) {
     const friend = input.slice(8).trim();
     if (!friend) { output.appendChild(err('Specify a username')); }
-    else { sb('friend_requests').select({from_user:friend,to_user:currentUser,status:'pending'}).then(r => {
-        if (!r.ok || !r.data.length) { output.appendChild(err('No pending request from ' + friend)); }
-        else { sb('friend_requests').upsert({id:r.data[0].id,from_user:friend,to_user:currentUser,status:'accepted'},'id').then(() => {
-            output.appendChild(ok('Friend request from ' + friend + ' accepted!'));
-            checkFriendRequests();
-          });
-        }
+    else {
+      const q = 'from_user=eq.'+encodeURIComponent(friend)+'&to_user=eq.'+encodeURIComponent(currentUser)+'&status=eq.pending';
+      const url = SUPABASE_URL + '/rest/v1/friend_requests?' + q;
+      fetch(url, { method:'GET', headers: {'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY} }).then(raw => {
+        output.appendChild(ok('Response status: ' + raw.status));
+        return raw.text().then(text => {
+          output.appendChild(ok('Response body: ' + (text || '(empty)')));
+          try { return JSON.parse(text); } catch(e) { return null; }
+        }).then(data => {
+          if (!data || !Array.isArray(data) || !data.length) {
+            output.appendChild(err('No pending request from ' + friend));
+          } else {
+            const row = data[0];
+            const uurl = SUPABASE_URL + '/rest/v1/friend_requests?id=eq.'+row.id;
+            fetch(uurl, { method:'PATCH', headers: {'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Content-Type':'application/json','Prefer':'return=representation'}, body:JSON.stringify({status:'accepted'}) }).then(ur => {
+              ur.text().then(ut => {
+                output.appendChild(ok('Accept status: ' + ur.status + ' body: ' + (ut||'(empty)')));
+                if (ur.ok) { output.appendChild(ok('Friend request from ' + friend + ' accepted!')); checkFriendRequests(); }
+                else { output.appendChild(err('Accept failed')); }
+              });
+            }).catch(e => {
+              output.appendChild(err('Accept fetch error: ' + e.message));
+            });
+          }
+          output.scrollTop = output.scrollHeight;
+        });
+      }).catch(e => {
+        output.appendChild(err('Fetch error: ' + e.message));
         output.scrollTop = output.scrollHeight;
       });
     }

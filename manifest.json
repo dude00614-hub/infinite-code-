@@ -2,7 +2,7 @@
   "name": "Infinite Code",
   "short_name": "InfiniteCode",
   "description": "Infinite Code Editor",
-  "start_url": "/infinite-code-/",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#0d0d0d",
   "theme_color": "#ff4444",

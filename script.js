@@ -12,18 +12,18 @@ let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
-  const btn = document.getElementById('installBtn');
-  if (btn) btn.classList.remove('hidden');
 });
 window.addEventListener('appinstalled', () => {
   deferredPrompt = null;
-  const btn = document.getElementById('installBtn');
-  if (btn) btn.classList.add('hidden');
 });
 document.addEventListener('click', e => {
-  if (e.target.id === 'installBtn' && deferredPrompt) {
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+  if (e.target.id === 'installBtn') {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+    } else {
+      alert('To install: open in Chrome or Edge, then click the install icon in the address bar, or use browser menu → Install "Infinite Code".');
+    }
   }
 });
 

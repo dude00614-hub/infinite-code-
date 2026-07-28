@@ -1629,8 +1629,8 @@ function openDevTools() {
   const overlay = document.createElement('div');
   overlay.id = 'devToolsOverlay';
   overlay.innerHTML =
-    '<div class="devtools-window">' +
-      '<div class="devtools-header">' +
+    '<div class="devtools-window" id="devToolsWindow">' +
+      '<div class="devtools-header" id="devToolsHeader">' +
         '<span class="devtools-title">&#9881; Dev Tools</span>' +
         '<button class="devtools-close">&times;</button>' +
       '</div>' +
@@ -1654,6 +1654,29 @@ function openDevTools() {
   const closeBtn = overlay.querySelector('.devtools-close');
   closeBtn.addEventListener('click', () => overlay.remove());
   overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+  // Drag support
+  const win = document.getElementById('devToolsWindow');
+  const handle = document.getElementById('devToolsHeader');
+  let dx = 0, dy = 0;
+  handle.addEventListener('mousedown', function(e) {
+    if (e.target.closest('.devtools-close')) return;
+    const rect = win.getBoundingClientRect();
+    dx = e.clientX - rect.left;
+    dy = e.clientY - rect.top;
+    const onMove = function(ev) {
+      win.style.left = (ev.clientX - dx) + 'px';
+      win.style.top = (ev.clientY - dy) + 'px';
+      win.style.right = 'auto';
+      win.style.bottom = 'auto';
+    };
+    const onUp = function() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
 
   // Tab switching
   overlay.querySelectorAll('.devtools-tab').forEach(tab => {
@@ -1778,13 +1801,20 @@ function openDevTools() {
     title.className = 'dt-storage-title';
     title.textContent = 'localStorage';
     panel.appendChild(title);
+    const hidePattern = /password|pass\b|pwd|secret|token|credential|api.?key/i;
+    let count = 0;
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
+      if (hidePattern.test(k)) continue;
       const v = localStorage.getItem(k);
       const row = document.createElement('div');
       row.className = 'dt-storage-row';
       row.innerHTML = '<span class="dt-storage-key">' + k + '</span> <span class="dt-storage-val">' + (v.length > 100 ? v.substring(0, 100) + '...' : v) + '</span>';
       panel.appendChild(row);
+      count++;
+    }
+    if (!count) {
+      panel.innerHTML += '<div class="dt-placeholder">No localStorage entries found</div>';
     }
   })();
 

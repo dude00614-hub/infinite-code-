@@ -1776,7 +1776,7 @@ body.dragging .edit-handle {
 .devtools-window {
   position: fixed;
   top: 40px;
-  right: 40px;
+  left: 40px;
   width: 520px;
   height: 400px;
   background: #1a1a2e;
@@ -1798,7 +1798,10 @@ body.dragging .edit-handle {
   background: #16162a;
   border-bottom: 1px solid #3a3a5e;
   border-radius: 8px 8px 0 0;
+  cursor: grab;
+  user-select: none;
 }
+.devtools-header:active { cursor: grabbing; }
 .devtools-title {
   font-weight: 600;
   font-size: 12px;

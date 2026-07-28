@@ -331,6 +331,7 @@ const COMMANDS = [
   { match: '@inf', className: 'token-keyword', desc: 'required first line' },
   { match: '@background', className: 'token-command', desc: 'set preview background' },
   { match: '@text', className: 'token-command', desc: 'add colored text to preview' },
+  { match: '@maths', className: 'token-maths', desc: 'maths learning commands' },
 ];
 
 function highlightCode(code) {
@@ -347,6 +348,9 @@ function highlightCode(code) {
       if (cmd) {
         if (cmd === '@inf') {
           return '<span class="token-keyword">' + cmd + '</span>';
+        }
+        if (cmd === '@maths') {
+          return '<span class="token-maths">' + cmd + '</span>';
         }
         return '<span class="token-command">' + cmd + '</span>';
       }

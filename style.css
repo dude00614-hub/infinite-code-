@@ -783,6 +783,10 @@ body {
 .token-command {
   color: #50e3c2;
 }
+.token-maths {
+  color: #ff4444;
+  font-weight: 600;
+}
 .token-value {
   color: #ffd700;
 }

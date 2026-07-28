@@ -1244,9 +1244,12 @@ document.getElementById('runInput').addEventListener('keydown', function(e) {
     if (!friend) { output.appendChild(err('Specify a username')); }
     else if (friend === currentUser) { output.appendChild(err("Can't add yourself")); }
     else {
+      output.appendChild(ok('currentUser = "' + currentUser + '", friend = "' + friend + '"'));
       const url = SUPABASE_URL + '/rest/v1/friend_requests';
       const headers = {'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Content-Type':'application/json'};
-      fetch(url+'?from_user=eq.'+encodeURIComponent(currentUser)+'&to_user=eq.'+encodeURIComponent(friend)+'&status=eq.pending', { method:'GET', headers }).then(raw => {
+      const qurl = url+'?from_user=eq.'+encodeURIComponent(currentUser)+'&to_user=eq.'+encodeURIComponent(friend)+'&status=eq.pending';
+      output.appendChild(ok('Check URL: ' + qurl));
+      fetch(qurl, { method:'GET', headers }).then(raw => {
         return raw.text().then(text => {
           output.appendChild(ok('Check status: ' + raw.status + ' body: ' + (text||'(empty)')));
           try { return JSON.parse(text); } catch(e) { return []; }
@@ -1273,8 +1276,10 @@ document.getElementById('runInput').addEventListener('keydown', function(e) {
     const friend = input.slice(8).trim();
     if (!friend) { output.appendChild(err('Specify a username')); }
     else {
+      output.appendChild(ok('currentUser = "' + currentUser + '", friend = "' + friend + '"'));
       const q = 'from_user=eq.'+encodeURIComponent(friend)+'&to_user=eq.'+encodeURIComponent(currentUser)+'&status=eq.pending';
       const url = SUPABASE_URL + '/rest/v1/friend_requests?' + q;
+      output.appendChild(ok('Query URL: ' + url));
       fetch(url, { method:'GET', headers: {'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY} }).then(raw => {
         output.appendChild(ok('Response status: ' + raw.status));
         return raw.text().then(text => {

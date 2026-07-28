@@ -1644,6 +1644,18 @@ body {
   font-style: italic;
 }
 
+/* ===== CANVAS DRAW ===== */
+.canvas-toolbar button:hover {
+  filter: brightness(1.2);
+}
+.canvas-toolbar input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.canvas-toolbar input[type="color"]::-webkit-color-swatch {
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
 /* ===== EDIT MODE ===== */
 .edit-handle {
   position: absolute;

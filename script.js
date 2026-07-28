@@ -306,7 +306,7 @@ function openProject(name) {
   document.getElementById('editorInput').classList.remove('hidden');
   document.getElementById('editorSplit').classList.remove('hidden');
   let code = proj.code || '';
-  if (!code.startsWith('@inf\n')) code = '@inf\n' + code;
+  if (proj.name.endsWith('.inf') && !code.startsWith('@inf\n')) code = '@inf\n' + code;
   document.getElementById('codeTextarea').value = code;
   document.getElementById('editorTabs').innerHTML = '<div class="editor-tab active">' + proj.name + '</div><button class="preview-toggle" id="previewToggle" title="Toggle Preview">&#9654; Preview</button><button class="quick-code-btn" id="quickCodeBtn" title="Quick Code">+</button><button class="console-toggle" id="consoleToggle" title="Toggle Console">&#8801; Console</button>';
   updateLineNumbers();
@@ -456,6 +456,15 @@ const COMMANDS = [
 ];
 
 function highlightCode(code) {
+  const isHTML = currentProject && currentProject.name.endsWith('.html');
+  if (isHTML) {
+    return code
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/(&lt;\/?[\w-]+(?:\s[^&]*?)?\/?&gt;)/g, '<span class="token-maths">$1</span>')
+      .replace(/("(?:[^"&]|&amp;|&lt;|&gt;)*")/g, '<span class="token-value">$1</span>');
+  }
   let html = code
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -530,6 +539,9 @@ function highlightCode(code) {
         if (cmd === '@generate') {
           return '<span class="token-generate">' + cmd + '</span>';
         }
+        if (cmd === '@canvas') {
+          return '<span class="token-maths">' + cmd + '</span>';
+        }
         return '<span class="token-command">' + cmd + '</span>';
       }
       if (val) {
@@ -581,6 +593,7 @@ const suggestionList = [
   { label: '@dermatology [learn] (subject)', desc: 'learn about dermatology subjects' },
   { label: '@pathology [learn] (subject)', desc: 'learn about pathology subjects' },
   { label: '@generate [QR] (link:...)', desc: 'generate a QR code from a link' },
+  { label: '@canvas [draw]', desc: 'open an interactive drawing canvas' },
 ];
 
 let suggestionIndex = -1;
@@ -827,6 +840,20 @@ function executeCode(code, outputEl) {
   outputEl.innerHTML = '';
   const previewPanel = document.getElementById('previewPanel');
   previewPanel.style.background = '';
+  const isHTML = currentProject && currentProject.name.endsWith('.html');
+  if (isHTML) {
+    const iframe = document.createElement('iframe');
+    iframe.style.width = '100%';
+    iframe.style.height = '400px';
+    iframe.style.border = 'none';
+    iframe.style.borderRadius = '8px';
+    iframe.style.background = '#fff';
+    outputEl.appendChild(iframe);
+    iframe.contentWindow.document.open();
+    iframe.contentWindow.document.write(code);
+    iframe.contentWindow.document.close();
+    return;
+  }
   if (!/^@inf\b/.test(code)) {
     outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Error: Code must start with @inf (starts with: ' + JSON.stringify(code.substring(0, 20)) + ')</div>';
     return;
@@ -988,6 +1015,12 @@ function executeCode(code, outputEl) {
         outputEl.innerHTML += '<div class="output-line" style="' + style + '">' + msg + '</div>';
         matched = true;
       }
+    }
+    if (trimmed.toLowerCase() === '@canvas [draw]') {
+      const canvasId = 'canvas-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+      outputEl.innerHTML += renderCanvasHTML(canvasId);
+      matched = true;
+      setTimeout(function() { initCanvas(canvasId); }, 10);
     }
   }
   if (!matched) {
@@ -1746,14 +1779,15 @@ document.getElementById('newProjectBtn').addEventListener('click', function() {
   createBtn.addEventListener('click', function() {
     let name = input.value.trim();
     if (!name) return;
-    if (!name.endsWith('.inf')) name += '.inf';
+    if (!name.includes('.')) name += '.inf';
     const projects = getProjects();
     if (projects.find(p => p.name === name)) {
       input.focus();
       input.select();
       return;
     }
-    projects.push({ name: name, code: '@inf\n' });
+    const defaultCode = name.endsWith('.html') ? '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title></title>\n</head>\n<body>\n\n</body>\n</html>' : '@inf\n';
+    projects.push({ name: name, code: defaultCode });
     saveProjects(projects);
     close();
     renderProjectList();
@@ -2702,6 +2736,7 @@ function getDefaultDB() {
     { id: 37, command: '@dermatology [learn] (subject)', description: 'Shows a dermatology overview card in the preview.', tags: ['dermatology', 'preview'], addedBy: 'system' },
     { id: 38, command: '@pathology [learn] (subject)', description: 'Shows a pathology overview card in the preview.', tags: ['pathology', 'preview'], addedBy: 'system' },
     { id: 39, command: '@generate [QR] (link:...)', description: 'Generates a QR code from a link in the preview.', tags: ['generate', 'preview'], addedBy: 'system' },
+    { id: 40, command: '@canvas [draw]', description: 'Opens an interactive drawing canvas in the preview. Draw with mouse or touch.', tags: ['canvas', 'preview'], addedBy: 'system' },
   ]};
 }
 
@@ -2800,6 +2835,102 @@ document.getElementById('dbFormSave').addEventListener('click', function() {
   document.getElementById('dbSearch').value = '';
   renderDB();
 });
+
+// ===== CANVAS DRAW =====
+function renderCanvasHTML(canvasId) {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const bgInput = getComputedStyle(document.body).getPropertyValue('--bg-input').trim() || '#261515';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  return '<div class="canvas-wrap" style="margin:12px 0;padding:16px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;">' +
+    '<div class="canvas-toolbar" style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">' +
+      '<label style="font-size:12px;color:' + textSec + ';">Color: <input type="color" id="' + canvasId + '-color" value="#ffffff" style="width:32px;height:32px;border:none;border-radius:4px;cursor:pointer;background:transparent;vertical-align:middle;"></label>' +
+      '<label style="font-size:12px;color:' + textSec + ';">Size: <input type="range" id="' + canvasId + '-size" min="1" max="20" value="3" style="width:80px;vertical-align:middle;"></label>' +
+      '<span id="' + canvasId + '-size-val" style="font-size:12px;color:' + textSec + ';min-width:20px;">3</span>' +
+      '<button id="' + canvasId + '-eraser" style="padding:4px 10px;font-size:12px;background:' + bgInput + ';border:1px solid ' + border + ';border-radius:5px;color:' + textSec + ';cursor:pointer;font-family:inherit;">Eraser</button>' +
+      '<button id="' + canvasId + '-clear" style="padding:4px 10px;font-size:12px;background:linear-gradient(135deg,#cc2222,#ff4444);border:none;border-radius:5px;color:#fff;cursor:pointer;font-family:inherit;">Clear</button>' +
+    '</div>' +
+    '<canvas id="' + canvasId + '-canvas" style="width:100%;height:400px;background:#000;border:1px solid ' + border + ';border-radius:6px;cursor:crosshair;display:block;"></canvas>' +
+  '</div>';
+}
+
+function initCanvas(canvasId) {
+  const canvas = document.getElementById(canvasId + '-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const colorInput = document.getElementById(canvasId + '-color');
+  const sizeInput = document.getElementById(canvasId + '-size');
+  const sizeVal = document.getElementById(canvasId + '-size-val');
+  const eraserBtn = document.getElementById(canvasId + '-eraser');
+  const clearBtn = document.getElementById(canvasId + '-clear');
+  let drawing = false;
+  let eraser = false;
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+    return { x, y };
+  }
+  function startDraw(e) {
+    e.preventDefault();
+    drawing = true;
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  }
+  function draw(e) {
+    e.preventDefault();
+    if (!drawing) return;
+    const pos = getPos(e);
+    ctx.strokeStyle = eraser ? '#000' : colorInput.value;
+    ctx.lineWidth = parseInt(sizeInput.value, 10);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  }
+  function stopDraw(e) {
+    e.preventDefault();
+    drawing = false;
+    ctx.beginPath();
+  }
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', stopDraw);
+  canvas.addEventListener('mouseleave', stopDraw);
+  canvas.addEventListener('touchstart', startDraw, { passive: false });
+  canvas.addEventListener('touchmove', draw, { passive: false });
+  canvas.addEventListener('touchend', stopDraw);
+  if (sizeInput) {
+    sizeInput.addEventListener('input', function() {
+      if (sizeVal) sizeVal.textContent = this.value;
+    });
+  }
+  if (eraserBtn) {
+    eraserBtn.addEventListener('click', function() {
+      eraser = !eraser;
+      this.style.background = eraser ? '#ff4444' : getComputedStyle(document.body).getPropertyValue('--bg-input').trim() || '#261515';
+      this.style.color = eraser ? '#fff' : getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+      this.textContent = eraser ? 'Draw' : 'Eraser';
+    });
+  }
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+      resizeCanvas();
+    });
+  }
+}
 
 // ===== EXPORT / IMPORT DATA =====
 document.getElementById('exportBtn').addEventListener('click', function() {

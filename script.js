@@ -1638,14 +1638,12 @@ function openDevTools() {
         '<button class="devtools-tab active" data-tab="console">Console</button>' +
         '<button class="devtools-tab" data-tab="elements">Elements</button>' +
         '<button class="devtools-tab" data-tab="network">Network</button>' +
-        '<button class="devtools-tab" data-tab="storage">Storage</button>' +
         '<button class="devtools-tab" data-tab="info">Info</button>' +
       '</div>' +
       '<div class="devtools-body">' +
         '<div class="devtools-panel active" id="dt-console"><div class="dt-placeholder">Console output will appear here</div></div>' +
         '<div class="devtools-panel" id="dt-elements"><div class="dt-placeholder">Click an element below to inspect</div><div class="dt-dom-tree"></div></div>' +
         '<div class="devtools-panel" id="dt-network"><div class="dt-placeholder">Network requests will be logged here</div></div>' +
-        '<div class="devtools-panel" id="dt-storage"><div class="dt-placeholder">Loading storage...</div></div>' +
         '<div class="devtools-panel" id="dt-info"><div class="dt-placeholder">Loading info...</div></div>' +
       '</div>' +
     '</div>';
@@ -1791,31 +1789,6 @@ function openDevTools() {
       });
     };
     overlay.addEventListener('remove', function() { window.fetch = origFetch; });
-  })();
-
-  // Storage tab
-  (function() {
-    const panel = document.getElementById('dt-storage');
-    panel.innerHTML = '';
-    const title = document.createElement('div');
-    title.className = 'dt-storage-title';
-    title.textContent = 'localStorage';
-    panel.appendChild(title);
-    const hidePattern = /password|pass\b|pwd|secret|token|credential|api.?key/i;
-    let count = 0;
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (hidePattern.test(k)) continue;
-      const v = localStorage.getItem(k);
-      const row = document.createElement('div');
-      row.className = 'dt-storage-row';
-      row.innerHTML = '<span class="dt-storage-key">' + k + '</span> <span class="dt-storage-val">' + (v.length > 100 ? v.substring(0, 100) + '...' : v) + '</span>';
-      panel.appendChild(row);
-      count++;
-    }
-    if (!count) {
-      panel.innerHTML += '<div class="dt-placeholder">No localStorage entries found</div>';
-    }
   })();
 
   // Info tab

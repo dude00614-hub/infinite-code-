@@ -376,6 +376,7 @@ const suggestionList = [
   { label: '@project tic tac toe /', desc: 'create a tic tac toe game with a number' },
   { label: '@project [close]', desc: 'close the current project' },
   { label: '@text [color] message [set-true]', desc: 'add colored text to preview ([set-true] required)' },
+  { label: '@maths [learn] (Factorization)', desc: 'show factorization rules and types' },
 ];
 
 let suggestionIndex = -1;
@@ -657,6 +658,9 @@ function executeCode(code, outputEl) {
         }
       }
     }
+    if (trimmed.toLowerCase().startsWith('@maths [learn] (factorization)')) {
+      outputEl.innerHTML += renderFactorizationHTML();
+    }
     if (trimmed.startsWith('@text') && trimmed.toLowerCase().includes('[set-true]')) {
       let rest = trimmed.replace(/^@text\s*/i, '').replace(/\s*\[set-true\]\s*/i, '').trim();
       const cMatch = rest.match(/^\[(#?[^\]]+)\]\s*(.*)$/);
@@ -694,6 +698,30 @@ function renderTicTacToeHTML(num) {
     '</div>' +
     '<div class="ttt-status" data-game="' + num + '" style="margin-top:10px;font-size:13px;color:' + textSec + ';">Player X\'s turn</div>' +
     '<button class="ttt-reset" data-game="' + num + '" style="margin-top:8px;padding:5px 14px;background:linear-gradient(135deg,' + grad1 + ',' + grad2 + ');border:none;border-radius:5px;color:#fff;cursor:pointer;font-family:inherit;font-size:12px;">Reset</button>' +
+  '</div>';
+}
+
+function renderFactorizationHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#ff4444';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + accent + ';margin-bottom:14px;">Factorization Rules &amp; Types</div>' +
+    '<div style="margin-bottom:12px;"><strong style="color:' + accent + ';">General Rule:</strong> Break a polynomial into factors that multiply to give the original expression.</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + accent + ';">Four Types:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,68,68,0.08);border-left:3px solid ' + accent + ';border-radius:4px;">' +
+      '<strong>1. Common Factor (GCF)</strong><br>' +
+      '<span style="color:' + textSec + ';">Factor out the greatest common factor from all terms.<br>Example: 6x² + 9x = 3x(2x + 3)</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,68,68,0.08);border-left:3px solid ' + accent + ';border-radius:4px;">' +
+      '<strong>2. Difference of Squares</strong><br>' +
+      '<span style="color:' + textSec + ';">a² − b² = (a − b)(a + b)<br>Example: x² − 16 = (x − 4)(x + 4)</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,68,68,0.08);border-left:3px solid ' + accent + ';border-radius:4px;">' +
+      '<strong>3. Trinomial (ax² + bx + c)</strong><br>' +
+      '<span style="color:' + textSec + ';">Find two numbers that multiply to ac and add to b.<br>Example: x² + 5x + 6 = (x + 2)(x + 3)</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(255,68,68,0.08);border-left:3px solid ' + accent + ';border-radius:4px;">' +
+      '<strong>4. Grouping</strong><br>' +
+      '<span style="color:' + textSec + ';">Group terms, factor each group, then factor out the common binomial.<br>Example: x³ + 2x² + 3x + 6 = (x² + 3)(x + 2)</span></div>' +
   '</div>';
 }
 

@@ -434,6 +434,9 @@ const COMMANDS = [
   { match: '@background', className: 'token-command', desc: 'set preview background' },
   { match: '@text', className: 'token-command', desc: 'add colored text to preview' },
   { match: '@maths', className: 'token-maths', desc: 'maths learning commands' },
+  { match: '@theology', className: 'token-theology', desc: 'theology learning commands' },
+  { match: '@ecology', className: 'token-ecology', desc: 'ecology learning commands' },
+  { match: '@genetics', className: 'token-genetics', desc: 'genetics learning commands' },
 ];
 
 function highlightCode(code) {
@@ -453,6 +456,15 @@ function highlightCode(code) {
         }
         if (cmd === '@maths') {
           return '<span class="token-maths">' + cmd + '</span>';
+        }
+        if (cmd === '@theology') {
+          return '<span class="token-theology">' + cmd + '</span>';
+        }
+        if (cmd === '@ecology') {
+          return '<span class="token-ecology">' + cmd + '</span>';
+        }
+        if (cmd === '@genetics') {
+          return '<span class="token-genetics">' + cmd + '</span>';
         }
         return '<span class="token-command">' + cmd + '</span>';
       }
@@ -486,6 +498,9 @@ const suggestionList = [
   { label: '@text [color] message [set-true]', desc: 'add colored text to preview ([set-true] required)' },
   { label: '@maths [learn] (Factorization)', desc: 'show factorization rules and types' },
   { label: '@maths [learn] (Linear function)', desc: 'show linear function rules and examples' },
+  { label: '@theology [learn] (subject)', desc: 'learn about theology subjects' },
+  { label: '@ecology [learn] (subject)', desc: 'learn about ecology subjects' },
+  { label: '@genetics [learn] (subject)', desc: 'learn about genetics subjects' },
 ];
 
 let suggestionIndex = -1;
@@ -781,6 +796,18 @@ function executeCode(code, outputEl) {
       outputEl.innerHTML += renderLinearFunctionHTML();
       matched = true;
     }
+    if (trimmed.toLowerCase().startsWith('@theology [learn]')) {
+      outputEl.innerHTML += renderTheologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@ecology [learn]')) {
+      outputEl.innerHTML += renderEcologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@genetics [learn]')) {
+      outputEl.innerHTML += renderGeneticsHTML();
+      matched = true;
+    }
     const targetLow = trimmed.toLowerCase();
     if (targetLow.startsWith('@target shot') || targetLow.startsWith('@targetshot')) {
       const parts = trimmed.split(/\s+/);
@@ -890,6 +917,81 @@ function renderLinearFunctionHTML() {
   '</div>';
 }
 
+function renderTheologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const PURPLE = '#b388ff';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + PURPLE + ';margin-bottom:14px;">Theology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + PURPLE + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(179,136,255,0.08);border-left:3px solid ' + PURPLE + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Theology is the systematic study of the divine, religious beliefs, and the nature of God or gods. It draws from sacred texts, tradition, reason, and experience to explore questions of faith, morality, and existence.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + PURPLE + ';">Major Branches:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(179,136,255,0.08);border-left:3px solid ' + PURPLE + ';border-radius:4px;">' +
+      '<strong>1. Biblical Theology</strong><br>' +
+      '<span style="color:' + textSec + ';">Study of the Bible as divine revelation, including exegesis, hermeneutics, and canon formation.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(179,136,255,0.08);border-left:3px solid ' + PURPLE + ';border-radius:4px;">' +
+      '<strong>2. Systematic Theology</strong><br>' +
+      '<span style="color:' + textSec + ';">Organized presentation of Christian doctrines such as Christology, soteriology, and eschatology.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(179,136,255,0.08);border-left:3px solid ' + PURPLE + ';border-radius:4px;">' +
+      '<strong>3. Historical Theology</strong><br>' +
+      '<span style="color:' + textSec + ';">Development of theological thought through church history, creeds, and councils.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(179,136,255,0.08);border-left:3px solid ' + PURPLE + ';border-radius:4px;">' +
+      '<strong>4. Comparative Religion</strong><br>' +
+      '<span style="color:' + textSec + ';">Cross-cultural study of world religions including Islam, Judaism, Hinduism, Buddhism, and indigenous traditions.</span></div>' +
+  '</div>';
+}
+function renderEcologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const GREEN = '#69f0ae';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + GREEN + ';margin-bottom:14px;">Ecology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + GREEN + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(105,240,174,0.08);border-left:3px solid ' + GREEN + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Ecology is the study of interactions among living organisms and their physical environment. It examines how organisms adapt, compete, and coexist within ecosystems ranging from microhabitats to the entire biosphere.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + GREEN + ';">Key Concepts:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(105,240,174,0.08);border-left:3px solid ' + GREEN + ';border-radius:4px;">' +
+      '<strong>1. Ecosystems</strong><br>' +
+      '<span style="color:' + textSec + ';">Communities of organisms interacting with each other and their abiotic environment (water, soil, climate). Includes energy flow and nutrient cycling.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(105,240,174,0.08);border-left:3px solid ' + GREEN + ';border-radius:4px;">' +
+      '<strong>2. Food Webs &amp; Trophic Levels</strong><br>' +
+      '<span style="color:' + textSec + ';">Energy transfer from producers (plants) to consumers (herbivores, carnivores) to decomposers. Only ~10% of energy passes between levels.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(105,240,174,0.08);border-left:3px solid ' + GREEN + ';border-radius:4px;">' +
+      '<strong>3. Biogeochemical Cycles</strong><br>' +
+      '<span style="color:' + textSec + ';">Movement of elements like carbon, nitrogen, and phosphorus through living and non-living reservoirs — critical for sustaining life.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(105,240,174,0.08);border-left:3px solid ' + GREEN + ';border-radius:4px;">' +
+      '<strong>4. Biodiversity &amp; Conservation</strong><br>' +
+      '<span style="color:' + textSec + ';">The variety of life at genetic, species, and ecosystem levels. Conservation biology works to protect endangered species and restore degraded habitats.</span></div>' +
+  '</div>';
+}
+function renderGeneticsHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const TEAL = '#40c4ff';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + TEAL + ';margin-bottom:14px;">Genetics Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + TEAL + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(64,196,255,0.08);border-left:3px solid ' + TEAL + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Genetics is the study of genes, genetic variation, and heredity in living organisms. It explains how traits are passed from parents to offspring and how DNA encodes the instructions for life.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + TEAL + ';">Core Topics:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(64,196,255,0.08);border-left:3px solid ' + TEAL + ';border-radius:4px;">' +
+      '<strong>1. DNA Structure &amp; Replication</strong><br>' +
+      '<span style="color:' + textSec + ';">Double helix (Watson &amp; Crick) composed of nucleotides (A, T, G, C). Replication is semi-conservative, ensuring faithful copy of genetic material.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(64,196,255,0.08);border-left:3px solid ' + TEAL + ';border-radius:4px;">' +
+      '<strong>2. Mendelian Inheritance</strong><br>' +
+      '<span style="color:' + textSec + ';">Gregor Mendel\'s laws of segregation and independent assortment. Dominant/recessive traits, Punnett squares, and pedigree analysis.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(64,196,255,0.08);border-left:3px solid ' + TEAL + ';border-radius:4px;">' +
+      '<strong>3. Gene Expression</strong><br>' +
+      '<span style="color:' + textSec + ';">Central dogma: DNA → RNA → Protein. Transcription, translation, and regulation by promoters, enhancers, and epigenetic modifications.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(64,196,255,0.08);border-left:3px solid ' + TEAL + ';border-radius:4px;">' +
+      '<strong>4. Mutations &amp; Biotechnology</strong><br>' +
+      '<span style="color:' + textSec + ';">Point mutations, frameshifts, and chromosomal rearrangements. CRISPR, PCR, and genetic engineering applications in medicine and agriculture.</span></div>' +
+  '</div>';
+}
 function renderDartsHTML(id, targetScore) {
   const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
   const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
@@ -2045,6 +2147,9 @@ function getDefaultDB() {
     { id: 18, command: '@maths [learn] (Factorization)', description: 'Shows a factorization rules card in the preview.', tags: ['maths', 'preview'], addedBy: 'system' },
     { id: 19, command: '@maths [learn] (Linear function)', description: 'Shows a linear function rules card in the preview.', tags: ['maths', 'preview'], addedBy: 'system' },
     { id: 20, command: '@dev [tools]', description: 'Opens the built-in Dev Tools panel for owners.', tags: ['run-command', 'owner'], addedBy: 'system' },
+    { id: 21, command: '@theology [learn] (subject)', description: 'Shows a theology overview card in the preview.', tags: ['theology', 'preview'], addedBy: 'system' },
+    { id: 22, command: '@ecology [learn] (subject)', description: 'Shows an ecology overview card in the preview.', tags: ['ecology', 'preview'], addedBy: 'system' },
+    { id: 23, command: '@genetics [learn] (subject)', description: 'Shows a genetics overview card in the preview.', tags: ['genetics', 'preview'], addedBy: 'system' },
   ]};
 }
 

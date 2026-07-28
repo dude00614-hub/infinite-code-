@@ -1003,6 +1003,18 @@ body {
   color: #ff4444;
   font-weight: 600;
 }
+.token-theology {
+  color: #b388ff;
+  font-weight: 600;
+}
+.token-ecology {
+  color: #69f0ae;
+  font-weight: 600;
+}
+.token-genetics {
+  color: #40c4ff;
+  font-weight: 600;
+}
 .token-value {
   color: #ffd700;
 }

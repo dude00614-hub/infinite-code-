@@ -649,6 +649,13 @@ body {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary, #e0e0e0);
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  padding: 0;
+  flex: 1;
+  margin-right: 8px;
 }
 .quick-code-close {
   background: none;

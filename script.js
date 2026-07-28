@@ -332,18 +332,25 @@ function openProject(name) {
   });
   // Re-bind quick code (+ button)
   const QC_KEY = 'ic_quickcode_' + (currentProject ? currentProject.name : 'default');
+  const QC_NAME_KEY = 'ic_qcname_' + (currentProject ? currentProject.name : 'default');
+  function saveQC() {
+    localStorage.setItem(QC_KEY, document.getElementById('quickCodeTextarea').value);
+    localStorage.setItem(QC_NAME_KEY, document.getElementById('quickCodeTitle').value);
+  }
   document.getElementById('quickCodeBtn').addEventListener('click', function() {
     document.getElementById('quickCodeOverlay').classList.remove('hidden');
     document.getElementById('quickCodeTextarea').value = localStorage.getItem(QC_KEY) || '';
+    document.getElementById('quickCodeTitle').value = localStorage.getItem(QC_NAME_KEY) || 'Quick Code';
     document.getElementById('quickCodeTextarea').focus();
   });
   document.getElementById('quickCodeClose').addEventListener('click', function() {
-    const val = document.getElementById('quickCodeTextarea').value;
-    localStorage.setItem(QC_KEY, val);
+    saveQC();
     document.getElementById('quickCodeOverlay').classList.add('hidden');
   });
-  document.getElementById('quickCodeTextarea').addEventListener('input', function() {
-    localStorage.setItem(QC_KEY, this.value);
+  document.getElementById('quickCodeTextarea').addEventListener('input', saveQC);
+  document.getElementById('quickCodeTitle').addEventListener('input', saveQC);
+  document.getElementById('quickCodeTitle').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
   });
   document.getElementById('quickCodeTextarea').addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {

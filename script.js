@@ -10,8 +10,8 @@ function sb(table) {
   const url = SUPABASE_URL + '/rest/v1/' + table;
   const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
   return {
-    upsert: (data, conflict) => fetch(url, { method:'POST', headers:{...headers,'Prefer':'resolution=merge-duplicates'}, body:JSON.stringify(Array.isArray(data)?data:[data]) }).then(r=>r.json()).then(()=>({ok:true})).catch(e=>({ok:false,error:e})),
-    insert: (data) => fetch(url, { method:'POST', headers, body:JSON.stringify(Array.isArray(data)?data:[data]) }).then(r=>r.json()).then(()=>({ok:true})).catch(e=>({ok:false,error:e})),
+    upsert: (data, conflict) => fetch(url, { method:'POST', headers:{...headers,'Prefer':'resolution=merge-duplicates'}, body:JSON.stringify(Array.isArray(data)?data:[data]) }).then(r=>r.ok?{ok:true}:Promise.reject(r.status)).catch(e=>({ok:false,error:e})),
+    insert: (data) => fetch(url, { method:'POST', headers:{...headers,'Prefer':'return=representation'}, body:JSON.stringify(Array.isArray(data)?data:[data]) }).then(r=>r.ok?{ok:true}:Promise.reject(r.status)).catch(e=>({ok:false,error:e})),
     select: (match) => {
       const q = new URLSearchParams();
       for (const k of Object.keys(match||{})) q.append(k, 'eq.'+match[k]);

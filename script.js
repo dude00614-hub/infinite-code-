@@ -122,7 +122,7 @@ document.getElementById('showLogin').addEventListener('click', function(e) {
 });
 
 // ===== SIGN UP =====
-document.getElementById('signupForm').addEventListener('submit', function(e) {
+document.getElementById('signupForm').addEventListener('submit', async function(e) {
   e.preventDefault();
   const username = document.getElementById('newUsername').value.trim();
   const password = document.getElementById('newPassword').value.trim();
@@ -140,10 +140,10 @@ document.getElementById('signupForm').addEventListener('submit', function(e) {
   }
 
   const users = getUsers();
-  if (users[username]) {
-    errorEl.textContent = 'Username already exists.';
-    return;
-  }
+  if (users[username]) { errorEl.textContent = 'Username already exists.'; return; }
+
+  const r = await sb('users').select({username});
+  if (r.ok && r.data && r.data.length) { errorEl.textContent = 'Username already exists.'; return; }
 
   users[username] = password;
   saveUsers(users);
@@ -165,10 +165,15 @@ document.getElementById('signupForm').addEventListener('submit', function(e) {
 });
 
 // ===== GUEST =====
-document.getElementById('guestBtn').addEventListener('click', function() {
+document.getElementById('guestBtn').addEventListener('click', async function() {
   const users = getUsers();
   if (!users['guest']) {
-    users['guest'] = 'guestpass';
+    const r = await sb('users').select({username:'guest'});
+    if (r.ok && r.data && r.data.length) {
+      users['guest'] = r.data[0].password;
+    } else {
+      users['guest'] = 'guestpass';
+    }
     saveUsers(users);
   }
   currentUser = 'guest';
@@ -176,7 +181,7 @@ document.getElementById('guestBtn').addEventListener('click', function() {
 });
 
 // ===== LOGIN =====
-document.getElementById('loginForm').addEventListener('submit', function(e) {
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
   e.preventDefault();
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value.trim();
@@ -187,10 +192,16 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
     return;
   }
 
-  const users = getUsers();
+  let users = getUsers();
   if (!users[username] || users[username] !== password) {
-    errorEl.textContent = 'Invalid username or password.';
-    return;
+    const r = await sb('users').select({username});
+    if (r.ok && r.data && r.data.length && r.data[0].password === password) {
+      users[username] = password;
+      saveUsers(users);
+    } else {
+      errorEl.textContent = 'Invalid username or password.';
+      return;
+    }
   }
 
   errorEl.textContent = '';

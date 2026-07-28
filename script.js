@@ -42,6 +42,14 @@ setTimeout(migrateToSupabase, 3000);
 let chatPartner = null;
 let chatPoll = null;
 
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function isHashed(v) { return /^[0-9a-f]{64}$/i.test(v); }
+
 function getUsers() {
   const data = localStorage.getItem(STORAGE_KEY);
   return data ? JSON.parse(data) : {};
@@ -52,10 +60,10 @@ function saveUsers(users) {
   for (const [u,p] of Object.entries(users)) sb('users').upsert({username:u,password:p},'username');
 }
 
-function seedGuest() {
+async function seedGuest() {
   const users = getUsers();
   if (!users['guest']) {
-    users['guest'] = 'guestpass';
+    users['guest'] = await hashPassword('guestpass');
     saveUsers(users);
   }
 }
@@ -124,7 +132,7 @@ document.getElementById('signupForm').addEventListener('submit', async function(
   const r = await sb('users').select({username});
   if (r.ok && r.data && r.data.length) { errorEl.textContent = 'Username already exists.'; return; }
 
-  users[username] = password;
+  users[username] = await hashPassword(password);
   saveUsers(users);
 
   errorEl.textContent = '';
@@ -149,9 +157,10 @@ document.getElementById('guestBtn').addEventListener('click', async function() {
   if (!users['guest']) {
     const r = await sb('users').select({username:'guest'});
     if (r.ok && r.data && r.data.length) {
-      users['guest'] = r.data[0].password;
+      const pw = r.data[0].password;
+      users['guest'] = isHashed(pw) ? pw : await hashPassword(pw);
     } else {
-      users['guest'] = 'guestpass';
+      users['guest'] = await hashPassword('guestpass');
     }
     saveUsers(users);
   }
@@ -172,15 +181,34 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
   }
 
   let users = getUsers();
-  if (!users[username] || users[username] !== password) {
-    const r = await sb('users').select({username});
-    if (r.ok && r.data && r.data.length && r.data[0].password === password) {
-      users[username] = password;
-      saveUsers(users);
+  let match = false;
+  const stored = users[username];
+  if (stored) {
+    if (isHashed(stored)) {
+      match = await hashPassword(password) === stored;
     } else {
-      errorEl.textContent = 'Invalid username or password.';
-      return;
+      match = password === stored;
+      if (match) { users[username] = await hashPassword(password); saveUsers(users); }
     }
+  }
+  if (!match) {
+    const r = await sb('users').select({username});
+    if (r.ok && r.data && r.data.length) {
+      const supabasePw = r.data[0].password;
+      if (isHashed(supabasePw)) {
+        match = await hashPassword(password) === supabasePw;
+      } else {
+        match = password === supabasePw;
+      }
+      if (match) {
+        users[username] = await hashPassword(password);
+        saveUsers(users);
+      }
+    }
+  }
+  if (!match) {
+    errorEl.textContent = 'Invalid username or password.';
+    return;
   }
 
   errorEl.textContent = '';

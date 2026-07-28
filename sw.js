@@ -1,4 +1,4 @@
-const CACHE = 'infinite-code-v1';
+const CACHE = 'infinite-code-v2';
 
 self.addEventListener('install', e => {
   self.skipWaiting();

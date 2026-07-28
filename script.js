@@ -330,6 +330,7 @@ function updateLineNumbers() {
 const COMMANDS = [
   { match: '@inf', className: 'token-keyword', desc: 'required first line' },
   { match: '@background', className: 'token-command', desc: 'set preview background' },
+  { match: '@text', className: 'token-command', desc: 'add colored text to preview' },
 ];
 
 function highlightCode(code) {
@@ -374,6 +375,7 @@ const suggestionList = [
   { label: '@project tic tac toe', desc: 'create a tic tac toe game' },
   { label: '@project tic tac toe /', desc: 'create a tic tac toe game with a number' },
   { label: '@project [close]', desc: 'close the current project' },
+  { label: '@text [color] message set true', desc: 'add text to preview (set true required)' },
 ];
 
 let suggestionIndex = -1;
@@ -650,6 +652,16 @@ function executeCode(code, outputEl) {
           usedNums.push(num);
           outputEl.innerHTML += renderTicTacToeHTML(num);
         }
+      }
+    }
+    if (trimmed.startsWith('@text') && trimmed.toLowerCase().includes('set true')) {
+      let rest = trimmed.replace(/^@text\s*/i, '').replace(/\s+set\s+true$/i, '').trim();
+      const cMatch = rest.match(/^\[(#?[^\]]+)\]\s*(.*)$/);
+      let color = '', msg = rest;
+      if (cMatch) { color = cMatch[1]; msg = cMatch[2].trim(); }
+      if (msg) {
+        const style = color ? 'color:' + (color.startsWith('#')?color:'#'+color) + ';' : '';
+        outputEl.innerHTML += '<div class="output-line" style="' + style + '">' + msg + '</div>';
       }
     }
   }
@@ -1485,6 +1497,7 @@ function getDefaultDB() {
     { id: 13, command: '@project [open]', description: 'Opens a project block.', tags: ['project'], addedBy: 'system' },
     { id: 14, command: '@project tic tac toe /N', description: 'Creates a playable Tic Tac Toe game with a unique number N.', tags: ['project', 'preview'], addedBy: 'system' },
     { id: 15, command: '@project [close]', description: 'Closes the current project.', tags: ['project'], addedBy: 'system' },
+    { id: 16, command: '@text [color] message set true', description: 'Adds colored text to the preview. Requires set true at the end. Example: @text [#ff0000] Hello set true', tags: ['preview'], addedBy: 'system' },
   ]};
 }
 

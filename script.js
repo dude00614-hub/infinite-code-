@@ -574,7 +574,7 @@ function executeCode(code, outputEl) {
     return;
   }
   const lines = code.split('\n');
-  const bgRegex = /^@background\s+\[(#?[0-9a-fA-F]{3,8})\]$/;
+  const bgRegex = /^@background\s+\[(#?[0-9a-fA-F]{3,8})\]\s*$/;
   const usedNums = [];
   let projectOpen = false;
   for (const line of lines) {
@@ -612,6 +612,10 @@ function executeCode(code, outputEl) {
       let color = '', msg = rest;
       if (cMatch) { color = cMatch[1]; msg = cMatch[2].trim(); }
       if (msg) {
+        if (color) {
+          const hex = color.replace(/^#/, '');
+          color = /^[0-9a-f]{3,8}$/i.test(hex) ? '#' + hex : color;
+        }
         const style = color ? 'color:' + color + ';' : '';
         outputEl.innerHTML += '<div class="output-line" style="' + style + '">' + msg + '</div>';
       }

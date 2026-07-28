@@ -515,7 +515,8 @@ document.getElementById('codeTextarea').addEventListener('keydown', function(e) 
     const value = this.value;
     const lineStart = value.lastIndexOf('\n', start - 1) + 1;
     const currentLine = value.substring(lineStart, start);
-    document.execCommand('insertText', false, '\n  ');
+    const indent = currentLine.match(/^\s*/)[0];
+    document.execCommand('insertText', false, '\n' + indent + '  ');
   }
 });
 

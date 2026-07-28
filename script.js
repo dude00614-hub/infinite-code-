@@ -846,8 +846,30 @@ function openCroshWindow() {
       croshEcho('Available commands: help, ping, telnet, ssh, shell, exit');
     } else if (cmd === 'exit') {
       document.body.removeChild(overlay);
-    } else if (cmd === 'ping' || cmd === 'telnet' || cmd === 'ssh' || cmd === 'shell') {
-      croshEcho('This feature is not available in this environment.');
+    } else if (cmd === 'ping') {
+      croshEcho('Pinging 8.8.8.8...');
+      setTimeout(function() { croshEcho('64 bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=14.2 ms'); }, 300);
+      setTimeout(function() { croshEcho('64 bytes from 8.8.8.8: icmp_seq=2 ttl=117 time=13.8 ms'); }, 600);
+      setTimeout(function() { croshEcho('64 bytes from 8.8.8.8: icmp_seq=3 ttl=117 time=15.1 ms'); }, 900);
+      setTimeout(function() { croshEcho('--- 8.8.8.8 ping statistics ---'); }, 1200);
+      setTimeout(function() { croshEcho('3 packets transmitted, 3 received, 0% packet loss'); }, 1500);
+    } else if (cmd === 'telnet') {
+      croshEcho('Connecting to towel.blinkenlights.nl...');
+      setTimeout(function() { croshEcho('Connected. Type "quit" to exit.'); }, 500);
+      setTimeout(function() { croshEcho('Star Wars ASCII animation would play here...'); }, 1000);
+      setTimeout(function() { croshEcho('(but we skipped it to save bandwidth)'); }, 1500);
+    } else if (cmd === 'ssh') {
+      croshEcho('SSH: trying to establish connection...');
+      setTimeout(function() { croshEcho('The authenticity of host \'server.local\' can\'t be established.'); }, 400);
+      setTimeout(function() { croshEcho('ECDSA key fingerprint is SHA256:AbCdEf1234567890.'); }, 800);
+      setTimeout(function() { croshEcho('Are you sure you want to continue connecting (yes/no/[fingerprint])?'); }, 1200);
+      setTimeout(function() { croshEcho('yes'); }, 1400);
+      setTimeout(function() { croshEcho('Warning: Permanently added \'server.local\' (ECDSA) to the list of known hosts.'); }, 1800);
+      setTimeout(function() { croshEcho('Permission denied (publickey).'); }, 2200);
+    } else if (cmd === 'shell') {
+      croshEcho('Spawning shell...');
+      setTimeout(function() { croshEcho('Error: SHELL is not properly configured. Contact your IT admin.'); }, 600);
+      setTimeout(function() { croshEcho('Just kidding. There is no shell. This is a joke.'); }, 1000);
     } else {
       croshEcho('Unknown command: ' + cmd + '. Type help for available commands.');
     }

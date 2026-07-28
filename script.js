@@ -1605,6 +1605,13 @@ document.getElementById('runInput').addEventListener('keydown', function(e) {
       });
     }
     output.scrollTop = output.scrollHeight;
+  } else if (input === '@dev [tools]') {
+    if (!OWNERS.includes(currentUser)) {
+      output.appendChild(err('Owners only'));
+    } else {
+      openDevTools();
+      output.appendChild(ok('Dev Tools opened'));
+    }
   } else {
     const msg = document.createElement('div');
     msg.className = 'run-line error';
@@ -1615,6 +1622,194 @@ document.getElementById('runInput').addEventListener('keydown', function(e) {
   this.value = '';
   output.scrollTop = output.scrollHeight;
 });
+
+function openDevTools() {
+  const existing = document.getElementById('devToolsOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'devToolsOverlay';
+  overlay.innerHTML =
+    '<div class="devtools-window">' +
+      '<div class="devtools-header">' +
+        '<span class="devtools-title">&#9881; Dev Tools</span>' +
+        '<button class="devtools-close">&times;</button>' +
+      '</div>' +
+      '<div class="devtools-tabs">' +
+        '<button class="devtools-tab active" data-tab="console">Console</button>' +
+        '<button class="devtools-tab" data-tab="elements">Elements</button>' +
+        '<button class="devtools-tab" data-tab="network">Network</button>' +
+        '<button class="devtools-tab" data-tab="storage">Storage</button>' +
+        '<button class="devtools-tab" data-tab="info">Info</button>' +
+      '</div>' +
+      '<div class="devtools-body">' +
+        '<div class="devtools-panel active" id="dt-console"><div class="dt-placeholder">Console output will appear here</div></div>' +
+        '<div class="devtools-panel" id="dt-elements"><div class="dt-placeholder">Click an element below to inspect</div><div class="dt-dom-tree"></div></div>' +
+        '<div class="devtools-panel" id="dt-network"><div class="dt-placeholder">Network requests will be logged here</div></div>' +
+        '<div class="devtools-panel" id="dt-storage"><div class="dt-placeholder">Loading storage...</div></div>' +
+        '<div class="devtools-panel" id="dt-info"><div class="dt-placeholder">Loading info...</div></div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  const closeBtn = overlay.querySelector('.devtools-close');
+  closeBtn.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+  // Tab switching
+  overlay.querySelectorAll('.devtools-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      overlay.querySelectorAll('.devtools-tab').forEach(t => t.classList.remove('active'));
+      overlay.querySelectorAll('.devtools-panel').forEach(p => p.classList.remove('active'));
+      this.classList.add('active');
+      const panel = document.getElementById('dt-' + this.dataset.tab);
+      if (panel) panel.classList.add('active');
+    });
+  });
+
+  // Console tab: intercept console.log
+  (function() {
+    const panel = document.getElementById('dt-console');
+    const origLog = console.log;
+    const origWarn = console.warn;
+    const origError = console.error;
+    console.log = function() {
+      const args = Array.from(arguments).map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ');
+      const line = document.createElement('div');
+      line.className = 'dt-console-line';
+      line.textContent = args;
+      panel.appendChild(line);
+      panel.scrollTop = panel.scrollHeight;
+      origLog.apply(console, arguments);
+    };
+    console.warn = function() {
+      const args = Array.from(arguments).map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ');
+      const line = document.createElement('div');
+      line.className = 'dt-console-line dt-console-warn';
+      line.textContent = args;
+      panel.appendChild(line);
+      panel.scrollTop = panel.scrollHeight;
+      origWarn.apply(console, arguments);
+    };
+    console.error = function() {
+      const args = Array.from(arguments).map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ');
+      const line = document.createElement('div');
+      line.className = 'dt-console-line dt-console-error';
+      line.textContent = args;
+      panel.appendChild(line);
+      panel.scrollTop = panel.scrollHeight;
+      origError.apply(console, arguments);
+    };
+    overlay.addEventListener('remove', function() {
+      console.log = origLog;
+      console.warn = origWarn;
+      console.error = origError;
+    });
+  })();
+
+  // Elements tab: show body children
+  (function() {
+    const tree = document.getElementById('dt-elements').querySelector('.dt-dom-tree');
+    function buildTree(el, depth) {
+      if (depth > 5) return;
+      const children = Array.from(el.children);
+      children.forEach(child => {
+        const item = document.createElement('div');
+        item.className = 'dt-dom-item';
+        item.style.paddingLeft = (depth * 16 + 8) + 'px';
+        const tag = child.tagName.toLowerCase();
+        const id = child.id ? '#' + child.id : '';
+        const cls = child.className && typeof child.className === 'string' ? '.' + child.className.trim().split(/\s+/).join('.') : '';
+        item.textContent = '<' + tag + id + cls + '>';
+        item.dataset.selector = tag + (id || '') + (cls ? cls.replace(/\./g, '.') : '');
+        item.style.cursor = 'pointer';
+        item.addEventListener('click', function(e) {
+          e.stopPropagation();
+          overlay.querySelectorAll('.dt-dom-item').forEach(i => i.style.outline = '');
+          this.style.outline = '2px solid var(--accent,#ff4444)';
+          const sel = this.dataset.selector;
+          try {
+            const found = document.querySelector(sel);
+            if (found) {
+              found.style.outline = '2px solid #ff4444';
+              setTimeout(() => found.style.outline = '', 2000);
+            }
+          } catch(e) {}
+        });
+        tree.appendChild(item);
+        buildTree(child, depth + 1);
+      });
+    }
+    buildTree(document.body, 0);
+  })();
+
+  // Network tab: intercept fetch
+  (function() {
+    const panel = document.getElementById('dt-network');
+    const origFetch = window.fetch;
+    window.fetch = function() {
+      const url = arguments[0];
+      const start = Date.now();
+      const line = document.createElement('div');
+      line.className = 'dt-network-line';
+      line.textContent = 'REQ ' + (typeof url === 'string' ? url : url.url || '(url)');
+      panel.appendChild(line);
+      panel.scrollTop = panel.scrollHeight;
+      return origFetch.apply(this, arguments).then(r => {
+        const ms = Date.now() - start;
+        line.textContent = (r.ok ? 'OK ' : 'ERR ') + r.status + ' ' + (typeof url === 'string' ? url : url.url || '(url)') + ' (' + ms + 'ms)';
+        line.className = 'dt-network-line' + (r.ok ? '' : ' dt-network-err');
+        panel.scrollTop = panel.scrollHeight;
+        return r;
+      }).catch(e => {
+        line.textContent = 'FAIL ' + (typeof url === 'string' ? url : url.url || '(url)') + ' - ' + e.message;
+        line.className = 'dt-network-line dt-network-err';
+        panel.scrollTop = panel.scrollHeight;
+        throw e;
+      });
+    };
+    overlay.addEventListener('remove', function() { window.fetch = origFetch; });
+  })();
+
+  // Storage tab
+  (function() {
+    const panel = document.getElementById('dt-storage');
+    panel.innerHTML = '';
+    const title = document.createElement('div');
+    title.className = 'dt-storage-title';
+    title.textContent = 'localStorage';
+    panel.appendChild(title);
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      const v = localStorage.getItem(k);
+      const row = document.createElement('div');
+      row.className = 'dt-storage-row';
+      row.innerHTML = '<span class="dt-storage-key">' + k + '</span> <span class="dt-storage-val">' + (v.length > 100 ? v.substring(0, 100) + '...' : v) + '</span>';
+      panel.appendChild(row);
+    }
+  })();
+
+  // Info tab
+  (function() {
+    const panel = document.getElementById('dt-info');
+    panel.innerHTML = '';
+    const info = [
+      'User Agent: ' + navigator.userAgent,
+      'Platform: ' + navigator.platform,
+      'Screen: ' + screen.width + 'x' + screen.height,
+      'Viewport: ' + window.innerWidth + 'x' + window.innerHeight,
+      'Current User: ' + (currentUser || '(not logged in)'),
+      'Is Owner: ' + OWNERS.includes(currentUser),
+      'Theme: ' + (localStorage.getItem(THEME_KEY) || '(default)'),
+      'Projects: ' + (getProjects().length || 0),
+    ];
+    info.forEach(text => {
+      const line = document.createElement('div');
+      line.className = 'dt-info-line';
+      line.textContent = text;
+      panel.appendChild(line);
+    });
+  })();
+}
 
 // ===== CHAT FUNCTIONS =====
 function ok(t) { const d=document.createElement('div');d.className='run-line success';d.textContent=t;return d; }
@@ -1741,6 +1936,10 @@ function getDefaultDB() {
     { id: 14, command: '@project tic tac toe /N', description: 'Creates a playable Tic Tac Toe game with a unique number N.', tags: ['project', 'preview'], addedBy: 'system' },
     { id: 15, command: '@project [close]', description: 'Closes the current project.', tags: ['project'], addedBy: 'system' },
     { id: 16, command: '@text [color] message [set-true]', description: 'Adds colored text to the preview. Requires [set-true] to show. Example: @text [#ff0000] Hello [set-true]', tags: ['preview'], addedBy: 'system' },
+    { id: 17, command: '@Target shot /N "score"', description: 'Creates a playable darts game with a target score. N is a unique ID, /N auto-assigns.', tags: ['preview', 'game'], addedBy: 'system' },
+    { id: 18, command: '@maths [learn] (Factorization)', description: 'Shows a factorization rules card in the preview.', tags: ['maths', 'preview'], addedBy: 'system' },
+    { id: 19, command: '@maths [learn] (Linear function)', description: 'Shows a linear function rules card in the preview.', tags: ['maths', 'preview'], addedBy: 'system' },
+    { id: 20, command: '@dev [tools]', description: 'Opens the built-in Dev Tools panel for owners.', tags: ['run-command', 'owner'], addedBy: 'system' },
   ]};
 }
 

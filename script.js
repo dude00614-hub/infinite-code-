@@ -3,26 +3,51 @@ const STORAGE_KEY = 'infinite_code_users_v2';
 const THEME_KEY = 'infinite_code_theme';
 
 // ===== PWA Service Worker =====
+let swActive = false;
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  const swUrl = '/infinite-code-/sw.js';
+  navigator.serviceWorker.register(swUrl).then(reg => {
+    swActive = !!reg.active || !!reg.installing || !!reg.waiting;
+    if (reg.installing) reg.installing.addEventListener('statechange', () => { swActive = true; });
+  }).catch(e => console.log('SW reg failed:', e));
 }
 
 // ===== PWA Install Button =====
 let deferredPrompt = null;
+let pwaChecked = false;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
+  pwaChecked = true;
 });
 window.addEventListener('appinstalled', () => {
   deferredPrompt = null;
+  document.getElementById('installBtn').textContent = '\u2705 Installed';
+  document.getElementById('installBtn').disabled = true;
 });
+// Also check display-mode for already-installed detection
+if (window.matchMedia('(display-mode: standalone)').matches) {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('installBtn').textContent = '\u2705 Installed';
+    document.getElementById('installBtn').disabled = true;
+  });
+}
 document.addEventListener('click', e => {
-  if (e.target.id === 'installBtn') {
+  if (e.target.id === 'installBtn' && !e.target.disabled) {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
     } else {
-      alert('To install: open in Chrome or Edge, then click the install icon in the address bar, or use browser menu → Install "Infinite Code".');
+      const isChrome = navigator.userAgent.includes('Chrome');
+      const isEdge = navigator.userAgent.includes('Edg');
+      const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
+      if (isChrome || isEdge) {
+        alert('Click the install icon \u2191 in the address bar, or:\n\nMenu \u2192 Install "Infinite Code"\n\n(If missing, the app may already be installed.)');
+      } else if (isSafari) {
+        alert('Tap Share \u2192 Add to Home Screen.');
+      } else {
+        alert('Open in Chrome or Edge for install support.\n\nOtherwise, use browser menu \u2192 Install "Infinite Code" (if available).');
+      }
     }
   }
 });

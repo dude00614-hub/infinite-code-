@@ -4,6 +4,7 @@
   "description": "Infinite Code Editor",
   "start_url": ".",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#0d0d0d",
   "theme_color": "#ff4444",
   "icons": [

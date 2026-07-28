@@ -551,6 +551,7 @@ function openCodeInTab() {
   const tttGames = [];
   let projectOpen = false;
   const usedNums = [];
+  const textParts = [];
   for (const line of lines) {
     const m = line.match(bgRegex);
     if (m) { bgColor = m[1].startsWith('#') ? m[1] : '#' + m[1]; continue; }
@@ -569,12 +570,6 @@ function openCodeInTab() {
         }
       }
     }
-  }
-  const bgStyle = bgColor ? 'background:' + bgColor + ';' : '';
-  const tttHTML = tttGames.map(num => renderTTTString(num)).join('');
-  const textParts = [];
-  for (const line of lines) {
-    const trimmed = line.trim();
     if (trimmed.startsWith('@text') && trimmed.toLowerCase().includes('[set-true]')) {
       let rest = trimmed.replace(/^@text\s*/i, '').replace(/\s*\[set-true\]\s*/i, '').trim();
       const cMatch = rest.match(/^\[(#?[^\]]+)\]\s*(.*)$/);
@@ -582,12 +577,14 @@ function openCodeInTab() {
       if (cMatch) { color = cMatch[1]; msg = cMatch[2].trim(); }
       if (msg) {
         const style = color ? 'color:' + (color.startsWith('#')?color:'#'+color) + ';' : 'color:#e8c8c8;';
-        textParts.push('<div style="' + style + 'padding:4px 16px;font-size:16px;">' + msg + '</div>');
+        textParts.push('<div class="output-line" style="' + style + '">' + msg + '</div>');
       }
     }
   }
-  const textHTML = textParts.join('');
-  const html = '<!DOCTYPE html><html><head><title>Infinite Code - Preview</title><meta charset="utf-8"><style>body{margin:0;min-height:100vh;' + bgStyle + 'display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#140a0a;color:#e8c8c8;}</style></head><body>' + textHTML + tttHTML + '</body></html>';
+  const bgStyle = bgColor ? 'background:' + bgColor + ';' : '';
+  const tttHTML = tttGames.map(num => renderTTTString(num)).join('');
+  const content = textParts.join('') + tttHTML;
+  const html = '<!DOCTYPE html><html><head><title>Infinite Code - Preview</title><meta charset="utf-8"><style>body{margin:0;min-height:100vh;' + bgStyle + 'display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#140a0a;color:#e8c8c8;}.output-line{padding:4px 16px;font-size:16px;}</style></head><body>' + content + '</body></html>';
   const win = window.open('', '_blank');
   if (win) {
     win.document.write(html);

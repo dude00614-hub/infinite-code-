@@ -375,6 +375,7 @@ const suggestionList = [
   { label: '@background [#hex]', desc: 'set preview background' },
   { label: '@open', desc: 'open code in a new tab' },
   { label: '@open [web]', desc: 'open with a shareable blob link' },
+  { label: '@Target shot /N "score"', desc: 'create a darts game with target score' },
   { label: '@open [crosh] (window)', desc: 'open a crosh terminal window' },
   { label: '@project [open]', desc: 'open a project' },
   { label: '@project tic tac toe', desc: 'create a tic tac toe game' },
@@ -613,7 +614,8 @@ function openCodeInTab() {
   }
   const bgStyle = bgColor ? 'background:' + bgColor + ';' : '';
   const tttScript = `(function(){document.querySelectorAll('.ttt-wrap').forEach(function(g){var c=g.querySelectorAll('.ttt-cell');var s=g.querySelector('.ttt-status');var r=g.querySelector('.ttt-reset');var b=Array(9).fill(null);var p='X';var o=false;c.forEach(function(el,i){el.onclick=function(){if(b[i]||o)return;b[i]=p;el.textContent=p;el.style.color=p==='X'?'#ff4444':'#50e3c2';var w=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];for(var k=0;k<w.length;k++){if(b[w[k][0]]&&b[w[k][0]]===b[w[k][1]]&&b[w[k][1]]===b[w[k][2]]){o=true;s.textContent='Player '+b[w[k][0]]+' wins!';w[k].forEach(function(j){c[j].style.background='rgba(255,68,68,0.3)';});return;}}if(b.every(function(v){return v!==null})){o=true;s.textContent='Draw!';return;}p=p==='X'?'O':'X';s.textContent='Player '+p+\"'s turn\";};});r.onclick=function(){b=Array(9).fill(null);p='X';o=false;c.forEach(function(x){x.textContent='';x.style.background='';x.style.color='';});s.textContent=\"Player X's turn\";};});})();`;
-  const html = '<!DOCTYPE html><html><head><title>Infinite Code - Preview</title><meta charset="utf-8"><style>body{margin:0;min-height:100vh;' + bgStyle + 'display:flex;flex-direction:column;align-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#140a0a;color:#e8c8c8;}.output-line{padding:4px 16px;font-size:16px;}.ttt-wrap{display:flex;flex-direction:column;align-items:center;margin:12px 0;padding:16px;border-radius:10px;}.ttt-cell{cursor:pointer;}</style></head><body>' + content + '<script>' + tttScript + '<\/script></body></html>';
+  const dartsScript = `(function(){document.querySelectorAll('.darts-board').forEach(function(b){var w=b.closest('.darts-wrap');var id=w.dataset.target;var t=parseInt(w.dataset.score);var s=w.querySelector('.darts-status');var th=w.querySelector('.darts-throws');var sc=0,tr=0,ov=false;b.onclick=function(e){if(ov)return;var r=b.getBoundingClientRect();var x=e.clientX-r.left-r.width/2;var y=e.clientY-r.top-r.height/2;var d=Math.sqrt(x*x+y*y)/(r.width/2);var p;p=d<0.15?60:d<0.35?40:d<0.6?20:Math.floor(Math.random()*20)+1;sc+=p;tr++;var dot=document.createElement('div');dot.style.cssText='width:8px;height:8px;border-radius:50%;background:#ffd700;margin:0 1px;';th.appendChild(dot);if(sc>=t){ov=true;s.innerHTML='Bullseye! You reached '+t+' in '+tr+' throws!';}else{s.textContent='Score: '+sc+' / '+t+' (throw #'+tr+')';}};var rs=w.querySelector('.darts-reset');if(rs){rs.onclick=function(){sc=0;tr=0;ov=false;th.innerHTML='';s.textContent='Score: 0 / '+t;};}});})();`;
+  const html = '<!DOCTYPE html><html><head><title>Infinite Code - Preview</title><meta charset="utf-8"><style>body{margin:0;min-height:100vh;' + bgStyle + 'display:flex;flex-direction:column;align-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#140a0a;color:#e8c8c8;}.output-line{padding:4px 16px;font-size:16px;}.ttt-wrap{display:flex;flex-direction:column;align-items:center;margin:12px 0;padding:16px;border-radius:10px;}.ttt-cell{cursor:pointer;}.darts-board{cursor:crosshair;}</style></head><body>' + content + '<script>' + tttScript + dartsScript + '<\/script></body></html>';
   const win = window.open('', '_blank');
   if (win) {
     win.document.write(html);
@@ -634,6 +636,7 @@ function executeCode(code, outputEl) {
   const lines = code.split('\n');
   const bgRegex = /^@background\s+\[(#?[0-9a-fA-F]{3,8})\]\s*$/;
   const usedNums = [];
+  const usedTargets = [];
   let projectOpen = false;
   for (const line of lines) {
     const bgM = line.match(bgRegex);
@@ -669,6 +672,17 @@ function executeCode(code, outputEl) {
     }
     if (trimmed.toLowerCase().startsWith('@maths [learn] (linear function)')) {
       outputEl.innerHTML += renderLinearFunctionHTML();
+    }
+    const targetM = trimmed.match(/^@Target\s+shot\s+\/(\d+)\s+"([^"]+)"\s*$/i);
+    if (targetM) {
+      const id = targetM[1];
+      const score = targetM[2];
+      if (usedTargets.includes(id)) {
+        outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Error: Target #' + id + ' already exists</div>';
+      } else {
+        usedTargets.push(id);
+        outputEl.innerHTML += renderDartsHTML(id, score);
+      }
     }
     if (trimmed.startsWith('@text') && trimmed.toLowerCase().includes('[set-true]')) {
       let rest = trimmed.replace(/^@text\s*/i, '').replace(/\s*\[set-true\]\s*/i, '').trim();
@@ -757,6 +771,27 @@ function renderLinearFunctionHTML() {
   '</div>';
 }
 
+function renderDartsHTML(id, targetScore) {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#ff4444';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const bgInput = getComputedStyle(document.body).getPropertyValue('--bg-input').trim() || '#261515';
+  return '<div class="darts-wrap" data-target="' + id + '" data-score="' + targetScore + '" style="display:flex;flex-direction:column;align-items:center;margin:12px 0;padding:16px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;">' +
+    '<div style="font-size:15px;font-weight:600;color:' + accent + ';margin-bottom:6px;">Darts #' + id + ' — Target: ' + targetScore + '</div>' +
+    '<div class="darts-board" style="position:relative;width:200px;height:200px;border-radius:50%;background:' + bgInput + ';border:3px solid ' + accent + ';margin:8px 0;overflow:hidden;">' +
+      '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:' + accent + ';opacity:0.5;"></div>' +
+      '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100px;height:100px;border-radius:50%;border:2px solid ' + accent + ';opacity:0.3;"></div>' +
+      '<div style="position:absolute;top:50%;left:0;right:0;height:2px;background:' + accent + ';opacity:0.2;transform:translateY(-50%);"></div>' +
+      '<div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:' + accent + ';opacity:0.2;transform:translateX(-50%);"></div>' +
+      '<div class="darts-score" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;font-weight:700;color:#fff;text-shadow:0 0 10px rgba(0,0,0,0.8);">' + targetScore + '</div>' +
+    '</div>' +
+    '<div class="darts-status" style="margin:4px 0;font-size:13px;color:' + textSec + ';">Click the board to throw! Score: 0 / ' + targetScore + '</div>' +
+    '<div class="darts-throws" style="display:flex;gap:4px;margin:4px 0;"></div>' +
+    '<button class="darts-reset" data-target="' + id + '" style="margin-top:6px;padding:4px 12px;background:' + accent + ';border:none;border-radius:5px;color:#fff;cursor:pointer;font-size:12px;">New Game</button>' +
+  '</div>';
+}
+
 // Init tic-tac-toe game logic via event delegation
 document.addEventListener('click', function(e) {
   const cell = e.target.closest('.ttt-cell');
@@ -798,6 +833,51 @@ document.addEventListener('click', function(e) {
     window.__ttt[game] = { board: Array(9).fill(null), player: 'X', over: false };
     cells.forEach(c => { c.textContent = ''; c.style.background = ''; c.style.color = ''; });
     status.textContent = "Player X's turn";
+  }
+  // Darts
+  const board = e.target.closest('.darts-board');
+  if (board) {
+    const wrap = board.closest('.darts-wrap');
+    const id = wrap.dataset.target;
+    const target = parseInt(wrap.dataset.score);
+    const status = wrap.querySelector('.darts-status');
+    const throwsEl = wrap.querySelector('.darts-throws');
+    if (!window.__darts) window.__darts = {};
+    if (!window.__darts[id]) window.__darts[id] = { score: 0, throws: 0, over: false };
+    const state = window.__darts[id];
+    if (state.over) return;
+    const rect = board.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    const dist = Math.sqrt(x * x + y * y) / (rect.width / 2);
+    let pts;
+    if (dist < 0.15) pts = 60;
+    else if (dist < 0.35) pts = 40;
+    else if (dist < 0.6) pts = 20;
+    else pts = Math.floor(Math.random() * 20) + 1;
+    state.score += pts;
+    state.throws++;
+    const dot = document.createElement('div');
+    dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:#ffd700;margin:0 1px;';
+    throwsEl.appendChild(dot);
+    if (state.score >= target) {
+      state.over = true;
+      status.innerHTML = '&#127881; Bullseye! You reached ' + target + ' in ' + state.throws + ' throws!';
+    } else {
+      status.textContent = 'Score: ' + state.score + ' / ' + target + ' (throw #' + state.throws + ')';
+    }
+  }
+  const resetDarts = e.target.closest('.darts-reset');
+  if (resetDarts) {
+    const id = resetDarts.dataset.target;
+    const wrap = resetDarts.closest('.darts-wrap');
+    const status = wrap.querySelector('.darts-status');
+    const throwsEl = wrap.querySelector('.darts-throws');
+    const target = parseInt(wrap.dataset.score);
+    if (!window.__darts) window.__darts = {};
+    window.__darts[id] = { score: 0, throws: 0, over: false };
+    throwsEl.innerHTML = '';
+    status.textContent = 'Score: 0 / ' + target;
   }
 });
 

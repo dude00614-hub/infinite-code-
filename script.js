@@ -375,6 +375,7 @@ const suggestionList = [
   { label: '@background [#hex]', desc: 'set preview background' },
   { label: '@open', desc: 'open code in a new tab' },
   { label: '@open [web]', desc: 'open with a shareable blob link' },
+  { label: '@open [crosh] (window)', desc: 'open a crosh terminal window' },
   { label: '@project [open]', desc: 'open a project' },
   { label: '@project tic tac toe', desc: 'create a tic tac toe game' },
   { label: '@project tic tac toe /', desc: 'create a tic tac toe game with a number' },
@@ -814,6 +815,48 @@ document.getElementById('runCodeBtn').addEventListener('click', function() {
   executeCode(code, document.getElementById('previewOutput'));
 });
 
+// Open Crosh terminal window
+function openCroshWindow() {
+  const overlay = document.createElement('div');
+  overlay.className = 'crosh-overlay';
+  overlay.innerHTML = '<div class="crosh-window"><div class="crosh-header"><span>crosh</span><button class="crosh-close">&#10006;</button></div><div class="crosh-body"><div class="crosh-output"><div style="color:#50e3c2;">Welcome to crosh (Chrome OS Developer Shell)</div><div style="color:#888;">Enter a command or type <span style="color:#ffd700;">help</span> for available commands.</div></div><div class="crosh-input-line"><span class="crosh-prompt">crosh&gt; </span><input class="crosh-input" id="croshInput" type="text" autofocus></div></div></div>';
+  document.body.appendChild(overlay);
+
+  const input = overlay.querySelector('#croshInput');
+  const output = overlay.querySelector('.crosh-output');
+  const closeBtn = overlay.querySelector('.crosh-close');
+
+  closeBtn.addEventListener('click', function() { document.body.removeChild(overlay); });
+
+  function croshEcho(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    d.style.color = '#e8c8c8';
+    output.appendChild(d);
+  }
+
+  input.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter' || !this.value.trim()) return;
+    const cmd = this.value.trim();
+    const line = document.createElement('div');
+    line.innerHTML = '<span style="color:#50e3c2;">crosh&gt; </span>' + cmd;
+    output.appendChild(line);
+    this.value = '';
+    if (cmd === 'help') {
+      croshEcho('Available commands: help, ping, telnet, ssh, shell, exit');
+    } else if (cmd === 'exit') {
+      document.body.removeChild(overlay);
+    } else if (cmd === 'ping' || cmd === 'telnet' || cmd === 'ssh' || cmd === 'shell') {
+      croshEcho('This feature is not available in this environment.');
+    } else {
+      croshEcho('Unknown command: ' + cmd + '. Type help for available commands.');
+    }
+    output.scrollTop = output.scrollHeight;
+  });
+
+  input.focus();
+}
+
 // Fullscreen preview
 document.getElementById('fullscreenBtn').addEventListener('click', function() {
   const panel = document.getElementById('previewPanel');
@@ -895,6 +938,13 @@ document.getElementById('cmdConsoleInput').addEventListener('keydown', function(
     result.className = 'cmd-console-line';
     executeCode(code, result);
     output.appendChild(result);
+  } else if (input.toLowerCase() === '@open [crosh] (window)') {
+    openCroshWindow();
+    const msg = document.createElement('div');
+    msg.className = 'cmd-console-line';
+    msg.style.color = '#50e3c2';
+    msg.textContent = 'Crosh window opened.';
+    output.appendChild(msg);
   } else {
     const result = document.createElement('div');
     result.className = 'cmd-console-line';

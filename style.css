@@ -1015,6 +1015,34 @@ body {
   color: #40c4ff;
   font-weight: 600;
 }
+.token-assyriology {
+  color: #ffd740;
+  font-weight: 600;
+}
+.token-sinology {
+  color: #ff5252;
+  font-weight: 600;
+}
+.token-celtology {
+  color: #00e676;
+  font-weight: 600;
+}
+.token-philology {
+  color: #ff6e40;
+  font-weight: 600;
+}
+.token-bryology {
+  color: #8bc34a;
+  font-weight: 600;
+}
+.token-dendrology {
+  color: #2e7d32;
+  font-weight: 600;
+}
+.token-pomology {
+  color: #ff9100;
+  font-weight: 600;
+}
 .token-value {
   color: #ffd700;
 }

@@ -437,6 +437,13 @@ const COMMANDS = [
   { match: '@theology', className: 'token-theology', desc: 'theology learning commands' },
   { match: '@ecology', className: 'token-ecology', desc: 'ecology learning commands' },
   { match: '@genetics', className: 'token-genetics', desc: 'genetics learning commands' },
+  { match: '@assyriology', className: 'token-assyriology', desc: 'assyriology learning commands' },
+  { match: '@sinology', className: 'token-sinology', desc: 'sinology learning commands' },
+  { match: '@celtology', className: 'token-celtology', desc: 'celtology learning commands' },
+  { match: '@philology', className: 'token-philology', desc: 'philology learning commands' },
+  { match: '@bryology', className: 'token-bryology', desc: 'bryology learning commands' },
+  { match: '@dendrology', className: 'token-dendrology', desc: 'dendrology learning commands' },
+  { match: '@pomology', className: 'token-pomology', desc: 'pomology learning commands' },
 ];
 
 function highlightCode(code) {
@@ -465,6 +472,27 @@ function highlightCode(code) {
         }
         if (cmd === '@genetics') {
           return '<span class="token-genetics">' + cmd + '</span>';
+        }
+        if (cmd === '@assyriology') {
+          return '<span class="token-assyriology">' + cmd + '</span>';
+        }
+        if (cmd === '@sinology') {
+          return '<span class="token-sinology">' + cmd + '</span>';
+        }
+        if (cmd === '@celtology') {
+          return '<span class="token-celtology">' + cmd + '</span>';
+        }
+        if (cmd === '@philology') {
+          return '<span class="token-philology">' + cmd + '</span>';
+        }
+        if (cmd === '@bryology') {
+          return '<span class="token-bryology">' + cmd + '</span>';
+        }
+        if (cmd === '@dendrology') {
+          return '<span class="token-dendrology">' + cmd + '</span>';
+        }
+        if (cmd === '@pomology') {
+          return '<span class="token-pomology">' + cmd + '</span>';
         }
         return '<span class="token-command">' + cmd + '</span>';
       }
@@ -501,6 +529,13 @@ const suggestionList = [
   { label: '@theology [learn] (subject)', desc: 'learn about theology subjects' },
   { label: '@ecology [learn] (subject)', desc: 'learn about ecology subjects' },
   { label: '@genetics [learn] (subject)', desc: 'learn about genetics subjects' },
+  { label: '@assyriology [learn] (subject)', desc: 'learn about assyriology subjects' },
+  { label: '@sinology [learn] (subject)', desc: 'learn about sinology subjects' },
+  { label: '@celtology [learn] (subject)', desc: 'learn about celtology subjects' },
+  { label: '@philology [learn] (subject)', desc: 'learn about philology subjects' },
+  { label: '@bryology [learn] (subject)', desc: 'learn about bryology subjects' },
+  { label: '@dendrology [learn] (subject)', desc: 'learn about dendrology subjects' },
+  { label: '@pomology [learn] (subject)', desc: 'learn about pomology subjects' },
 ];
 
 let suggestionIndex = -1;
@@ -808,6 +843,34 @@ function executeCode(code, outputEl) {
       outputEl.innerHTML += renderGeneticsHTML();
       matched = true;
     }
+    if (trimmed.toLowerCase().startsWith('@assyriology [learn]')) {
+      outputEl.innerHTML += renderAssyriologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@sinology [learn]')) {
+      outputEl.innerHTML += renderSinologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@celtology [learn]')) {
+      outputEl.innerHTML += renderCeltologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@philology [learn]')) {
+      outputEl.innerHTML += renderPhilologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@bryology [learn]')) {
+      outputEl.innerHTML += renderBryologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@dendrology [learn]')) {
+      outputEl.innerHTML += renderDendrologyHTML();
+      matched = true;
+    }
+    if (trimmed.toLowerCase().startsWith('@pomology [learn]')) {
+      outputEl.innerHTML += renderPomologyHTML();
+      matched = true;
+    }
     const targetLow = trimmed.toLowerCase();
     if (targetLow.startsWith('@target shot') || targetLow.startsWith('@targetshot')) {
       const parts = trimmed.split(/\s+/);
@@ -990,6 +1053,181 @@ function renderGeneticsHTML() {
     '<div style="padding:8px 12px;background:rgba(64,196,255,0.08);border-left:3px solid ' + TEAL + ';border-radius:4px;">' +
       '<strong>4. Mutations &amp; Biotechnology</strong><br>' +
       '<span style="color:' + textSec + ';">Point mutations, frameshifts, and chromosomal rearrangements. CRISPR, PCR, and genetic engineering applications in medicine and agriculture.</span></div>' +
+  '</div>';
+}
+function renderAssyriologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const GOLD = '#ffd740';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + GOLD + ';margin-bottom:14px;">Assyriology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + GOLD + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,215,64,0.08);border-left:3px solid ' + GOLD + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Assyriology is the archaeological, historical, and linguistic study of ancient Mesopotamia (Sumer, Akkad, Assyria, Babylonia) and its cultures, covering cuneiform writing, law, literature, and art.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + GOLD + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,215,64,0.08);border-left:3px solid ' + GOLD + ';border-radius:4px;">' +
+      '<strong>1. Cuneiform Script</strong><br>' +
+      '<span style="color:' + textSec + ';">One of the earliest writing systems, inscribed on clay tablets. Deciphered in the 19th century, it records Sumerian, Akkadian, and other languages.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,215,64,0.08);border-left:3px solid ' + GOLD + ';border-radius:4px;">' +
+      '<strong>2. Mesopotamian Literature</strong><br>' +
+      '<span style="color:' + textSec + ';">Includes the Epic of Gilgamesh, Enuma Elish (creation myth), and legal codes such as the Code of Hammurabi.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,215,64,0.08);border-left:3px solid ' + GOLD + ';border-radius:4px;">' +
+      '<strong>3. History &amp; Archaeology</strong><br>' +
+      '<span style="color:' + textSec + ';">Excavations of city-states like Ur, Nineveh, and Babylon reveal ziggurats, palaces, and the earliest known urban societies.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(255,215,64,0.08);border-left:3px solid ' + GOLD + ';border-radius:4px;">' +
+      '<strong>4. Religion &amp; Society</strong><br>' +
+      '<span style="color:' + textSec + ';">Polytheistic pantheons (Anu, Enlil, Ishtar), temple economies, and the development of kingship and bureaucracy.</span></div>' +
+  '</div>';
+}
+function renderSinologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const CRIMSON = '#ff5252';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + CRIMSON + ';margin-bottom:14px;">Sinology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + CRIMSON + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,82,82,0.08);border-left:3px solid ' + CRIMSON + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Sinology is the academic study of China, its history, language, literature, philosophy, and culture, encompassing ancient dynasties to modern society.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + CRIMSON + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,82,82,0.08);border-left:3px solid ' + CRIMSON + ';border-radius:4px;">' +
+      '<strong>1. Classical Chinese Language</strong><br>' +
+      '<span style="color:' + textSec + ';">Study of classical Chinese (wenyan) and its logographic writing system, including oracle bone script and modern Mandarin.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,82,82,0.08);border-left:3px solid ' + CRIMSON + ';border-radius:4px;">' +
+      '<strong>2. Philosophy &amp; Religion</strong><br>' +
+      '<span style="color:' + textSec + ';">Confucianism, Taoism, and Buddhism in China — their texts, schools, and influence on governance and daily life.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,82,82,0.08);border-left:3px solid ' + CRIMSON + ';border-radius:4px;">' +
+      '<strong>3. Dynastic History</strong><br>' +
+      '<span style="color:' + textSec + ';">From the Shang and Zhou to the Qing, including imperial governance, the Silk Road, and major innovations (paper, gunpowder, printing).</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(255,82,82,0.08);border-left:3px solid ' + CRIMSON + ';border-radius:4px;">' +
+      '<strong>4. Literature &amp; Arts</strong><br>' +
+      '<span style="color:' + textSec + ';">Classics like the Analects, Dao De Jing, Dream of the Red Chamber, along with calligraphy, painting, and opera traditions.</span></div>' +
+  '</div>';
+}
+function renderCeltologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const EMERALD = '#00e676';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + EMERALD + ';margin-bottom:14px;">Celtology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + EMERALD + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(0,230,118,0.08);border-left:3px solid ' + EMERALD + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Celtology is the study of the Celtic peoples, their languages, literature, art, archaeology, and history, spanning from ancient Gaul and Britain to modern Celtic nations.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + EMERALD + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(0,230,118,0.08);border-left:3px solid ' + EMERALD + ';border-radius:4px;">' +
+      '<strong>1. Celtic Languages</strong><br>' +
+      '<span style="color:' + textSec + ';">Two branches: Goidelic (Irish, Scottish Gaelic, Manx) and Brythonic (Welsh, Cornish, Breton). Ogham script and early manuscript tradition.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(0,230,118,0.08);border-left:3px solid ' + EMERALD + ';border-radius:4px;">' +
+      '<strong>2. Mythology &amp; Folklore</strong><br>' +
+      '<span style="color:' + textSec + ';">The Mabinogion, Ulster Cycle, Tuatha Dé Danann, and figures like Cú Chulainn and King Arthur (Celtic origins).</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(0,230,118,0.08);border-left:3px solid ' + EMERALD + ';border-radius:4px;">' +
+      '<strong>3. La Tène &amp; Hallstatt Cultures</strong><br>' +
+      '<span style="color:' + textSec + ';">Iron Age archaeological cultures known for intricate metalwork, chariot burials, and hillforts across Europe.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(0,230,118,0.08);border-left:3px solid ' + EMERALD + ';border-radius:4px;">' +
+      '<strong>4. Modern Celtic Revival</strong><br>' +
+      '<span style="color:' + textSec + ';">19th–20th century revival of Celtic identity, language preservation efforts, and cultural festivals (eisteddfod, feis).</span></div>' +
+  '</div>';
+}
+function renderPhilologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const CORAL = '#ff6e40';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + CORAL + ';margin-bottom:14px;">Philology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + CORAL + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,110,64,0.08);border-left:3px solid ' + CORAL + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Philology is the study of language in written historical sources, combining literary criticism, history, and linguistics to establish text authenticity and meaning.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + CORAL + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,110,64,0.08);border-left:3px solid ' + CORAL + ';border-radius:4px;">' +
+      '<strong>1. Textual Criticism</strong><br>' +
+      '<span style="color:' + textSec + ';">Reconstructing original texts from variant manuscripts using stemmatics, eclecticism, and editorial principles.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,110,64,0.08);border-left:3px solid ' + CORAL + ';border-radius:4px;">' +
+      '<strong>2. Historical Linguistics</strong><br>' +
+      '<span style="color:' + textSec + ';">Tracing language change over time, sound laws (Grimm\'s Law), reconstruction of proto-languages (PIE), and etymology.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,110,64,0.08);border-left:3px solid ' + CORAL + ';border-radius:4px;">' +
+      '<strong>3. Paleography &amp; Codicology</strong><br>' +
+      '<span style="color:' + textSec + ';">Study of ancient handwriting, manuscript production, scripts (uncial, minuscule), and dating of documents.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(255,110,64,0.08);border-left:3px solid ' + CORAL + ';border-radius:4px;">' +
+      '<strong>4. Comparative Philology</strong><br>' +
+      '<span style="color:' + textSec + ';">Comparing related languages to understand their development, e.g., Indo-European, Semitic, and Uralic language families.</span></div>' +
+  '</div>';
+}
+function renderBryologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const MOSS = '#8bc34a';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + MOSS + ';margin-bottom:14px;">Bryology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + MOSS + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(139,195,74,0.08);border-left:3px solid ' + MOSS + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Bryology is the branch of botany concerned with the study of bryophytes — mosses, liverworts, and hornworts — non-vascular plants that play crucial roles in ecosystems.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + MOSS + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(139,195,74,0.08);border-left:3px solid ' + MOSS + ';border-radius:4px;">' +
+      '<strong>1. Mosses (Bryophyta)</strong><br>' +
+      '<span style="color:' + textSec + ';">Over 12,000 species. They lack true vascular tissue, reproduce via spores, and have a gametophyte-dominant life cycle.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(139,195,74,0.08);border-left:3px solid ' + MOSS + ';border-radius:4px;">' +
+      '<strong>2. Liverworts (Marchantiophyta)</strong><br>' +
+      '<span style="color:' + textSec + ';">About 9,000 species. Thalloid or leafy forms, often with oil bodies and unique asexual reproduction via gemmae.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(139,195,74,0.08);border-left:3px solid ' + MOSS + ';border-radius:4px;">' +
+      '<strong>3. Hornworts (Anthocerotophyta)</strong><br>' +
+      '<span style="color:' + textSec + ';">Small group (~200 species) with horn-like sporophytes. Notable for having a single large chloroplast per cell.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(139,195,74,0.08);border-left:3px solid ' + MOSS + ';border-radius:4px;">' +
+      '<strong>4. Ecological Roles</strong><br>' +
+      '<span style="color:' + textSec + ';">Pioneer species in succession, water retention in peatlands (Sphagnum), nitrogen fixation, and bioindicators of air quality.</span></div>' +
+  '</div>';
+}
+function renderDendrologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const FOREST = '#2e7d32';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + FOREST + ';margin-bottom:14px;">Dendrology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + FOREST + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(46,125,50,0.08);border-left:3px solid ' + FOREST + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Dendrology is the study of woody plants — trees, shrubs, and lianas — focusing on their identification, taxonomy, distribution, and ecological significance.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + FOREST + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(46,125,50,0.08);border-left:3px solid ' + FOREST + ';border-radius:4px;">' +
+      '<strong>1. Tree Identification</strong><br>' +
+      '<span style="color:' + textSec + ';">Based on leaf shape (needles, broadleaf), bark texture, branching pattern, flowers, fruit, and growth form (conifer vs deciduous).</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(46,125,50,0.08);border-left:3px solid ' + FOREST + ';border-radius:4px;">' +
+      '<strong>2. Taxonomy &amp; Families</strong><br>' +
+      '<span style="color:' + textSec + ';">Major families: Pinaceae (pines), Fagaceae (oaks, beeches), Rosaceae (apples, cherries), Fabaceae (acacias), and many more.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(46,125,50,0.08);border-left:3px solid ' + FOREST + ';border-radius:4px;">' +
+      '<strong>3. Dendrochronology</strong><br>' +
+      '<span style="color:' + textSec + ';">Tree-ring dating used to determine age, climate history, and environmental changes through annual growth ring analysis.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(46,125,50,0.08);border-left:3px solid ' + FOREST + ';border-radius:4px;">' +
+      '<strong>4. Forestry &amp; Conservation</strong><br>' +
+      '<span style="color:' + textSec + ';">Sustainable forest management, timber production, reforestation, and protection of old-growth and endangered tree species.</span></div>' +
+  '</div>';
+}
+function renderPomologyHTML() {
+  const bgCard = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1f1111';
+  const border = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#3a1a1a';
+  const textSec = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#a07070';
+  const ORANGE = '#ff9100';
+  return '<div class="maths-card" style="margin:12px 0;padding:20px;background:' + bgCard + ';border:1px solid ' + border + ';border-radius:10px;max-width:600px;font-size:14px;line-height:1.7;color:#e8c8c8;">' +
+    '<div style="font-size:18px;font-weight:700;color:' + ORANGE + ';margin-bottom:14px;">Pomology Overview</div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + ORANGE + ';">Definition:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,145,0,0.08);border-left:3px solid ' + ORANGE + ';border-radius:4px;">' +
+      '<span style="color:' + textSec + ';">Pomology is the branch of horticulture that focuses on the cultivation, breeding, physiology, and harvesting of fruit and nut crops.</span></div>' +
+    '<div style="margin-bottom:10px;font-weight:600;color:' + ORANGE + ';">Key Areas:</div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,145,0,0.08);border-left:3px solid ' + ORANGE + ';border-radius:4px;">' +
+      '<strong>1. Fruit Classification</strong><br>' +
+      '<span style="color:' + textSec + ';">Pome (apple, pear), drupe (peach, cherry), berry (grape, tomato), citrus (orange, lemon), and aggregate (strawberry, raspberry).</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,145,0,0.08);border-left:3px solid ' + ORANGE + ';border-radius:4px;">' +
+      '<strong>2. Cultivation &amp; Pruning</strong><br>' +
+      '<span style="color:' + textSec + ';">Orchard management, grafting techniques, rootstock selection, pruning for shape and yield, and pollination requirements.</span></div>' +
+    '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(255,145,0,0.08);border-left:3px solid ' + ORANGE + ';border-radius:4px;">' +
+      '<strong>3. Breeding &amp; Cultivars</strong><br>' +
+      '<span style="color:' + textSec + ';">Development of new varieties through hybridization, selection for disease resistance, taste, shelf life, and climate adaptation.</span></div>' +
+    '<div style="padding:8px 12px;background:rgba(255,145,0,0.08);border-left:3px solid ' + ORANGE + ';border-radius:4px;">' +
+      '<strong>4. Post-Harvest Physiology</strong><br>' +
+      '<span style="color:' + textSec + ';">Ripening processes (ethylene control), cold storage, transportation, and prevention of spoilage and physiological disorders.</span></div>' +
   '</div>';
 }
 function renderDartsHTML(id, targetScore) {
@@ -2150,6 +2388,13 @@ function getDefaultDB() {
     { id: 21, command: '@theology [learn] (subject)', description: 'Shows a theology overview card in the preview.', tags: ['theology', 'preview'], addedBy: 'system' },
     { id: 22, command: '@ecology [learn] (subject)', description: 'Shows an ecology overview card in the preview.', tags: ['ecology', 'preview'], addedBy: 'system' },
     { id: 23, command: '@genetics [learn] (subject)', description: 'Shows a genetics overview card in the preview.', tags: ['genetics', 'preview'], addedBy: 'system' },
+    { id: 24, command: '@assyriology [learn] (subject)', description: 'Shows an assyriology overview card in the preview.', tags: ['assyriology', 'preview'], addedBy: 'system' },
+    { id: 25, command: '@sinology [learn] (subject)', description: 'Shows a sinology overview card in the preview.', tags: ['sinology', 'preview'], addedBy: 'system' },
+    { id: 26, command: '@celtology [learn] (subject)', description: 'Shows a celtology overview card in the preview.', tags: ['celtology', 'preview'], addedBy: 'system' },
+    { id: 27, command: '@philology [learn] (subject)', description: 'Shows a philology overview card in the preview.', tags: ['philology', 'preview'], addedBy: 'system' },
+    { id: 28, command: '@bryology [learn] (subject)', description: 'Shows a bryology overview card in the preview.', tags: ['bryology', 'preview'], addedBy: 'system' },
+    { id: 29, command: '@dendrology [learn] (subject)', description: 'Shows a dendrology overview card in the preview.', tags: ['dendrology', 'preview'], addedBy: 'system' },
+    { id: 30, command: '@pomology [learn] (subject)', description: 'Shows a pomology overview card in the preview.', tags: ['pomology', 'preview'], addedBy: 'system' },
   ]};
 }
 

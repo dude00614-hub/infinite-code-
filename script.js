@@ -1154,6 +1154,16 @@ enterIDE = function(username) {
       applyTheme(r.data[0].theme);
     }
   });
+  // Sync projects from Supabase if local is empty
+  const key = 'ic_projects_' + username;
+  if (!localStorage.getItem(key)) {
+    sb('projects').select({username}).then(r => {
+      if (r.ok && r.data && r.data.length) {
+        localStorage.setItem(key, JSON.stringify(r.data.map(p => ({name:p.name,code:p.code||''}))));
+        renderProjectList();
+      }
+    });
+  }
 };
 
 function showSiteCode(output) {

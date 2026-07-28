@@ -408,14 +408,15 @@ function getCursorPixelPos() {
 
 function showSuggestions(filter) {
   const dropdown = document.getElementById('suggestionsDropdown');
-  if (!filter.startsWith('@')) {
+  const trimmed = filter.trim();
+  if (!trimmed.startsWith('@')) {
     dropdown.classList.remove('active');
     dropdown.innerHTML = '';
     suggestionIndex = -1;
     return;
   }
   const filtered = suggestionList.filter(s =>
-    s.label.toLowerCase().startsWith(filter.toLowerCase())
+    s.label.toLowerCase().startsWith(trimmed.toLowerCase())
   );
   if (filtered.length === 0) {
     dropdown.classList.remove('active');
@@ -449,10 +450,12 @@ function acceptSuggestion() {
   const value = textarea.value;
   const lineStart = value.lastIndexOf('\n', cursorPos - 1) + 1;
   const beforeCursor = value.substring(lineStart, cursorPos);
-  const prefixLen = beforeCursor.length;
+  const atPos = beforeCursor.lastIndexOf('@');
+  const replaceStart = atPos >= 0 ? lineStart + atPos : lineStart;
+  const prefixLen = cursorPos - replaceStart;
   const replacement = label;
-  textarea.value = value.substring(0, cursorPos - prefixLen) + replacement + value.substring(cursorPos);
-  textarea.selectionStart = textarea.selectionEnd = cursorPos - prefixLen + replacement.length;
+  textarea.value = value.substring(0, replaceStart) + replacement + value.substring(cursorPos);
+  textarea.selectionStart = textarea.selectionEnd = replaceStart + replacement.length;
   textarea.dispatchEvent(new Event('input'));
   dropdown.classList.remove('active');
   dropdown.innerHTML = '';

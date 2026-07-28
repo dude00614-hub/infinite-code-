@@ -516,8 +516,37 @@ document.getElementById('codeTextarea').addEventListener('keydown', function(e) 
     const lineStart = value.lastIndexOf('\n', start - 1) + 1;
     const currentLine = value.substring(lineStart, start);
     const indent = currentLine.match(/^\s*/)[0];
-    this.setRangeText('\n' + indent + '  ', start, this.selectionEnd, 'end');
+    let newIndent = indent + '  ';
+    if (newIndent.length > 4) newIndent = newIndent.substring(0, 4);
+    this.setRangeText('\n' + newIndent, start, this.selectionEnd, 'end');
     this.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  // Smart Backspace on empty indented lines
+  if (e.key === 'Backspace') {
+    const start = this.selectionStart;
+    if (start === 0 || start !== this.selectionEnd) return;
+    const value = this.value;
+    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+    const before = value.substring(lineStart, start);
+    const lineEnd = value.indexOf('\n', start);
+    const after = value.substring(start, lineEnd >= 0 ? lineEnd : value.length);
+    const fullLine = before + after;
+    // Only act if the entire line is just whitespace
+    if (fullLine.length > 0 && /^\s*$/.test(fullLine)) {
+      const spaces = before.length;
+      if (spaces >= 2) {
+        e.preventDefault();
+        this.setRangeText('', lineStart + spaces - 2, lineStart + spaces, 'end');
+        this.dispatchEvent(new Event('input', { bubbles: true }));
+      } else if (spaces === 0) {
+        e.preventDefault();
+        const prevLineStart = value.lastIndexOf('\n', lineStart - 2) + 1;
+        const delStart = prevLineStart || 0;
+        const delEnd = lineEnd >= 0 ? lineEnd + 1 : value.length;
+        this.setRangeText('', delStart, delEnd, 'end');
+        this.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    }
   }
 });
 

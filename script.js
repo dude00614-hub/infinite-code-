@@ -2812,7 +2812,9 @@ document.getElementById('ccSaveBtn').addEventListener('click', function() {
   list.push({ cmdLine, name: '@' + name, params, description: desc, action, actionValue: val });
   saveCC(list);
   renderCCList();
-  setCCStatus('Command saved!', '#50e3c2');
+  setCCStatus('Command saved & inserted!', '#50e3c2');
+  // Auto-insert into editor
+  aiInsertIntoEditor(cmdLine);
   // Clear form
   document.getElementById('ccName').value = '';
   document.getElementById('ccParams').value = '';
@@ -2972,42 +2974,12 @@ function aiGenerateCommand(input) {
   return { code: '@text [#ff4444] ' + input.replace(/^show\s+/i, '') + ' [set-true]', desc: 'Shows text in preview' };
 }
 
-document.getElementById('aiGenBtn').addEventListener('click', function() {
-  const input = document.getElementById('aiGenInput').value.trim();
-  const status = document.getElementById('aiGenStatus');
-  const resultDiv = document.getElementById('aiGenResult');
-  const codeEl = document.getElementById('aiGenCode');
-  if (!input) {
-    status.textContent = 'Please describe what you want to do';
-    status.style.color = '#ff6b6b';
-    resultDiv.style.display = 'none';
-    return;
-  }
-  const gen = aiGenerateCommand(input);
-  if (gen) {
-    codeEl.textContent = gen.code;
-    codeEl.dataset.desc = gen.desc || '';
-    codeEl.dataset.action = gen.action || '';
-    codeEl.dataset.actionValue = gen.actionValue || '';
-    resultDiv.style.display = 'block';
-    status.textContent = 'Generated: ' + (gen.desc || 'command');
-    status.style.color = '#50e3c2';
-  } else {
-    status.textContent = 'Could not generate a command. Try different wording.';
-    status.style.color = '#ff6b6b';
-    resultDiv.style.display = 'none';
-  }
-});
-
-document.getElementById('aiGenInsertBtn').addEventListener('click', function() {
-  const code = document.getElementById('aiGenCode').textContent;
-  if (!code) return;
+function aiInsertIntoEditor(code) {
+  if (!code) return false;
   switchTab('code');
   if (!currentProject) {
-    document.getElementById('aiGenStatus').textContent = 'Create or open a project first!';
-    document.getElementById('aiGenStatus').style.color = '#ff6b6b';
     document.getElementById('newProjectBtn').click();
-    return;
+    return false;
   }
   const ta = document.getElementById('codeTextarea');
   ta.focus();
@@ -3018,32 +2990,44 @@ document.getElementById('aiGenInsertBtn').addEventListener('click', function() {
   ta.value = before + (start > 0 && before[before.length-1] !== '\n' ? '\n' : '') + code + '\n' + after;
   ta.selectionStart = ta.selectionEnd = start + code.length + 1 + (start > 0 && before[before.length-1] !== '\n' ? 1 : 0);
   ta.dispatchEvent(new Event('input', { bubbles: true }));
-  document.getElementById('aiGenStatus').textContent = 'Inserted into editor!';
-  document.getElementById('aiGenStatus').style.color = '#50e3c2';
-});
+  return true;
+}
 
-document.getElementById('aiGenSaveCmd').addEventListener('click', function() {
-  const code = document.getElementById('aiGenCode').textContent;
-  const desc = document.getElementById('aiGenCode').dataset.desc || 'AI-generated command';
-  const action = document.getElementById('aiGenCode').dataset.action || '';
-  const actionValue = document.getElementById('aiGenCode').dataset.actionValue || '';
-  if (!code) return;
-  // Parse cmdLine from code
+function aiSaveAsCustom(code, desc) {
   const nameMatch = code.match(/^@(\w+)/);
-  if (!nameMatch) return;
+  if (!nameMatch) return false;
   const name = nameMatch[1];
   const cmdLine = code;
   const list = getCC();
-  if (list.find(c => c.cmdLine === cmdLine)) {
-    document.getElementById('aiGenStatus').textContent = 'Command already exists';
-    document.getElementById('aiGenStatus').style.color = '#ff6b6b';
-    return;
-  }
-  list.push({ cmdLine, name: '@' + name, params: '', description: desc, action: action || 'showMessage', actionValue: actionValue || code });
+  if (list.find(c => c.cmdLine === cmdLine)) return false;
+  list.push({ cmdLine, name: '@' + name, params: '', description: desc || 'AI command', action: 'showMessage', actionValue: code });
   saveCC(list);
   renderCCList();
-  document.getElementById('aiGenStatus').textContent = 'Saved as custom command! (See "Your Custom Commands" above)';
-  document.getElementById('aiGenStatus').style.color = '#50e3c2';
+  return true;
+}
+
+document.getElementById('aiGenBtn').addEventListener('click', function() {
+  const input = document.getElementById('aiGenInput').value.trim();
+  const status = document.getElementById('aiGenStatus');
+  if (!input) {
+    status.textContent = 'Describe what you want';
+    status.style.color = '#ff6b6b';
+    return;
+  }
+  const gen = aiGenerateCommand(input);
+  if (gen) {
+    status.textContent = '';
+    aiInsertIntoEditor(gen.code);
+    aiSaveAsCustom(gen.code, gen.desc);
+    // Short delay then show success
+    setTimeout(function() {
+      status.textContent = 'Done! Command inserted into editor & added to suggestions';
+      status.style.color = '#50e3c2';
+    }, 100);
+  } else {
+    status.textContent = 'Could not generate. Try different wording.';
+    status.style.color = '#ff6b6b';
+  }
 });
 
 // Allow Enter to trigger generation in AI input

@@ -224,6 +224,36 @@
               <p class="settings-subtitle">Reset all layout changes.</p>
               <button id="editResetBtn" style="padding:10px 20px;font-size:13px;background:var(--bg-input);border:1px solid #ff4444;border-radius:8px;color:#ff4444;cursor:pointer;font-family:inherit;">Reset All Layout Changes</button>
             </div>
+            <hr class="settings-divider" style="margin:28px 24px 20px;">
+            <div style="padding:0 24px 40px;">
+              <h2 class="settings-title">&#128196; Site Source Editor</h2>
+              <p class="settings-subtitle">Edit the site's source files and push changes to GitHub.</p>
+              <div style="margin-bottom:16px;">
+                <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;">GitHub Token (repo scope)</label>
+                <div style="display:flex;gap:8px;">
+                  <input type="password" id="ghTokenInput" placeholder="ghp_..." style="flex:1;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;">
+                  <button id="ghTokenSaveBtn" style="padding:8px 14px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">Save</button>
+                </div>
+              </div>
+              <div style="margin-bottom:12px;">
+                <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">Files</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="source-file-btn active" data-file="index.html" style="padding:6px 14px;font-size:12px;background:var(--accent);border:none;border-radius:5px;color:#fff;cursor:pointer;font-family:inherit;">index.html</button>
+                  <button class="source-file-btn" data-file="style.css" style="padding:6px 14px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:5px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">style.css</button>
+                  <button class="source-file-btn" data-file="script.js" style="padding:6px 14px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:5px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">script.js</button>
+                </div>
+              </div>
+              <div style="margin-bottom:12px;">
+                <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">Commit Message</label>
+                <input type="text" id="ghCommitMsg" placeholder="Describe your changes..." style="width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">
+              </div>
+              <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <button id="sourceFetchBtn" style="padding:8px 16px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">&#128260; Fetch from GitHub</button>
+                <button id="sourcePushBtn" style="padding:8px 16px;font-size:12px;background:linear-gradient(135deg,var(--accent-grad-1),var(--accent-grad-2));border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:inherit;">&#128190; Push to GitHub</button>
+                <span id="sourceStatus" style="font-size:12px;color:var(--text-muted);align-self:center;margin-left:4px;"></span>
+              </div>
+              <textarea id="sourceEditor" style="width:100%;min-height:350px;padding:12px;background:#0a0a0a;border:1px solid var(--border);border-radius:6px;color:#e8c8c8;font-family:'Consolas','Courier New',monospace;font-size:13px;resize:vertical;outline:none;line-height:1.5;box-sizing:border-box;" spellcheck="false"></textarea>
+            </div>
           </div>
           <div class="tab-content" id="tab-settings">
             <div class="settings-panel">

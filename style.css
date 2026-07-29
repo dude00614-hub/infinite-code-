@@ -1656,6 +1656,18 @@ body {
   border-radius: 3px;
 }
 
+/* ===== SITE SOURCE EDITOR ===== */
+.source-file-btn {
+  transition: all 0.15s;
+}
+.source-file-btn:hover {
+  filter: brightness(1.2);
+}
+#sourceEditor:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
 /* ===== EDIT MODE ===== */
 .edit-handle {
   position: absolute;

@@ -2710,6 +2710,156 @@ document.querySelectorAll('.edit-tab-btn').forEach(function(btn) {
   });
 });
 
+// ===== SITE SOURCE EDITOR =====
+const GH_OWNER = 'dude00614-hub';
+const GH_REPO = 'infinite-code-';
+const GH_BRANCH = 'main';
+const GH_TOKEN_KEY = 'ic_gh_token';
+const SOURCE_FILES = {
+  'index.html': 'index.html',
+  'style.css': 'style.css',
+  'script.js': 'script.js'
+};
+let sourceFileSHA = {};
+let sourceCurrentFile = 'index.html';
+let sourceOriginalContent = '';
+// Load saved token
+const savedToken = localStorage.getItem(GH_TOKEN_KEY);
+if (savedToken) document.getElementById('ghTokenInput').value = savedToken;
+document.getElementById('ghTokenSaveBtn').addEventListener('click', function() {
+  const token = document.getElementById('ghTokenInput').value.trim();
+  if (token) {
+    localStorage.setItem(GH_TOKEN_KEY, token);
+    document.getElementById('sourceStatus').textContent = 'Token saved';
+    document.getElementById('sourceStatus').style.color = 'var(--accent)';
+  }
+});
+// File tab switching
+document.querySelectorAll('.source-file-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.source-file-btn').forEach(b => {
+      b.style.background = 'var(--bg-input)';
+      b.style.color = 'var(--text-secondary)';
+      b.style.border = '1px solid var(--border)';
+    });
+    this.style.background = 'var(--accent)';
+    this.style.color = '#fff';
+    this.style.border = 'none';
+    sourceCurrentFile = this.dataset.file;
+    // Restore local edits if any
+    const local = localStorage.getItem('ic_src_' + sourceCurrentFile);
+    if (local) {
+      document.getElementById('sourceEditor').value = local;
+      document.getElementById('sourceStatus').textContent = 'Local draft loaded';
+      document.getElementById('sourceStatus').style.color = '#ffd700';
+    } else if (sourceOriginalContent) {
+      document.getElementById('sourceEditor').value = sourceOriginalContent;
+      document.getElementById('sourceStatus').textContent = '';
+    }
+  });
+});
+// Fetch source files from GitHub
+async function fetchSourceFile(filename) {
+  const token = localStorage.getItem(GH_TOKEN_KEY);
+  if (!token) {
+    document.getElementById('sourceStatus').textContent = 'Set a GitHub token first';
+    document.getElementById('sourceStatus').style.color = '#ff6b6b';
+    return null;
+  }
+  const url = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + filename + '?ref=' + GH_BRANCH;
+  const res = await fetch(url, {
+    headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
+  });
+  if (!res.ok) {
+    document.getElementById('sourceStatus').textContent = 'Fetch failed: ' + res.status + ' ' + res.statusText;
+    document.getElementById('sourceStatus').style.color = '#ff6b6b';
+    return null;
+  }
+  const data = await res.json();
+  sourceFileSHA[filename] = data.sha;
+  const content = atob(data.content.replace(/\n/g, ''));
+  sourceOriginalContent = content;
+  return content;
+}
+document.getElementById('sourceFetchBtn').addEventListener('click', async function() {
+  const status = document.getElementById('sourceStatus');
+  status.textContent = 'Fetching ' + sourceCurrentFile + '...';
+  status.style.color = 'var(--text-muted)';
+  const content = await fetchSourceFile(sourceCurrentFile);
+  if (content !== null) {
+    document.getElementById('sourceEditor').value = content;
+    localStorage.removeItem('ic_src_' + sourceCurrentFile);
+    status.textContent = 'Fetched ' + sourceCurrentFile;
+    status.style.color = '#50e3c2';
+  }
+});
+// Push to GitHub
+document.getElementById('sourcePushBtn').addEventListener('click', async function() {
+  const token = localStorage.getItem(GH_TOKEN_KEY);
+  if (!token) {
+    document.getElementById('sourceStatus').textContent = 'Set a GitHub token first';
+    document.getElementById('sourceStatus').style.color = '#ff6b6b';
+    return;
+  }
+  const msg = document.getElementById('ghCommitMsg').value.trim() || 'Update via Site Source Editor';
+  const content = document.getElementById('sourceEditor').value;
+  if (!content) {
+    document.getElementById('sourceStatus').textContent = 'Editor is empty';
+    document.getElementById('sourceStatus').style.color = '#ff6b6b';
+    return;
+  }
+  // Confirm with user
+  if (!confirm('Push "' + sourceCurrentFile + '" to ' + GH_BRANCH + '?\nMessage: ' + msg)) return;
+  // Need SHA for the file being pushed
+  if (!sourceFileSHA[sourceCurrentFile]) {
+    // Fetch SHA first
+    const url = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + sourceCurrentFile + '?ref=' + GH_BRANCH;
+    const shaRes = await fetch(url, {
+      headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (!shaRes.ok) {
+      document.getElementById('sourceStatus').textContent = 'Failed to get file SHA';
+      document.getElementById('sourceStatus').style.color = '#ff6b6b';
+      return;
+    }
+    const shaData = await shaRes.json();
+    sourceFileSHA[sourceCurrentFile] = shaData.sha;
+  }
+  const status = document.getElementById('sourceStatus');
+  status.textContent = 'Pushing ' + sourceCurrentFile + '...';
+  status.style.color = 'var(--text-muted)';
+  const pushUrl = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + sourceCurrentFile;
+  const body = {
+    message: msg,
+    content: btoa(unescape(encodeURIComponent(content))),
+    sha: sourceFileSHA[sourceCurrentFile],
+    branch: GH_BRANCH
+  };
+  const res = await fetch(pushUrl, {
+    method: 'PUT',
+    headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (res.ok) {
+    const result = await res.json();
+    sourceFileSHA[sourceCurrentFile] = result.content.sha;
+    localStorage.removeItem('ic_src_' + sourceCurrentFile);
+    status.textContent = 'Pushed ' + sourceCurrentFile + ' successfully!';
+    status.style.color = '#50e3c2';
+    document.getElementById('ghCommitMsg').value = '';
+  } else {
+    const err = await res.json();
+    status.textContent = 'Push failed: ' + (err.message || res.statusText);
+    status.style.color = '#ff6b6b';
+  }
+});
+// Auto-save editor content to localStorage on input
+document.getElementById('sourceEditor').addEventListener('input', function() {
+  localStorage.setItem('ic_src_' + sourceCurrentFile, this.value);
+  document.getElementById('sourceStatus').textContent = 'Draft saved locally';
+  document.getElementById('sourceStatus').style.color = '#ffd700';
+});
+
 // ===== DATABASE =====
 const DB_KEY = 'ic_database';
 let dbFilterTag = null;

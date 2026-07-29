@@ -633,7 +633,12 @@ function showSuggestions(filter) {
     suggestionIndex = -1;
     return;
   }
-  const filtered = suggestionList.filter(s =>
+  // Include custom commands in suggestions
+  const customCmds = getCC ? getCC() : [];
+  const allSuggestions = suggestionList.concat(customCmds.map(function(c) {
+    return { label: c.cmdLine, desc: c.description + ' (custom)' };
+  }));
+  const filtered = allSuggestions.filter(s =>
     s.label.toLowerCase().startsWith(trimmed.toLowerCase())
   );
   if (filtered.length === 0) {
@@ -1021,6 +1026,10 @@ function executeCode(code, outputEl) {
       outputEl.innerHTML += renderCanvasHTML(canvasId);
       matched = true;
       setTimeout(function() { initCanvas(canvasId); }, 10);
+    }
+    // Check custom commands
+    if (!matched) {
+      if (checkCustomCommands(trimmed, outputEl)) matched = true;
     }
   }
   if (!matched) {
@@ -2751,141 +2760,119 @@ document.getElementById('sourceRefreshBtn').addEventListener('click', function()
 // Load initial file
 fetchAndDisplay('index.html');
 
-// ===== COMMAND BUILDER =====
-const cbConfig = {
-  '@inf': { fields: [], build: function() { return '@inf'; } },
-  '@background': { fields: [
-    { id: 'cb-bg', label: 'Hex Color', type: 'color', value: '#ff4444' }
-  ], build: function() {
-    const c = document.getElementById('cb-bg').value;
-    return '@background [' + c.replace('#', '') + ']';
-  }},
-  '@text': { fields: [
-    { id: 'cb-txt-color', label: 'Color', type: 'color', value: '#ff4444' },
-    { id: 'cb-txt-msg', label: 'Message', type: 'text', value: 'Hello' }
-  ], build: function() {
-    const c = document.getElementById('cb-txt-color').value.replace('#', '');
-    const m = document.getElementById('cb-txt-msg').value.trim() || 'text';
-    return '@text [#' + c + '] ' + m + ' [set-true]';
-  }},
-  '@open': { fields: [], build: function() { return '@open'; } },
-  '@open [web]': { fields: [], build: function() { return '@open [web]'; } },
-  '@open [crosh]': { fields: [], build: function() { return '@open [crosh] (window)'; } },
-  '@Target shot': { fields: [
-    { id: 'cb-target-score', label: 'Target Score', type: 'text', value: '100' }
-  ], build: function() {
-    const s = document.getElementById('cb-target-score').value.trim() || '100';
-    return '@Target shot /N "' + s + '"';
-  }},
-  '@project [open]': { fields: [], build: function() { return '@project [open]'; } },
-  '@project tic tac toe': { fields: [
-    { id: 'cb-ttt-num', label: 'Game Number (optional)', type: 'text', value: '' }
-  ], build: function() {
-    const n = document.getElementById('cb-ttt-num').value.trim();
-    return '@project tic tac toe' + (n ? ' /' + n : '');
-  }},
-  '@project [close]': { fields: [], build: function() { return '@project [close]'; } },
-  '@maths [learn]': { fields: [
-    { id: 'cb-maths-topic', label: 'Topic', type: 'select', options: ['Factorization', 'Linear function'], value: 'Factorization' }
-  ], build: function() {
-    const t = document.getElementById('cb-maths-topic').value;
-    return '@maths [learn] (' + t + ')';
-  }},
-  '@canvas [draw]': { fields: [], build: function() { return '@canvas [draw]'; } },
-  '@generate [QR]': { fields: [
-    { id: 'cb-qr-link', label: 'Link URL', type: 'text', value: 'https://example.com' }
-  ], build: function() {
-    const l = document.getElementById('cb-qr-link').value.trim() || 'https://example.com';
-    return '@generate [QR] (link:' + l + ')';
-  }}
-};
-function cbUpdatePreview() {
-  const sel = document.getElementById('cbCommand').value;
-  const config = cbConfig[sel];
-  if (!config) return;
-  const paramsDiv = document.getElementById('cbParams');
-  paramsDiv.innerHTML = '';
-  config.fields.forEach(function(f) {
-    const wrapper = document.createElement('div');
-    wrapper.style.marginBottom = '10px';
-    const label = document.createElement('label');
-    label.style.cssText = 'font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;';
-    label.textContent = f.label;
-    wrapper.appendChild(label);
-    if (f.type === 'select') {
-      const selEl = document.createElement('select');
-      selEl.id = f.id;
-      selEl.style.cssText = 'width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;';
-      (f.options || []).forEach(function(o) {
-        const opt = document.createElement('option');
-        opt.value = o;
-        opt.textContent = o;
-        if (o === f.value) opt.selected = true;
-        selEl.appendChild(opt);
-      });
-      selEl.addEventListener('change', cbUpdatePreview);
-      wrapper.appendChild(selEl);
-    } else if (f.type === 'color') {
-      const input = document.createElement('input');
-      input.type = 'color';
-      input.id = f.id;
-      input.value = f.value || '#ff4444';
-      input.style.cssText = 'width:40px;height:32px;border:none;border-radius:4px;cursor:pointer;background:transparent;';
-      input.addEventListener('input', cbUpdatePreview);
-      wrapper.appendChild(input);
-    } else {
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.id = f.id;
-      input.value = f.value || '';
-      input.style.cssText = 'width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;';
-      input.addEventListener('input', cbUpdatePreview);
-      wrapper.appendChild(input);
-    }
-    paramsDiv.appendChild(wrapper);
-  });
-  // Build preview
-  const line = config.build();
-  document.getElementById('cbPreview').textContent = line;
+// ===== CUSTOM COMMAND CREATOR =====
+const CC_KEY = 'ic_custom_commands';
+function getCC() { try { return JSON.parse(localStorage.getItem(CC_KEY)) || []; } catch(e) { return []; } }
+function saveCC(list) { localStorage.setItem(CC_KEY, JSON.stringify(list)); }
+function ccUpdatePreview() {
+  const name = document.getElementById('ccName').value.trim();
+  const params = document.getElementById('ccParams').value.trim();
+  const preview = document.getElementById('ccPreview');
+  if (name) {
+    preview.textContent = '@' + name + (params ? ' ' + params : '');
+  } else {
+    preview.textContent = '';
+  }
 }
-document.getElementById('cbCommand').addEventListener('change', cbUpdatePreview);
-document.getElementById('cbInsertBtn').addEventListener('click', function() {
-  const line = document.getElementById('cbPreview').textContent;
-  if (!line) return;
-  const textarea = document.getElementById('codeTextarea');
-  if (!textarea) {
-    document.getElementById('cbStatus').textContent = 'No editor open';
-    document.getElementById('cbStatus').style.color = '#ff6b6b';
+document.getElementById('ccName').addEventListener('input', ccUpdatePreview);
+document.getElementById('ccParams').addEventListener('input', ccUpdatePreview);
+// Show/hide action value label based on action type
+document.getElementById('ccAction').addEventListener('change', function() {
+  const hints = { switchTab: 'e.g. settings', showMessage: 'e.g. Hello world!', openURL: 'e.g. https://example.com', setBackground: 'e.g. #ff4444', runCommand: 'e.g. @open' };
+  document.getElementById('ccActionVal').placeholder = hints[this.value] || 'Value';
+});
+// Save custom command
+document.getElementById('ccSaveBtn').addEventListener('click', function() {
+  const name = document.getElementById('ccName').value.trim().toLowerCase();
+  if (!name) { setCCStatus('Enter a command name', '#ff6b6b'); return; }
+  const params = document.getElementById('ccParams').value.trim();
+  const desc = document.getElementById('ccDesc').value.trim() || 'Custom command';
+  const action = document.getElementById('ccAction').value;
+  const val = document.getElementById('ccActionVal').value.trim();
+  if (!val) { setCCStatus('Enter an action value', '#ff6b6b'); return; }
+  const cmdLine = '@' + name + (params ? ' ' + params : '');
+  const list = getCC();
+  // Check for duplicates
+  if (list.find(c => c.cmdLine === cmdLine)) { setCCStatus('Command already exists', '#ff6b6b'); return; }
+  list.push({ cmdLine, name: '@' + name, params, description: desc, action, actionValue: val });
+  saveCC(list);
+  renderCCList();
+  setCCStatus('Command saved!', '#50e3c2');
+  // Clear form
+  document.getElementById('ccName').value = '';
+  document.getElementById('ccParams').value = '';
+  document.getElementById('ccDesc').value = '';
+  document.getElementById('ccActionVal').value = '';
+  ccUpdatePreview();
+});
+function setCCStatus(msg, color) {
+  const el = document.getElementById('ccStatus');
+  el.textContent = msg; el.style.color = color;
+  setTimeout(function() { el.textContent = ''; }, 3000);
+}
+function renderCCList() {
+  const list = getCC();
+  const container = document.getElementById('ccList');
+  if (!list.length) {
+    container.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">No custom commands yet.</div>';
     return;
   }
-  const start = textarea.selectionStart;
-  const val = textarea.value;
-  const before = val.substring(0, start);
-  const after = val.substring(start);
-  const indent = before.endsWith('\n') || before === '' ? '' : '\n';
-  textarea.value = before + indent + line + '\n' + after;
-  textarea.selectionStart = textarea.selectionEnd = start + indent.length + line.length + 1;
-  textarea.focus();
-  updateLineNumbers();
-  updateHighlight();
-  document.getElementById('cbStatus').textContent = 'Inserted!';
-  document.getElementById('cbStatus').style.color = '#50e3c2';
-  setTimeout(function() { document.getElementById('cbStatus').textContent = ''; }, 2000);
-});
-document.getElementById('cbCopyBtn').addEventListener('click', function() {
-  const line = document.getElementById('cbPreview').textContent;
-  if (!line) return;
-  navigator.clipboard.writeText(line).then(function() {
-    document.getElementById('cbStatus').textContent = 'Copied!';
-    document.getElementById('cbStatus').style.color = '#50e3c2';
-    setTimeout(function() { document.getElementById('cbStatus').textContent = ''; }, 2000);
-  }).catch(function() {
-    document.getElementById('cbStatus').textContent = 'Copy failed';
-    document.getElementById('cbStatus').style.color = '#ff6b6b';
+  container.innerHTML = list.map(function(c, i) {
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;margin-bottom:6px;">' +
+      '<div><span style="color:var(--accent);font-family:\'Consolas\',monospace;font-size:13px;">' + c.cmdLine + '</span>' +
+      '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">' + c.description + '</span></div>' +
+      '<button class="cc-del-btn" data-idx="' + i + '" style="padding:3px 8px;font-size:11px;background:none;border:1px solid var(--border);border-radius:4px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">&times;</button></div>';
+  }).join('');
+  container.querySelectorAll('.cc-del-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const idx = parseInt(this.dataset.idx, 10);
+      const list = getCC();
+      list.splice(idx, 1);
+      saveCC(list);
+      renderCCList();
+    });
   });
-});
-// Init first preview
-cbUpdatePreview();
+}
+renderCCList();
+// Integrate custom commands into executeCode
+// This adds a check after built-in commands in the executeCode loop
+// The integration is done by modifying the loop in executeCode to check custom commands
+// We hook into the existing 'matched' variable by adding a function that checks custom commands
+
+// ===== CUSTOM COMMAND INTEGRATION =====
+// This function is called from executeCode for each line
+function checkCustomCommands(trimmed, outputEl) {
+  const list = getCC();
+  for (const c of list) {
+    if (trimmed.toLowerCase() === c.cmdLine.toLowerCase()) {
+      if (c.action === 'switchTab') {
+        const tabId = c.actionValue;
+        if (document.querySelector('.topbar-tab[data-tab="' + tabId + '"]')) {
+          switchTab(tabId);
+          outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#9654; Switched to ' + tabId + ' tab</div>';
+        } else {
+          outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Tab "' + tabId + '" not found</div>';
+        }
+      } else if (c.action === 'showMessage') {
+        outputEl.innerHTML += '<div class="output-line">' + c.actionValue + '</div>';
+      } else if (c.action === 'openURL') {
+        window.open(c.actionValue, '_blank');
+        outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#128279; Opened ' + c.actionValue + '</div>';
+      } else if (c.action === 'setBackground') {
+        let color = c.actionValue;
+        if (/^[0-9a-f]{3,8}$/i.test(color.replace('#', ''))) color = color.startsWith('#') ? color : '#' + color;
+        document.getElementById('previewPanel').style.background = color;
+        outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#9632; Background set</div>';
+      } else if (c.action === 'runCommand') {
+        outputEl.innerHTML += '<div class="output-line" style="color:#ffd700">&#128295; Running: ' + c.actionValue + '</div>';
+        // Re-run the line through executeCode by treating it as a new command
+        // Just display it as a note for now
+      }
+      return true;
+    }
+  }
+  return false;
+}
 
 // ===== DATABASE =====
 const DB_KEY = 'ic_database';

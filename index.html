@@ -240,36 +240,45 @@
               </div>
               <pre id="sourceViewer" style="width:100%;min-height:350px;max-height:500px;padding:12px;margin:0;background:#0a0a0a;border:1px solid var(--border);border-radius:6px;color:#e8c8c8;font-family:'Consolas','Courier New',monospace;font-size:13px;line-height:1.5;overflow:auto;white-space:pre-wrap;word-break:break-all;box-sizing:border-box;"></pre>
               <hr class="settings-divider">
-              <h2 class="settings-title">&#128295; Command Builder</h2>
-              <p class="settings-subtitle">Visually build .inf command lines and insert them into your code.</p>
+              <h2 class="settings-title">&#128295; Custom Command Creator</h2>
+              <p class="settings-subtitle">Create your own .inf commands that run custom actions.</p>
               <div style="margin-bottom:12px;">
-                <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;">Command</label>
-                <select id="cbCommand" style="width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;">
-                  <option value="@inf">@inf — required first line</option>
-                  <option value="@background">@background [#hex] — set preview background</option>
-                  <option value="@text">@text [color] message [set-true] — colored text</option>
-                  <option value="@open">@open — open code in new tab</option>
-                  <option value="@open [web]">@open [web] — open with blob link</option>
-                  <option value="@open [crosh]">@open [crosh] (window) — crosh terminal</option>
-                  <option value="@Target shot">@Target shot /N "score" — darts game</option>
-                  <option value="@project [open]">@project [open] — start project block</option>
-                  <option value="@project tic tac toe">@project tic tac toe /N — TTT game</option>
-                  <option value="@project [close]">@project [close] — close project block</option>
-                  <option value="@maths [learn]">@maths [learn] (topic) — maths learn card</option>
-                  <option value="@canvas [draw]">@canvas [draw] — interactive drawing canvas</option>
-                  <option value="@generate [QR]">@generate [QR] (link:...) — QR code</option>
+                <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;">Command Name</label>
+                <input type="text" id="ccName" placeholder="e.g. settings" style="width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">
+              </div>
+              <div style="margin-bottom:12px;">
+                <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;">Parameters (optional)</label>
+                <input type="text" id="ccParams" placeholder="e.g. [open]" style="width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">
+              </div>
+              <div style="margin-bottom:12px;">
+                <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;">Description</label>
+                <input type="text" id="ccDesc" placeholder="e.g. Opens the settings tab" style="width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">
+              </div>
+              <div style="margin-bottom:12px;">
+                <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;">Action</label>
+                <select id="ccAction" style="width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;">
+                  <option value="switchTab">Switch Tab</option>
+                  <option value="showMessage">Show Message</option>
+                  <option value="openURL">Open URL</option>
+                  <option value="setBackground">Set Background</option>
+                  <option value="runCommand">Run Built-in Command</option>
                 </select>
               </div>
-              <div id="cbParams" style="margin-bottom:12px;"></div>
+              <div id="ccActionValue" style="margin-bottom:12px;">
+                <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;">Action Value</label>
+                <input type="text" id="ccActionVal" placeholder="e.g. settings" style="width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">
+              </div>
               <div style="margin-bottom:12px;">
-                <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;">Preview</label>
-                <div id="cbPreview" style="padding:10px 14px;background:#0a0a0a;border:1px solid var(--border);border-radius:6px;color:var(--accent);font-family:'Consolas','Courier New',monospace;font-size:14px;min-height:20px;word-break:break-all;"></div>
+                <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;">Generated Command Line</label>
+                <div id="ccPreview" style="padding:10px 14px;background:#0a0a0a;border:1px solid var(--border);border-radius:6px;color:var(--accent);font-family:'Consolas','Courier New',monospace;font-size:14px;min-height:20px;word-break:break-all;"></div>
               </div>
-              <div style="display:flex;gap:8px;">
-                <button id="cbInsertBtn" style="padding:8px 16px;font-size:12px;background:linear-gradient(135deg,var(--accent-grad-1),var(--accent-grad-2));border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:inherit;">&#128203; Insert into Editor</button>
-                <button id="cbCopyBtn" style="padding:8px 16px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">&#128203; Copy</button>
-                <span id="cbStatus" style="font-size:12px;color:var(--text-muted);align-self:center;margin-left:4px;"></span>
+              <div style="display:flex;gap:8px;margin-bottom:16px;">
+                <button id="ccSaveBtn" style="padding:8px 16px;font-size:12px;background:linear-gradient(135deg,var(--accent-grad-1),var(--accent-grad-2));border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:inherit;">&#128190; Save Command</button>
+                <span id="ccStatus" style="font-size:12px;color:var(--text-muted);align-self:center;margin-left:4px;"></span>
               </div>
+              <hr class="settings-divider">
+              <h3 style="font-size:15px;font-weight:400;color:var(--text-primary);margin-bottom:12px;">Your Custom Commands</h3>
+              <div id="ccList" style="margin-bottom:12px;"></div>
             </div>
           </div>
           <div class="tab-content" id="tab-settings">

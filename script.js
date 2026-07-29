@@ -453,6 +453,7 @@ const COMMANDS = [
   { match: '@dermatology', className: 'token-dermatology', desc: 'dermatology learning commands' },
   { match: '@pathology', className: 'token-pathology', desc: 'pathology learning commands' },
   { match: '@generate', className: 'token-generate', desc: 'generate QR codes' },
+  { match: '@switch', className: 'token-command', desc: 'switch tabs' },
 ];
 
 function highlightCode(code) {
@@ -539,6 +540,9 @@ function highlightCode(code) {
         if (cmd === '@generate') {
           return '<span class="token-generate">' + cmd + '</span>';
         }
+        if (cmd === '@switch') {
+          return '<span class="token-command">' + cmd + '</span>';
+        }
         if (cmd === '@canvas') {
           return '<span class="token-maths">' + cmd + '</span>';
         }
@@ -594,6 +598,7 @@ const suggestionList = [
   { label: '@pathology [learn] (subject)', desc: 'learn about pathology subjects' },
   { label: '@generate [QR] (link:...)', desc: 'generate a QR code from a link' },
   { label: '@canvas [draw]', desc: 'open an interactive drawing canvas' },
+  { label: '@switch tab [name]', desc: 'switch to a tab (code, database, run, edit, settings)' },
 ];
 
 let suggestionIndex = -1;
@@ -1027,10 +1032,20 @@ function executeCode(code, outputEl) {
       matched = true;
       setTimeout(function() { initCanvas(canvasId); }, 10);
     }
-    // Check custom commands
-    if (!matched) {
-      if (checkCustomCommands(trimmed, outputEl)) matched = true;
+    // Handle @switch tab
+    const switchM = trimmed.match(/^@switch\s+tab\s+(\w+)$/i);
+    if (switchM) {
+      const tabId = switchM[1].toLowerCase();
+      if (document.querySelector('.topbar-tab[data-tab="' + tabId + '"]')) {
+        switchTab(tabId);
+        outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#9654; Switched to ' + tabId + ' tab</div>';
+      } else {
+        outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Tab "' + tabId + '" not found</div>';
+      }
+      matched = true;
     }
+    // Check custom commands (always, no matched guard)
+    if (checkCustomCommands(trimmed, outputEl)) matched = true;
   }
   if (!matched) {
     outputEl.innerHTML += '<div class="output-line" style="color:#888">No commands matched. Lines processed: ' + lines.length + '</div>';
@@ -2873,6 +2888,171 @@ function checkCustomCommands(trimmed, outputEl) {
   }
   return false;
 }
+
+// ===== AI COMMAND GENERATOR =====
+const AI_TEMPLATES = [
+  { keywords: ['text', 'message', 'say', 'show', 'display', 'hello'], generate: function(input) {
+    const colorMatch = input.match(/(red|blue|green|yellow|white|black|purple|orange|pink|teal|#?[0-9a-f]{3,8})\b/i);
+    const colors = { red:'#ff4444', blue:'#448aff', green:'#50e3c2', yellow:'#ffd700', white:'#ffffff', black:'#000000', purple:'#8860ff', orange:'#ff9100', pink:'#f48fb1', teal:'#00c8b4' };
+    const color = colorMatch ? (colors[colorMatch[1].toLowerCase()] || (colorMatch[1].startsWith('#')?colorMatch[1]:'#'+colorMatch[1])) : '#ff4444';
+    let msg = input.replace(/show\s+a(n)?\s+\w+\s+message\s+(saying\s+)?/i, '').replace(/display?\s+/i, '').replace(/text\s+/i, '').replace(/say\s+/i, '').replace(/hello\s*/i, 'Hello ');
+    msg = msg.replace(/\b(red|blue|green|yellow|white|black|purple|orange|pink|teal)\b/gi, '').trim() || 'Hello World';
+    return { code: '@text [' + color + '] ' + msg + ' [set-true]', desc: 'Shows colored text in preview' };
+  }},
+  { keywords: ['background', 'bg', 'backdrop'], generate: function(input) {
+    const colorMatch = input.match(/(#?[0-9a-f]{3,8})\b/i);
+    const namedColors = { red:'#ff4444', blue:'#448aff', green:'#50e3c2', dark:'#000000', black:'#000000', white:'#ffffff' };
+    let color = colorMatch ? (colorMatch[1].startsWith('#')?colorMatch[1]:'#'+colorMatch[1]) : '#ff4444';
+    for (const [name, hex] of Object.entries(namedColors)) {
+      if (input.toLowerCase().includes(name)) { color = hex; break; }
+    }
+    return { code: '@background [' + color + ']', desc: 'Sets preview background color' };
+  }},
+  { keywords: ['dart', 'darts', 'target', 'throw'], generate: function(input) {
+    const scoreMatch = input.match(/(\d+)/);
+    const score = scoreMatch ? scoreMatch[1] : '20';
+    return { code: '@Target shot /1 "' + score + '"', desc: 'Creates a darts game with target score ' + score };
+  }},
+  { keywords: ['qr', 'qrcode', 'qr code', 'generate'], generate: function(input) {
+    const linkMatch = input.match(/(https?:\/\/[^\s]+)|(link\s*[:=]\s*(https?:\/\/[^\s]+))/i) || input.match(/([a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+    const link = linkMatch ? linkMatch[1] || linkMatch[2] || linkMatch[0] : 'https://example.com';
+    return { code: '@generate [QR] (link: ' + link + ')', desc: 'Generates a QR code from a link' };
+  }},
+  { keywords: ['tic tac toe', 'tictactoe', 'ttt', 'game'], generate: function(input) {
+    return { code: '@project tic tac toe /1', desc: 'Creates a playable Tic Tac Toe game' };
+  }},
+  { keywords: ['draw', 'canvas', 'paint', 'sketch'], generate: function(input) {
+    return { code: '@canvas [draw]', desc: 'Opens an interactive drawing canvas' };
+  }},
+  { keywords: ['math', 'factorization', 'factor'], generate: function(input) {
+    if (input.toLowerCase().includes('linear') || input.toLowerCase().includes('function')) {
+      return { code: '@maths [learn] (Linear function)', desc: 'Shows linear function rules' };
+    }
+    return { code: '@maths [learn] (Factorization)', desc: 'Shows factorization rules' };
+  }},
+  { keywords: ['theology', 'god', 'religion'], generate: function() {
+    return { code: '@theology [learn] (Overview)', desc: 'Shows theology overview' };
+  }},
+  { keywords: ['ecology', 'environment', 'nature'], generate: function() {
+    return { code: '@ecology [learn] (Overview)', desc: 'Shows ecology overview' };
+  }},
+  { keywords: ['genetics', 'dna', 'gene'], generate: function() {
+    return { code: '@genetics [learn] (Overview)', desc: 'Shows genetics overview' };
+  }},
+  { keywords: ['open', 'tab', 'new tab'], generate: function(input) {
+    if (input.includes('web') || input.includes('link') || input.includes('share')) {
+      return { code: '@open [web]', desc: 'Opens preview with shareable blob link' };
+    }
+    return { code: '@open', desc: 'Opens code preview in a new tab' };
+  }},
+  { keywords: ['project', 'new project'], generate: function(input) {
+    if (input.includes('close')) return { code: '@project [close]', desc: 'Closes the current project' };
+    return { code: '@project [open]', desc: 'Opens a project block' };
+  }},
+  { keywords: ['switch tab', 'tab', 'settings tab', 'code tab', 'database tab', 'run tab'], generate: function(input) {
+    const tabNames = {settings:'settings', code:'code', database:'database', run:'run', edit:'edit'};
+    let tab = 'settings';
+    for (const [key, val] of Object.entries(tabNames)) {
+      if (input.toLowerCase().includes(key)) { tab = val; break; }
+    }
+    return { code: '@switch tab ' + tab, desc: 'Switches to the ' + tab + ' tab', isCustom: true, action: 'switchTab', actionValue: tab };
+  }},
+];
+
+function aiGenerateCommand(input) {
+  const lower = input.toLowerCase().trim();
+  if (!lower) return null;
+  for (const tpl of AI_TEMPLATES) {
+    if (tpl.keywords.some(k => lower.includes(k))) {
+      const result = tpl.generate(input);
+      if (result) return result;
+    }
+  }
+  // Fallback: show message with the input as text
+  return { code: '@text [#ff4444] ' + input.replace(/^show\s+/i, '') + ' [set-true]', desc: 'Shows text in preview' };
+}
+
+document.getElementById('aiGenBtn').addEventListener('click', function() {
+  const input = document.getElementById('aiGenInput').value.trim();
+  const status = document.getElementById('aiGenStatus');
+  const resultDiv = document.getElementById('aiGenResult');
+  const codeEl = document.getElementById('aiGenCode');
+  if (!input) {
+    status.textContent = 'Please describe what you want to do';
+    status.style.color = '#ff6b6b';
+    resultDiv.style.display = 'none';
+    return;
+  }
+  const gen = aiGenerateCommand(input);
+  if (gen) {
+    codeEl.textContent = gen.code;
+    codeEl.dataset.desc = gen.desc || '';
+    codeEl.dataset.action = gen.action || '';
+    codeEl.dataset.actionValue = gen.actionValue || '';
+    resultDiv.style.display = 'block';
+    status.textContent = 'Generated: ' + (gen.desc || 'command');
+    status.style.color = '#50e3c2';
+  } else {
+    status.textContent = 'Could not generate a command. Try different wording.';
+    status.style.color = '#ff6b6b';
+    resultDiv.style.display = 'none';
+  }
+});
+
+document.getElementById('aiGenInsertBtn').addEventListener('click', function() {
+  const code = document.getElementById('aiGenCode').textContent;
+  if (!code) return;
+  switchTab('code');
+  if (!currentProject) {
+    document.getElementById('aiGenStatus').textContent = 'Create or open a project first!';
+    document.getElementById('aiGenStatus').style.color = '#ff6b6b';
+    document.getElementById('newProjectBtn').click();
+    return;
+  }
+  const ta = document.getElementById('codeTextarea');
+  ta.focus();
+  const start = ta.selectionStart;
+  const val = ta.value;
+  const before = val.substring(0, start);
+  const after = val.substring(ta.selectionEnd);
+  ta.value = before + (start > 0 && before[before.length-1] !== '\n' ? '\n' : '') + code + '\n' + after;
+  ta.selectionStart = ta.selectionEnd = start + code.length + 1 + (start > 0 && before[before.length-1] !== '\n' ? 1 : 0);
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+  document.getElementById('aiGenStatus').textContent = 'Inserted into editor!';
+  document.getElementById('aiGenStatus').style.color = '#50e3c2';
+});
+
+document.getElementById('aiGenSaveCmd').addEventListener('click', function() {
+  const code = document.getElementById('aiGenCode').textContent;
+  const desc = document.getElementById('aiGenCode').dataset.desc || 'AI-generated command';
+  const action = document.getElementById('aiGenCode').dataset.action || '';
+  const actionValue = document.getElementById('aiGenCode').dataset.actionValue || '';
+  if (!code) return;
+  // Parse cmdLine from code
+  const nameMatch = code.match(/^@(\w+)/);
+  if (!nameMatch) return;
+  const name = nameMatch[1];
+  const cmdLine = code;
+  const list = getCC();
+  if (list.find(c => c.cmdLine === cmdLine)) {
+    document.getElementById('aiGenStatus').textContent = 'Command already exists';
+    document.getElementById('aiGenStatus').style.color = '#ff6b6b';
+    return;
+  }
+  list.push({ cmdLine, name: '@' + name, params: '', description: desc, action: action || 'showMessage', actionValue: actionValue || code });
+  saveCC(list);
+  renderCCList();
+  document.getElementById('aiGenStatus').textContent = 'Saved as custom command! (See "Your Custom Commands" above)';
+  document.getElementById('aiGenStatus').style.color = '#50e3c2';
+});
+
+// Allow Enter to trigger generation in AI input
+document.getElementById('aiGenInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    document.getElementById('aiGenBtn').click();
+  }
+});
 
 // ===== DATABASE =====
 const DB_KEY = 'ic_database';

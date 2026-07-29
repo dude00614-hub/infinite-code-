@@ -2786,6 +2786,37 @@ fetchAndDisplay('index.html');
 const CC_KEY = 'ic_custom_commands';
 function getCC() { try { return JSON.parse(localStorage.getItem(CC_KEY)) || []; } catch(e) { return []; } }
 function saveCC(list) { localStorage.setItem(CC_KEY, JSON.stringify(list)); }
+function deleteCC(cmdName) {
+  const list = getCC();
+  const filtered = list.filter(c => c.cmdLine.toLowerCase().replace(/^@/,'') !== cmdName.toLowerCase().replace(/^@/,''));
+  if (filtered.length === list.length) return false;
+  saveCC(filtered);
+  renderCustomCmdList();
+  return true;
+}
+function renderCustomCmdList() {
+  const el = document.getElementById('customCmdList');
+  if (!el) return;
+  const list = getCC();
+  if (list.length === 0) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No custom commands yet.</div>';
+    return;
+  }
+  el.innerHTML = list.map(c => {
+    const name = c.cmdLine;
+    const desc = c.description || '';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">' +
+      '<span style="color:var(--accent);font-weight:500;min-width:100px;">' + name + '</span>' +
+      '<span style="color:var(--text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + desc + '</span>' +
+      '<button class="del-cc-btn" data-cmd="' + name + '" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Delete</button>' +
+      '</div>';
+  }).join('');
+  el.querySelectorAll('.del-cc-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      deleteCC(this.getAttribute('data-cmd'));
+    });
+  });
+}
 
 function checkCustomCommands(trimmed, outputEl) {
   const list = getCC();
@@ -2905,20 +2936,40 @@ function aiGenerateCommand(input) {
   const lower = input.toLowerCase().trim();
   if (!lower) return null;
 
-  // Check for "create/make/new command called X that does Y"
-  const createMatch = lower.match(/(?:create|make|new)\s+(?:a\s+)?command\s+(?:called\s+)?@?(\w+)\s+(?:that\s+)?(?:to\s+)?(.*)/i);
-  if (createMatch) {
-    const cmdName = createMatch[1].toLowerCase();
-    const intent = createMatch[2];
+  const SITE_NAMES = { google:'google.com', youtube:'youtube.com', github:'github.com', facebook:'facebook.com', twitter:'twitter.com', x:'x.com', instagram:'instagram.com', reddit:'reddit.com', wikipedia:'wikipedia.org', amazon:'amazon.com', netflix:'netflix.com', stackoverflow:'stackoverflow.com', npm:'npmjs.com', discord:'discord.com', twitch:'twitch.tv', spotify:'spotify.com', linkedin:'linkedin.com' };
+
+  // Check for "create/make/new command" with explicit name ("called X", "named X", or @X)
+  const explicitMatch = lower.match(/(?:create|make|new)\s+(?:a\s+)?command\s+(?:(?:called|named)\s+@?(\w+)|@(\w+))\s+(?:that\s+)?(?:to\s+)?(.*)/i);
+  // Check for "create/make/new command" without explicit name (auto-generate name from intent)
+  const implicitMatch = !explicitMatch && lower.match(/(?:create|make|new)\s+(?:a\s+)?command\s+(?:that\s+)?(?:to\s+)?(.+)/i);
+
+  if (explicitMatch || implicitMatch) {
+    let cmdName, intent;
+    if (explicitMatch) {
+      cmdName = (explicitMatch[1] || explicitMatch[2]).toLowerCase();
+      intent = (explicitMatch[3] || '').trim();
+    } else {
+      intent = (implicitMatch[1] || '').trim();
+      const intentWords = intent.replace(/^(?:i\s+)?(?:want\s+(?:to\s+)?)?(?:create|make|show|do|have|get)\s+/i, '').trim().split(/\s+/);
+      cmdName = (intentWords.length > 0 ? intentWords[0].toLowerCase().replace(/[^a-z0-9]/g, '') : false) || 'mycommand';
+    }
+
     let action = 'showMessage';
     let actionValue = intent;
     let desc = 'Custom command: ' + intent;
 
-    if (/open\s+(.+)/i.test(intent)) {
-      const urlMatch = intent.match(/open\s+(.+)/i);
+    if (/opens?\s+(\S+)/i.test(intent)) {
+      const urlMatch = intent.match(/opens?\s+(\S+)/i);
       if (urlMatch) {
-        let url = urlMatch[1].trim();
-        if (!url.startsWith('http') && url.includes('.')) url = 'https://' + url;
+        let url = urlMatch[1].trim().replace(/[^a-zA-Z0-9.:\/\-_~]+.*$/, '');
+        const siteKey = url.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (SITE_NAMES[siteKey]) {
+          url = 'https://' + SITE_NAMES[siteKey];
+        } else if (!url.startsWith('http') && url.includes('.')) {
+          url = 'https://' + url;
+        } else if (!url.startsWith('http')) {
+          url = 'https://' + url + '.com';
+        }
         action = 'openURL';
         actionValue = url;
         desc = 'Opens ' + url;
@@ -2956,7 +3007,13 @@ function aiGenerateCommand(input) {
   let fallbackValue = input.replace(/^(?:i\s+)?(?:want\s+(?:to\s+)?)?(?:create|make|show|do|have|get)\s+/i, '').trim();
   if (fallbackAction === 'openURL') {
     const u = input.match(/(https?:\/\/[^\s]+)|([a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-    fallbackValue = u ? (u[1] || 'https://' + u[2]) : 'https://example.com';
+    if (u) {
+      fallbackValue = u[1] || 'https://' + u[2];
+    } else {
+      const siteMatch = lower.match(/opens?\s+(\S+)/i) || lower.match(/open\s+(\S+)/i);
+      const siteKey = siteMatch ? siteMatch[1].toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+      fallbackValue = SITE_NAMES[siteKey] ? 'https://' + SITE_NAMES[siteKey] : 'https://example.com';
+    }
   } else if (fallbackAction === 'switchTab') {
     const t = lower.match(/(\w+)\s+tab/);
     fallbackValue = t ? t[1] : 'settings';
@@ -3013,6 +3070,7 @@ document.getElementById('aiGenBtn').addEventListener('click', function() {
     switchTab('code');
     status.textContent = gen.isCustom ? 'New command @' + gen.code.replace('@','') + ' created! Type it in editor & Run.' : 'Done! Click Run to execute.';
     status.style.color = '#50e3c2';
+    renderCustomCmdList();
   } else {
     status.textContent = 'Could not generate. Try different wording.';
     status.style.color = '#ff6b6b';
@@ -3316,3 +3374,6 @@ document.getElementById('importFileInput').addEventListener('change', function(e
   reader.readAsText(file);
   this.value = '';
 });
+
+// Initialize custom commands list on load
+renderCustomCmdList();

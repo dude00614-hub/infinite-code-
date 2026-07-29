@@ -2982,13 +2982,21 @@ function aiInsertIntoEditor(code) {
     return false;
   }
   const ta = document.getElementById('codeTextarea');
-  ta.focus();
-  const start = ta.selectionStart;
   const val = ta.value;
-  const before = val.substring(0, start);
-  const after = val.substring(ta.selectionEnd);
-  ta.value = before + (start > 0 && before[before.length-1] !== '\n' ? '\n' : '') + code + '\n' + after;
-  ta.selectionStart = ta.selectionEnd = start + code.length + 1 + (start > 0 && before[before.length-1] !== '\n' ? 1 : 0);
+  // Always insert after the @inf line so it stays first
+  const firstNewline = val.indexOf('\n');
+  let insertPos;
+  if (val.trim().startsWith('@inf') && firstNewline >= 0) {
+    insertPos = firstNewline + 1;
+  } else if (!val.trim()) {
+    insertPos = 0;
+    code = '@inf\n' + code;
+  } else {
+    insertPos = val.length;
+  }
+  ta.value = val.substring(0, insertPos) + code + '\n' + val.substring(insertPos);
+  ta.selectionStart = ta.selectionEnd = insertPos + code.length + 1;
+  ta.focus();
   ta.dispatchEvent(new Event('input', { bubbles: true }));
   return true;
 }

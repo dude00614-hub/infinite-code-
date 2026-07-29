@@ -639,7 +639,10 @@ function showSuggestions(filter) {
     suggestionIndex = -1;
     return;
   }
-  const filtered = suggestionList.filter(s =>
+  const customCmds = getCC().map(function(c) {
+    return { label: c.cmdLine, desc: c.description + ' (custom)' };
+  });
+  const filtered = suggestionList.concat(customCmds).filter(s =>
     s.label.toLowerCase().startsWith(trimmed.toLowerCase())
   );
   if (filtered.length === 0) {
@@ -1045,6 +1048,8 @@ function executeCode(code, outputEl) {
       }
       matched = true;
     }
+    // Check custom commands
+    if (checkCustomCommands(trimmed, outputEl)) matched = true;
   }
   if (!matched) {
     outputEl.innerHTML += '<div class="output-line" style="color:#888">No commands matched. Lines processed: ' + lines.length + '</div>';
@@ -2777,6 +2782,40 @@ fetchAndDisplay('index.html');
 
 
 
+// ===== CUSTOM COMMAND SYSTEM (AI-managed) =====
+const CC_KEY = 'ic_custom_commands';
+function getCC() { try { return JSON.parse(localStorage.getItem(CC_KEY)) || []; } catch(e) { return []; } }
+function saveCC(list) { localStorage.setItem(CC_KEY, JSON.stringify(list)); }
+
+function checkCustomCommands(trimmed, outputEl) {
+  const list = getCC();
+  for (const c of list) {
+    if (trimmed.toLowerCase() === c.cmdLine.toLowerCase()) {
+      if (c.action === 'switchTab') {
+        const tabId = c.actionValue;
+        if (document.querySelector('.topbar-tab[data-tab="' + tabId + '"]')) {
+          switchTab(tabId);
+          outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#9654; Switched to ' + tabId + ' tab</div>';
+        } else {
+          outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Tab "' + tabId + '" not found</div>';
+        }
+      } else if (c.action === 'showMessage') {
+        outputEl.innerHTML += '<div class="output-line">' + c.actionValue + '</div>';
+      } else if (c.action === 'openURL') {
+        window.open(c.actionValue, '_blank');
+        outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#128279; Opened ' + c.actionValue + '</div>';
+      } else if (c.action === 'setBackground') {
+        let color = c.actionValue;
+        if (/^[0-9a-f]{3,8}$/i.test(color.replace('#', ''))) color = color.startsWith('#') ? color : '#' + color;
+        document.getElementById('previewPanel').style.background = color;
+        outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#9632; Background set</div>';
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
 // ===== AI COMMAND GENERATOR =====
 const AI_TEMPLATES = [
   { keywords: ['text', 'message', 'say', 'show', 'display', 'hello'], generate: function(input) {
@@ -2853,17 +2892,80 @@ const AI_TEMPLATES = [
   }},
 ];
 
+function createCustomCmd(name, action, actionValue, desc) {
+  const cmdLine = '@' + name.toLowerCase();
+  const list = getCC();
+  if (list.find(c => c.cmdLine === cmdLine)) return null;
+  list.push({ cmdLine, name: cmdLine, params: '', description: desc || 'Custom command', action, actionValue });
+  saveCC(list);
+  return cmdLine;
+}
+
 function aiGenerateCommand(input) {
   const lower = input.toLowerCase().trim();
   if (!lower) return null;
+
+  // Check for "create/make/new command called X that does Y"
+  const createMatch = lower.match(/(?:create|make|new)\s+(?:a\s+)?command\s+(?:called\s+)?@?(\w+)\s+(?:that\s+)?(?:to\s+)?(.*)/i);
+  if (createMatch) {
+    const cmdName = createMatch[1].toLowerCase();
+    const intent = createMatch[2];
+    let action = 'showMessage';
+    let actionValue = intent;
+    let desc = 'Custom command: ' + intent;
+
+    if (/open\s+(.+)/i.test(intent)) {
+      const urlMatch = intent.match(/open\s+(.+)/i);
+      if (urlMatch) {
+        let url = urlMatch[1].trim();
+        if (!url.startsWith('http') && url.includes('.')) url = 'https://' + url;
+        action = 'openURL';
+        actionValue = url;
+        desc = 'Opens ' + url;
+      }
+    } else if (/switch\s+tab|go\s+to\s+(\w+)\s+tab/i.test(intent)) {
+      const tabMatch = intent.match(/(?:switch\s+tab|go\s+to)\s+(\w+)/i);
+      action = 'switchTab';
+      actionValue = tabMatch ? tabMatch[1].toLowerCase() : 'settings';
+      desc = 'Switches to ' + actionValue + ' tab';
+    } else if (/background|bg\s+/i.test(intent)) {
+      action = 'setBackground';
+      const colorMatch = intent.match(/(#?[0-9a-f]{3,8})\b/i);
+      actionValue = colorMatch ? (colorMatch[1].startsWith('#')?colorMatch[1]:'#'+colorMatch[1]) : '#ff4444';
+      desc = 'Sets background color';
+    }
+
+    const cmdLine = createCustomCmd(cmdName, action, actionValue, desc);
+    if (cmdLine) {
+      return { code: cmdLine, desc: desc + ' (new custom command)', isCustom: true };
+    }
+    return { code: '@' + cmdName, desc: desc };
+  }
+
   for (const tpl of AI_TEMPLATES) {
     if (tpl.keywords.some(k => lower.includes(k))) {
       const result = tpl.generate(input);
       if (result) return result;
     }
   }
-  // Fallback: show message with the input as text
-  return { code: '@text [#ff4444] ' + input.replace(/^show\s+/i, '') + ' [set-true]', desc: 'Shows text in preview' };
+
+  // Fallback: create a custom command named after the main intent
+  const words = input.replace(/^(?:i\s+)?(?:want\s+(?:to\s+)?)?(?:create|make|show|do|have|get)\s+/i, '').trim().split(/\s+/);
+  const fallbackName = (words.length > 0 ? words[0].toLowerCase().replace(/[^a-z0-9]/g, '') : 'mycommand') || 'mycommand';
+  const fallbackAction = lower.includes('open') ? 'openURL' : lower.includes('tab') ? 'switchTab' : lower.includes('background') ? 'setBackground' : 'showMessage';
+  let fallbackValue = input.replace(/^(?:i\s+)?(?:want\s+(?:to\s+)?)?(?:create|make|show|do|have|get)\s+/i, '').trim();
+  if (fallbackAction === 'openURL') {
+    const u = input.match(/(https?:\/\/[^\s]+)|([a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+    fallbackValue = u ? (u[1] || 'https://' + u[2]) : 'https://example.com';
+  } else if (fallbackAction === 'switchTab') {
+    const t = lower.match(/(\w+)\s+tab/);
+    fallbackValue = t ? t[1] : 'settings';
+  }
+  const fallbackCmd = createCustomCmd(fallbackName, fallbackAction, fallbackValue, input);
+  if (fallbackCmd) {
+    return { code: fallbackCmd, desc: input + ' (new custom command)', isCustom: true };
+  }
+  return { code: '@' + fallbackName, desc: input };
 }
 
 function aiInsertIntoEditor(code) {
@@ -2909,7 +3011,7 @@ document.getElementById('aiGenBtn').addEventListener('click', function() {
     }
     aiInsertIntoEditor(gen.code);
     switchTab('code');
-    status.textContent = 'Done! Click Run to execute.';
+    status.textContent = gen.isCustom ? 'New command @' + gen.code.replace('@','') + ' created! Type it in editor & Run.' : 'Done! Click Run to execute.';
     status.style.color = '#50e3c2';
   } else {
     status.textContent = 'Could not generate. Try different wording.';

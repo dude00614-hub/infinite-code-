@@ -569,6 +569,7 @@ const suggestionList = [
   { label: '@background [#hex]', desc: 'set preview background' },
   { label: '@open', desc: 'open code in a new tab' },
   { label: '@open [web]', desc: 'open with a shareable blob link' },
+  { label: '@open [site] (url)', desc: 'open any website in a new tab' },
   { label: '@Target shot /N "score"', desc: 'create a darts game with target score' },
   { label: '@open [crosh] (window)', desc: 'open a crosh terminal window' },
   { label: '@project [open]', desc: 'open a project' },
@@ -882,6 +883,11 @@ function executeCode(code, outputEl) {
     } else if (trimmed === '@open [web]') {
       const url = openCodeInTab();
       outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">Blob link: <a href="' + url + '" target="_blank" style="color:#50e3c2;text-decoration:underline;">' + url + '</a></div>';
+      matched = true;
+    } else if (/^@open\s+\[site\]\s*\((.+)\)$/i.test(trimmed)) {
+      const url = trimmed.match(/^@open\s+\[site\]\s*\((.+)\)$/i)[1].trim();
+      window.open(url, '_blank');
+      outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#128279; Opened ' + url + '</div>';
       matched = true;
     } else if (trimmed === '@project [open]') {
       projectOpen = true;
@@ -2822,6 +2828,12 @@ const AI_TEMPLATES = [
     return { code: '@genetics [learn] (Overview)', desc: 'Shows genetics overview' };
   }},
   { keywords: ['open', 'tab', 'new tab'], generate: function(input) {
+    const urlMatch = input.match(/(https?:\/\/[^\s]+)|([a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+    if (urlMatch) {
+      let url = urlMatch[1] || urlMatch[2];
+      if (!url.startsWith('http')) url = 'https://' + url;
+      return { code: '@open [site] (' + url + ')', desc: 'Opens ' + url + ' in a new tab' };
+    }
     if (input.includes('web') || input.includes('link') || input.includes('share')) {
       return { code: '@open [web]', desc: 'Opens preview with shareable blob link' };
     }

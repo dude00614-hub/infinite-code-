@@ -1656,6 +1656,11 @@ body {
   border-radius: 3px;
 }
 
+/* ===== COMMAND BUILDER ===== */
+#cbPreview {
+  transition: color 0.2s;
+}
+
 /* ===== SITE SOURCE EDITOR ===== */
 .source-file-btn {
   transition: all 0.15s;

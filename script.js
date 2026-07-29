@@ -2860,6 +2860,142 @@ document.getElementById('sourceEditor').addEventListener('input', function() {
   document.getElementById('sourceStatus').style.color = '#ffd700';
 });
 
+// ===== COMMAND BUILDER =====
+const cbConfig = {
+  '@inf': { fields: [], build: function() { return '@inf'; } },
+  '@background': { fields: [
+    { id: 'cb-bg', label: 'Hex Color', type: 'color', value: '#ff4444' }
+  ], build: function() {
+    const c = document.getElementById('cb-bg').value;
+    return '@background [' + c.replace('#', '') + ']';
+  }},
+  '@text': { fields: [
+    { id: 'cb-txt-color', label: 'Color', type: 'color', value: '#ff4444' },
+    { id: 'cb-txt-msg', label: 'Message', type: 'text', value: 'Hello' }
+  ], build: function() {
+    const c = document.getElementById('cb-txt-color').value.replace('#', '');
+    const m = document.getElementById('cb-txt-msg').value.trim() || 'text';
+    return '@text [#' + c + '] ' + m + ' [set-true]';
+  }},
+  '@open': { fields: [], build: function() { return '@open'; } },
+  '@open [web]': { fields: [], build: function() { return '@open [web]'; } },
+  '@open [crosh]': { fields: [], build: function() { return '@open [crosh] (window)'; } },
+  '@Target shot': { fields: [
+    { id: 'cb-target-score', label: 'Target Score', type: 'text', value: '100' }
+  ], build: function() {
+    const s = document.getElementById('cb-target-score').value.trim() || '100';
+    return '@Target shot /N "' + s + '"';
+  }},
+  '@project [open]': { fields: [], build: function() { return '@project [open]'; } },
+  '@project tic tac toe': { fields: [
+    { id: 'cb-ttt-num', label: 'Game Number (optional)', type: 'text', value: '' }
+  ], build: function() {
+    const n = document.getElementById('cb-ttt-num').value.trim();
+    return '@project tic tac toe' + (n ? ' /' + n : '');
+  }},
+  '@project [close]': { fields: [], build: function() { return '@project [close]'; } },
+  '@maths [learn]': { fields: [
+    { id: 'cb-maths-topic', label: 'Topic', type: 'select', options: ['Factorization', 'Linear function'], value: 'Factorization' }
+  ], build: function() {
+    const t = document.getElementById('cb-maths-topic').value;
+    return '@maths [learn] (' + t + ')';
+  }},
+  '@canvas [draw]': { fields: [], build: function() { return '@canvas [draw]'; } },
+  '@generate [QR]': { fields: [
+    { id: 'cb-qr-link', label: 'Link URL', type: 'text', value: 'https://example.com' }
+  ], build: function() {
+    const l = document.getElementById('cb-qr-link').value.trim() || 'https://example.com';
+    return '@generate [QR] (link:' + l + ')';
+  }}
+};
+function cbUpdatePreview() {
+  const sel = document.getElementById('cbCommand').value;
+  const config = cbConfig[sel];
+  if (!config) return;
+  const paramsDiv = document.getElementById('cbParams');
+  paramsDiv.innerHTML = '';
+  config.fields.forEach(function(f) {
+    const wrapper = document.createElement('div');
+    wrapper.style.marginBottom = '10px';
+    const label = document.createElement('label');
+    label.style.cssText = 'font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;';
+    label.textContent = f.label;
+    wrapper.appendChild(label);
+    if (f.type === 'select') {
+      const selEl = document.createElement('select');
+      selEl.id = f.id;
+      selEl.style.cssText = 'width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;';
+      (f.options || []).forEach(function(o) {
+        const opt = document.createElement('option');
+        opt.value = o;
+        opt.textContent = o;
+        if (o === f.value) opt.selected = true;
+        selEl.appendChild(opt);
+      });
+      selEl.addEventListener('change', cbUpdatePreview);
+      wrapper.appendChild(selEl);
+    } else if (f.type === 'color') {
+      const input = document.createElement('input');
+      input.type = 'color';
+      input.id = f.id;
+      input.value = f.value || '#ff4444';
+      input.style.cssText = 'width:40px;height:32px;border:none;border-radius:4px;cursor:pointer;background:transparent;';
+      input.addEventListener('input', cbUpdatePreview);
+      wrapper.appendChild(input);
+    } else {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.id = f.id;
+      input.value = f.value || '';
+      input.style.cssText = 'width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;';
+      input.addEventListener('input', cbUpdatePreview);
+      wrapper.appendChild(input);
+    }
+    paramsDiv.appendChild(wrapper);
+  });
+  // Build preview
+  const line = config.build();
+  document.getElementById('cbPreview').textContent = line;
+}
+document.getElementById('cbCommand').addEventListener('change', cbUpdatePreview);
+document.getElementById('cbInsertBtn').addEventListener('click', function() {
+  const line = document.getElementById('cbPreview').textContent;
+  if (!line) return;
+  const textarea = document.getElementById('codeTextarea');
+  if (!textarea) {
+    document.getElementById('cbStatus').textContent = 'No editor open';
+    document.getElementById('cbStatus').style.color = '#ff6b6b';
+    return;
+  }
+  const start = textarea.selectionStart;
+  const val = textarea.value;
+  const before = val.substring(0, start);
+  const after = val.substring(start);
+  const indent = before.endsWith('\n') || before === '' ? '' : '\n';
+  textarea.value = before + indent + line + '\n' + after;
+  textarea.selectionStart = textarea.selectionEnd = start + indent.length + line.length + 1;
+  textarea.focus();
+  updateLineNumbers();
+  updateHighlight();
+  document.getElementById('cbStatus').textContent = 'Inserted!';
+  document.getElementById('cbStatus').style.color = '#50e3c2';
+  setTimeout(function() { document.getElementById('cbStatus').textContent = ''; }, 2000);
+});
+document.getElementById('cbCopyBtn').addEventListener('click', function() {
+  const line = document.getElementById('cbPreview').textContent;
+  if (!line) return;
+  navigator.clipboard.writeText(line).then(function() {
+    document.getElementById('cbStatus').textContent = 'Copied!';
+    document.getElementById('cbStatus').style.color = '#50e3c2';
+    setTimeout(function() { document.getElementById('cbStatus').textContent = ''; }, 2000);
+  }).catch(function() {
+    document.getElementById('cbStatus').textContent = 'Copy failed';
+    document.getElementById('cbStatus').style.color = '#ff6b6b';
+  });
+});
+// Init first preview
+cbUpdatePreview();
+
 // ===== DATABASE =====
 const DB_KEY = 'ic_database';
 let dbFilterTag = null;

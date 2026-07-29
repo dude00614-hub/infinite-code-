@@ -2993,6 +2993,39 @@ function aiGenerateCommand(input) {
     return { code: '@' + cmdName, desc: desc };
   }
 
+  // General "create/make/new X" (no "command" required) — always makes a custom command
+  const generalCreate = lower.match(/(?:create|make|new)\s+(?:a|an|the|some|this|that)\s+(.+)/i) || lower.match(/(?:create|make|new)\s+(.+)/i);
+  if (generalCreate) {
+    const intent = generalCreate[1].trim();
+    const intentWords = intent.replace(/^(?:i\s+)?(?:want\s+(?:to\s+)?)?(?:create|make|show|do|have|get)\s+/i, '').trim().split(/\s+/);
+    const cmdName = (intentWords.length > 0 ? intentWords[0].toLowerCase().replace(/[^a-z0-9]/g, '') : false) || 'mycommand';
+    let action = 'showMessage';
+    let actionValue = intent;
+    let desc = 'Custom command: ' + intent;
+    if (/opens?\s+(\S+)/i.test(intent)) {
+      const urlMatch = intent.match(/opens?\s+(\S+)/i);
+      if (urlMatch) {
+        let url = urlMatch[1].trim().replace(/[^a-zA-Z0-9.:\/\-_~]+.*$/, '');
+        const siteKey = url.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (SITE_NAMES[siteKey]) url = 'https://' + SITE_NAMES[siteKey];
+        else if (!url.startsWith('http') && url.includes('.')) url = 'https://' + url;
+        else if (!url.startsWith('http')) url = 'https://' + url + '.com';
+        action = 'openURL'; actionValue = url; desc = 'Opens ' + url;
+      }
+    } else if (/switch\s+tab|go\s+to\s+(\w+)\s+tab/i.test(intent)) {
+      const tabMatch = intent.match(/(?:switch\s+tab|go\s+to)\s+(\w+)/i);
+      action = 'switchTab'; actionValue = tabMatch ? tabMatch[1].toLowerCase() : 'settings';
+      desc = 'Switches to ' + actionValue + ' tab';
+    } else if (/background|bg\s+/i.test(intent)) {
+      const colorMatch = intent.match(/(#?[0-9a-f]{3,8})\b/i);
+      actionValue = colorMatch ? (colorMatch[1].startsWith('#')?colorMatch[1]:'#'+colorMatch[1]) : '#ff4444';
+      action = 'setBackground'; desc = 'Sets background color';
+    }
+    const cmdLine = createCustomCmd(cmdName, action, actionValue, desc);
+    if (cmdLine) return { code: cmdLine, desc: desc + ' (new custom command)', isCustom: true };
+    return { code: '@' + cmdName, desc: desc };
+  }
+
   for (const tpl of AI_TEMPLATES) {
     if (tpl.keywords.some(k => lower.includes(k))) {
       const result = tpl.generate(input);

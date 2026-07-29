@@ -2856,14 +2856,11 @@ function aiGenerateCommand(input) {
 
 function aiInsertIntoEditor(code) {
   if (!code) return false;
-  switchTab('code');
   if (!currentProject) {
-    document.getElementById('newProjectBtn').click();
     return false;
   }
   const ta = document.getElementById('codeTextarea');
   const val = ta.value;
-  // Always insert after the @inf line so it stays first
   const firstNewline = val.indexOf('\n');
   let insertPos;
   if (val.trim().startsWith('@inf') && firstNewline >= 0) {
@@ -2891,12 +2888,17 @@ document.getElementById('aiGenBtn').addEventListener('click', function() {
   }
   const gen = aiGenerateCommand(input);
   if (gen) {
-    status.textContent = '';
+    if (!currentProject) {
+      status.textContent = 'Create or open a project first!';
+      status.style.color = '#ff6b6b';
+      switchTab('code');
+      document.getElementById('newProjectBtn').click();
+      return;
+    }
     aiInsertIntoEditor(gen.code);
-    setTimeout(function() {
-      status.textContent = 'Done! Command inserted into editor. Click Run to execute.';
-      status.style.color = '#50e3c2';
-    }, 100);
+    switchTab('code');
+    status.textContent = 'Done! Click Run to execute.';
+    status.style.color = '#50e3c2';
   } else {
     status.textContent = 'Could not generate. Try different wording.';
     status.style.color = '#ff6b6b';

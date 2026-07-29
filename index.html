@@ -60,6 +60,7 @@
           <button class="topbar-tab active" data-tab="code">&lt;/&gt; Code</button>
           <button class="topbar-tab" data-tab="database">&#128451; Database</button>
           <button class="topbar-tab owner-only" data-tab="run">&#9654; /run</button>
+          <button class="topbar-tab owner-only" data-tab="edit">&#9998; Edit</button>
           <button class="topbar-tab" data-tab="settings">&#9881; Settings</button>
         </div>
       </div>
@@ -194,6 +195,34 @@
                   <input type="text" id="chatInput" class="run-input" placeholder="Type a message...">
                 </div>
               </div>
+            </div>
+          </div>
+          <div class="tab-content" id="tab-edit">
+            <div class="settings-panel">
+              <h2 class="settings-title">&#9998; Edit Mode</h2>
+              <p class="settings-subtitle">Drag, resize, and restyle UI elements. Changes persist across sessions.</p>
+              <div style="margin-bottom:24px;">
+                <button id="editModeToggle" style="padding:10px 24px;font-size:14px;font-weight:600;background:linear-gradient(135deg,var(--accent-grad-1),var(--accent-grad-2));border:none;border-radius:8px;color:#fff;cursor:pointer;font-family:inherit;transition:transform 0.15s,box-shadow 0.15s;">Enable Edit Mode</button>
+                <span id="editModeStatus" style="margin-left:12px;font-size:13px;color:var(--text-muted);">Disabled</span>
+              </div>
+              <hr class="settings-divider">
+              <h2 class="settings-title">Quick Tools</h2>
+              <p class="settings-subtitle">Select an element in edit mode first, then use these tools.</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                <button class="edit-tab-btn" data-tool="del" style="padding:8px 14px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">Delete</button>
+                <button class="edit-tab-btn" data-tool="clone" style="padding:8px 14px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">Clone</button>
+                <button class="edit-tab-btn" data-tool="wUp" style="padding:8px 14px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">Wider</button>
+                <button class="edit-tab-btn" data-tool="wDn" style="padding:8px 14px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">Narrower</button>
+                <button class="edit-tab-btn" data-tool="hUp" style="padding:8px 14px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">Taller</button>
+                <button class="edit-tab-btn" data-tool="hDn" style="padding:8px 14px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">Shorter</button>
+                <button class="edit-tab-btn" data-tool="zUp" style="padding:8px 14px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">Bring Forward</button>
+                <button class="edit-tab-btn" data-tool="zDn" style="padding:8px 14px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">Send Backward</button>
+                <button class="edit-tab-btn" data-tool="reset" style="padding:8px 14px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">Reset</button>
+              </div>
+              <hr class="settings-divider">
+              <h2 class="settings-title">Danger Zone</h2>
+              <p class="settings-subtitle">Reset all layout changes.</p>
+              <button id="editResetBtn" style="padding:10px 20px;font-size:13px;background:var(--bg-input);border:1px solid #ff4444;border-radius:8px;color:#ff4444;cursor:pointer;font-family:inherit;">Reset All Layout Changes</button>
             </div>
           </div>
           <div class="tab-content" id="tab-settings">

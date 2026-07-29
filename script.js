@@ -2689,6 +2689,27 @@ document.querySelectorAll('.topbar-tab').forEach(tab => {
   });
 });
 
+// ===== EDIT TAB =====
+document.getElementById('editModeToggle').addEventListener('click', function() {
+  toggleEditMode();
+  const isActive = document.body.classList.contains('edit-mode');
+  this.textContent = isActive ? 'Disable Edit Mode' : 'Enable Edit Mode';
+  document.getElementById('editModeStatus').textContent = isActive ? 'Enabled' : 'Disabled';
+  document.getElementById('editModeStatus').style.color = isActive ? 'var(--accent)' : 'var(--text-muted)';
+});
+document.getElementById('editResetBtn').addEventListener('click', function() {
+  if (confirm('Reset all layout changes? This cannot be undone.')) {
+    localStorage.removeItem(EDIT_LAYOUT_KEY);
+    location.reload();
+  }
+});
+document.querySelectorAll('.edit-tab-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    const tool = this.dataset.tool;
+    handleEditTool(tool);
+  });
+});
+
 // ===== DATABASE =====
 const DB_KEY = 'ic_database';
 let dbFilterTag = null;

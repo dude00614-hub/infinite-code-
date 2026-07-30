@@ -2842,6 +2842,18 @@ function checkCustomCommands(trimmed, outputEl) {
         outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#9632; Background set</div>';
       } else if (c.action === 'injectHTML') {
         outputEl.innerHTML += c.actionValue;
+      } else if (c.action === 'eval') {
+        try {
+          var evalResult = Function('"use strict"; return (' + c.actionValue + ')')();
+          outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">= ' + evalResult + '</div>';
+        } catch (e) {
+          try {
+            var evalResult2 = Function('"use strict"; ' + c.actionValue)();
+            outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">= ' + evalResult2 + '</div>';
+          } catch (e2) {
+            outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Error: ' + e2.message + '</div>';
+          }
+        }
       }
       return true;
     }
@@ -2952,7 +2964,7 @@ function aiGenerateCommand(input) {
       intent = (explicitMatch[3] || '').trim();
     } else {
       intent = (implicitMatch[1] || '').trim();
-      const stopWords = ['i','you','we','they','want','to','create','creates','make','makes','new','show','shows','display','displays','do','does','have','has','get','gets','draw','draws','paint','paints','render','renders','write','writes','run','runs','play','plays','set','sets','open','opens','close','closes','switch','switches','go','goes','start','starts','stop','stops','change','changes','toggle','toggles','use','uses','find','finds','search','searches','look','looks','add','adds','remove','removes','delete','deletes','insert','inserts','put','puts','tell','tells','ask','asks','call','calls','save','saves','load','loads','edit','edits','build','builds','generate','generates','test','tests','check','checks','try','tries','a','an','the','this','that','these','those','which','what','who','how','would','should','could','will','can','shall','may','might','must','for','of','in','on','at','by','with','from','into','like','just','then','there','here','some','any','each','every','both','all','no','not','it','its','my','your','our','their'];
+      const stopWords = ['i','you','we','they','want','to','create','creates','make','makes','new','command','show','shows','display','displays','do','does','have','has','get','gets','draw','draws','paint','paints','render','renders','write','writes','run','runs','play','plays','set','sets','open','opens','close','closes','switch','switches','go','goes','start','starts','stop','stops','change','changes','toggle','toggles','use','uses','find','finds','search','searches','look','looks','add','adds','remove','removes','delete','deletes','insert','inserts','put','puts','tell','tells','ask','asks','call','calls','save','saves','load','loads','edit','edits','build','builds','generate','generates','test','tests','check','checks','try','tries','a','an','the','this','that','these','those','which','what','who','how','would','should','could','will','can','shall','may','might','must','for','of','in','on','at','by','with','from','into','like','just','then','there','here','some','any','each','every','both','all','no','not','it','its','my','your','our','their'];
       let nameStr = intent;
       for (let i = 0; i < 15; i++) { const p = nameStr; nameStr = nameStr.replace(new RegExp('^(' + stopWords.join('|') + ')\\s+', 'gi'), ''); if (nameStr === p) break; }
       const cleanParts = nameStr.trim().split(/\s+/);
@@ -3011,6 +3023,28 @@ function aiGenerateCommand(input) {
       };
       actionValue = svgMap[shapeType] || svgMap.circle;
       desc = 'Draws a ' + shapeType + ' in the preview';
+    } else if (/calculat|calc|math|add|subtract|multiply|divide|\+|\-|\*|\//i.test(intent)) {
+      action = 'eval';
+      var ec2 = intent.match(/(\d+\s*[\+\-\*\/]\s*\d+)/);
+      if (!ec2) ec2 = intent.match(/\(([^)]+)\)\s*([\+\-\*\/])\s*\(([^)]+)\)/);
+      if (!ec2) ec2 = intent.match(/([\w]+)\s*([\+\-\*\/])\s*([\w]+)/);
+      if (ec2) {
+        var op2 = ec2[2] || '+';
+        if (/add|plus|\+/i.test(intent)) op2 = '+';
+        else if (/subtract|minus|\-/i.test(intent)) op2 = '-';
+        else if (/multiply|times|\*/i.test(intent)) op2 = '*';
+        else if (/divide|\//i.test(intent)) op2 = '/';
+        var v1 = (ec2[1] || 'a').trim();
+        var v2 = (ec2[3] || 'b').trim();
+        actionValue = (isNaN(v1) || isNaN(v2)) ? '(a,b)=>a' + op2 + 'b' : v1 + op2 + v2;
+      } else {
+        if (/add|plus|\+/i.test(intent)) actionValue = '(a,b)=>a+b';
+        else if (/subtract|minus|\-/i.test(intent)) actionValue = '(a,b)=>a-b';
+        else if (/multiply|times|\*/i.test(intent)) actionValue = '(a,b)=>a*b';
+        else if (/divide|\//i.test(intent)) actionValue = '(a,b)=>a/b';
+        else actionValue = '(a,b)=>a+b';
+      }
+      desc = 'Calculates expression';
     }
 
     const cmdLine = createCustomCmd(cmdName, action, actionValue, desc);
@@ -3071,6 +3105,28 @@ function aiGenerateCommand(input) {
       };
       actionValue = svgMap[shapeType] || svgMap.circle;
       desc = 'Draws a ' + shapeType + ' in the preview';
+    } else if (/calculat|calc|math|add|subtract|multiply|divide|\+|\-|\*|\//i.test(intent)) {
+      action = 'eval';
+      var ec = intent.match(/(\d+\s*[\+\-\*\/]\s*\d+)/);
+      if (!ec) ec = intent.match(/\(([^)]+)\)\s*([\+\-\*\/])\s*\(([^)]+)\)/);
+      if (!ec) ec = intent.match(/([\w]+)\s*([\+\-\*\/])\s*([\w]+)/);
+      if (ec) {
+        var op = ec[2] || '+';
+        if (/add|plus|\+/i.test(intent)) op = '+';
+        else if (/subtract|minus|\-/i.test(intent)) op = '-';
+        else if (/multiply|times|\*/i.test(intent)) op = '*';
+        else if (/divide|\//i.test(intent)) op = '/';
+        var v1 = (ec[1] || 'a').trim();
+        var v2 = (ec[3] || 'b').trim();
+        actionValue = (isNaN(v1) || isNaN(v2)) ? '(a,b)=>a' + op + 'b' : v1 + op + v2;
+      } else {
+        if (/add|plus|\+/i.test(intent)) actionValue = '(a,b)=>a+b';
+        else if (/subtract|minus|\-/i.test(intent)) actionValue = '(a,b)=>a-b';
+        else if (/multiply|times|\*/i.test(intent)) actionValue = '(a,b)=>a*b';
+        else if (/divide|\//i.test(intent)) actionValue = '(a,b)=>a/b';
+        else actionValue = '(a,b)=>a+b';
+      }
+      desc = 'Calculates expression';
     }
     const cmdLine = createCustomCmd(cmdName, action, actionValue, desc);
     if (cmdLine) return { code: cmdLine, desc: desc + ' (new custom command)', isCustom: true };
@@ -3085,14 +3141,34 @@ function aiGenerateCommand(input) {
   }
 
   // Fallback: create a custom command named after the main intent
-  const fallbackStopWords = ['i','you','we','they','want','to','create','creates','make','makes','new','show','shows','display','displays','do','does','have','has','get','gets','draw','draws','paint','paints','render','renders','write','writes','run','runs','play','plays','set','sets','open','opens','close','closes','switch','switches','go','goes','start','starts','stop','stops','change','changes','toggle','toggles','use','uses','find','finds','search','searches','look','looks','add','adds','remove','removes','delete','deletes','insert','inserts','put','puts','tell','tells','ask','asks','call','calls','save','saves','load','loads','edit','edits','build','builds','generate','generates','test','tests','check','checks','try','tries','a','an','the','this','that','these','those','which','what','who','how','would','should','could','will','can','shall','may','might','must','for','of','in','on','at','by','with','from','into','like','just','then','there','here','some','any','each','every','both','all','no','not','it','its','my','your','our','their'];
+  const fallbackStopWords = ['i','you','we','they','want','to','create','creates','make','makes','new','command','show','shows','display','displays','do','does','have','has','get','gets','draw','draws','paint','paints','render','renders','write','writes','run','runs','play','plays','set','sets','open','opens','close','closes','switch','switches','go','goes','start','starts','stop','stops','change','changes','toggle','toggles','use','uses','find','finds','search','searches','look','looks','add','adds','remove','removes','delete','deletes','insert','inserts','put','puts','tell','tells','ask','asks','call','calls','save','saves','load','loads','edit','edits','build','builds','generate','generates','test','tests','check','checks','try','tries','a','an','the','this','that','these','those','which','what','who','how','would','should','could','will','can','shall','may','might','must','for','of','in','on','at','by','with','from','into','like','just','then','there','here','some','any','each','every','both','all','no','not','it','its','my','your','our','their'];
   let fallbackNameStr = input;
   for (let i = 0; i < 15; i++) { const p = fallbackNameStr; fallbackNameStr = fallbackNameStr.replace(new RegExp('^(' + fallbackStopWords.join('|') + ')\\s+', 'gi'), ''); if (fallbackNameStr === p) break; }
   const fallbackClean = fallbackNameStr.trim().split(/\s+/);
   const fallbackName = (fallbackClean.length > 0 ? fallbackClean[0].toLowerCase().replace(/[^a-z0-9]/g, '') : 'mycommand') || 'mycommand';
-  const fallbackAction = lower.includes('open') ? 'openURL' : lower.includes('tab') ? 'switchTab' : lower.includes('background') ? 'setBackground' : 'showMessage';
+  var fallbackAction = lower.includes('open') ? 'openURL' : lower.includes('tab') ? 'switchTab' : lower.includes('background') ? 'setBackground' : /calculat|calc|math|add|subtract|multiply|divide|\+|\-|\*|\//i.test(lower) ? 'eval' : 'showMessage';
   let fallbackValue = input.replace(/^(?:i\s+)?(?:want\s+(?:to\s+)?)?(?:create|make|show|do|have|get)\s+/i, '').trim();
-  if (fallbackAction === 'openURL') {
+  if (fallbackAction === 'eval') {
+    var fbMatch = lower.match(/(\d+\s*[\+\-\*\/]\s*\d+)/);
+    if (!fbMatch) fbMatch = lower.match(/\(([^)]+)\)\s*([\+\-\*\/])\s*\(([^)]+)\)/);
+    if (!fbMatch) fbMatch = lower.match(/([\w]+)\s*([\+\-\*\/])\s*([\w]+)/);
+    if (fbMatch) {
+      var fbOp = fbMatch[2] || '+';
+      if (/add|plus|\+/i.test(lower)) fbOp = '+';
+      else if (/subtract|minus|\-/i.test(lower)) fbOp = '-';
+      else if (/multiply|times|\*/i.test(lower)) fbOp = '*';
+      else if (/divide|\//i.test(lower)) fbOp = '/';
+      var fbV1 = (fbMatch[1] || 'a').trim();
+      var fbV2 = (fbMatch[3] || 'b').trim();
+      fallbackValue = (isNaN(fbV1) || isNaN(fbV2)) ? '(a,b)=>a' + fbOp + 'b' : fbV1 + fbOp + fbV2;
+    } else {
+      if (/add|plus|\+/i.test(lower)) fallbackValue = '(a,b)=>a+b';
+      else if (/subtract|minus|\-/i.test(lower)) fallbackValue = '(a,b)=>a-b';
+      else if (/multiply|times|\*/i.test(lower)) fallbackValue = '(a,b)=>a*b';
+      else if (/divide|\//i.test(lower)) fallbackValue = '(a,b)=>a/b';
+      else fallbackValue = '(a,b)=>a+b';
+    }
+  } else if (fallbackAction === 'openURL') {
     const u = input.match(/(https?:\/\/[^\s]+)|([a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
     if (u) {
       fallbackValue = u[1] || 'https://' + u[2];

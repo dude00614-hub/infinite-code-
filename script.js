@@ -3047,6 +3047,10 @@ function aiGenerateCommand(input) {
       desc = 'Calculates expression';
     }
 
+    if (action === 'showMessage') {
+      showCmdBuilder(cmdName, 'showMessage', intent, desc);
+      return null;
+    }
     const cmdLine = createCustomCmd(cmdName, action, actionValue, desc);
     if (cmdLine) {
       return { code: cmdLine, desc: desc + ' (new custom command)', isCustom: true };
@@ -3128,6 +3132,10 @@ function aiGenerateCommand(input) {
       }
       desc = 'Calculates expression';
     }
+    if (action === 'showMessage') {
+      showCmdBuilder(cmdName, 'showMessage', intent, desc);
+      return null;
+    }
     const cmdLine = createCustomCmd(cmdName, action, actionValue, desc);
     if (cmdLine) return { code: cmdLine, desc: desc + ' (new custom command)', isCustom: true };
     return { code: '@' + cmdName, desc: desc };
@@ -3140,53 +3148,59 @@ function aiGenerateCommand(input) {
     }
   }
 
-  // Fallback: create a custom command named after the main intent
-  const fallbackStopWords = ['i','you','we','they','want','to','create','creates','make','makes','new','command','show','shows','display','displays','do','does','have','has','get','gets','draw','draws','paint','paints','render','renders','write','writes','run','runs','play','plays','set','sets','open','opens','close','closes','switch','switches','go','goes','start','starts','stop','stops','change','changes','toggle','toggles','use','uses','find','finds','search','searches','look','looks','add','adds','remove','removes','delete','deletes','insert','inserts','put','puts','tell','tells','ask','asks','call','calls','save','saves','load','loads','edit','edits','build','builds','generate','generates','test','tests','check','checks','try','tries','a','an','the','this','that','these','those','which','what','who','how','would','should','could','will','can','shall','may','might','must','for','of','in','on','at','by','with','from','into','like','just','then','there','here','some','any','each','every','both','all','no','not','it','its','my','your','our','their'];
-  let fallbackNameStr = input;
-  for (let i = 0; i < 15; i++) { const p = fallbackNameStr; fallbackNameStr = fallbackNameStr.replace(new RegExp('^(' + fallbackStopWords.join('|') + ')\\s+', 'gi'), ''); if (fallbackNameStr === p) break; }
-  const fallbackClean = fallbackNameStr.trim().split(/\s+/);
-  const fallbackName = (fallbackClean.length > 0 ? fallbackClean[0].toLowerCase().replace(/[^a-z0-9]/g, '') : 'mycommand') || 'mycommand';
-  var fallbackAction = lower.includes('open') ? 'openURL' : lower.includes('tab') ? 'switchTab' : lower.includes('background') ? 'setBackground' : /calculat|calc|math|add|subtract|multiply|divide|\+|\-|\*|\//i.test(lower) ? 'eval' : 'showMessage';
-  let fallbackValue = input.replace(/^(?:i\s+)?(?:want\s+(?:to\s+)?)?(?:create|make|show|do|have|get)\s+/i, '').trim();
-  if (fallbackAction === 'eval') {
-    var fbMatch = lower.match(/(\d+\s*[\+\-\*\/]\s*\d+)/);
-    if (!fbMatch) fbMatch = lower.match(/\(([^)]+)\)\s*([\+\-\*\/])\s*\(([^)]+)\)/);
-    if (!fbMatch) fbMatch = lower.match(/([\w]+)\s*([\+\-\*\/])\s*([\w]+)/);
-    if (fbMatch) {
-      var fbOp = fbMatch[2] || '+';
-      if (/add|plus|\+/i.test(lower)) fbOp = '+';
-      else if (/subtract|minus|\-/i.test(lower)) fbOp = '-';
-      else if (/multiply|times|\*/i.test(lower)) fbOp = '*';
-      else if (/divide|\//i.test(lower)) fbOp = '/';
-      var fbV1 = (fbMatch[1] || 'a').trim();
-      var fbV2 = (fbMatch[3] || 'b').trim();
-      fallbackValue = (isNaN(fbV1) || isNaN(fbV2)) ? '(a,b)=>a' + fbOp + 'b' : fbV1 + fbOp + fbV2;
-    } else {
-      if (/add|plus|\+/i.test(lower)) fallbackValue = '(a,b)=>a+b';
-      else if (/subtract|minus|\-/i.test(lower)) fallbackValue = '(a,b)=>a-b';
-      else if (/multiply|times|\*/i.test(lower)) fallbackValue = '(a,b)=>a*b';
-      else if (/divide|\//i.test(lower)) fallbackValue = '(a,b)=>a/b';
-      else fallbackValue = '(a,b)=>a+b';
-    }
-  } else if (fallbackAction === 'openURL') {
-    const u = input.match(/(https?:\/\/[^\s]+)|([a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-    if (u) {
-      fallbackValue = u[1] || 'https://' + u[2];
-    } else {
-      const siteMatch = lower.match(/opens?\s+(\S+)/i) || lower.match(/open\s+(\S+)/i);
-      const siteKey = siteMatch ? siteMatch[1].toLowerCase().replace(/[^a-z0-9]/g, '') : '';
-      fallbackValue = SITE_NAMES[siteKey] ? 'https://' + SITE_NAMES[siteKey] : 'https://example.com';
-    }
-  } else if (fallbackAction === 'switchTab') {
-    const t = lower.match(/(\w+)\s+tab/);
-    fallbackValue = t ? t[1] : 'settings';
-  }
-  const fallbackCmd = createCustomCmd(fallbackName, fallbackAction, fallbackValue, input);
-  if (fallbackCmd) {
-    return { code: fallbackCmd, desc: input + ' (new custom command)', isCustom: true };
-  }
-  return { code: '@' + fallbackName, desc: input };
+  // Fallback: show builder modal
+  showCmdBuilder('mycommand', 'showMessage', input, input);
+  return null;
 }
+
+function showCmdBuilder(name, action, value, desc) {
+  document.getElementById('builderName').value = name;
+  document.getElementById('builderAction').value = action;
+  document.getElementById('builderValue').value = value;
+  document.getElementById('builderDesc').value = desc;
+  document.getElementById('builderStatus').style.display = 'none';
+  document.getElementById('cmdBuilderOverlay').style.display = 'flex';
+  document.getElementById('builderName').focus();
+}
+
+function createFromBuilder() {
+  const name = document.getElementById('builderName').value.trim().toLowerCase().replace(/[^a-z0-9]/g, '') || 'mycommand';
+  const action = document.getElementById('builderAction').value;
+  const value = document.getElementById('builderValue').value.trim();
+  const desc = document.getElementById('builderDesc').value.trim() || 'Custom command';
+  const status = document.getElementById('builderStatus');
+  if (!value) {
+    status.textContent = 'Action value is required.';
+    status.style.color = '#ff6b6b';
+    status.style.display = 'block';
+    return;
+  }
+  const cmdLine = createCustomCmd(name, action, value, desc);
+  if (!cmdLine) {
+    status.textContent = 'Command @' + name + ' already exists. Pick a different name.';
+    status.style.color = '#ff6b6b';
+    status.style.display = 'block';
+    return;
+  }
+  document.getElementById('cmdBuilderOverlay').style.display = 'none';
+  const inputField = document.getElementById('aiGenInput');
+  const statusSpan = document.getElementById('aiGenStatus');
+  statusSpan.textContent = 'Command @' + name + ' created! Type @' + name + ' in your code & Run.';
+  statusSpan.style.color = '#50e3c2';
+  inputField.value = '';
+  renderCustomCmdList();
+}
+
+document.getElementById('builderCreateBtn').addEventListener('click', createFromBuilder);
+document.getElementById('builderCancelBtn').addEventListener('click', function() {
+  document.getElementById('cmdBuilderOverlay').style.display = 'none';
+});
+document.getElementById('cmdBuilderOverlay').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
+document.getElementById('builderValue').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); createFromBuilder(); }
+});
 
 function aiInsertIntoEditor(code) {
   if (!code) return false;
@@ -3221,23 +3235,26 @@ document.getElementById('aiGenBtn').addEventListener('click', function() {
     return;
   }
   const gen = aiGenerateCommand(input);
-  if (gen) {
-    if (!currentProject) {
-      status.textContent = 'Create or open a project first!';
-      status.style.color = '#ff6b6b';
-      switchTab('code');
-      document.getElementById('newProjectBtn').click();
+  if (gen === null) {
+    if (document.getElementById('cmdBuilderOverlay').style.display === 'flex') {
       return;
     }
-    aiInsertIntoEditor(gen.code);
-    switchTab('code');
-    status.textContent = gen.isCustom ? 'New command @' + gen.code.replace('@','') + ' created! Type it in editor & Run.' : 'Done! Click Run to execute.';
-    status.style.color = '#50e3c2';
-    renderCustomCmdList();
-  } else {
     status.textContent = 'Could not generate. Try different wording.';
     status.style.color = '#ff6b6b';
+    return;
   }
+  if (!currentProject) {
+    status.textContent = 'Create or open a project first!';
+    status.style.color = '#ff6b6b';
+    switchTab('code');
+    document.getElementById('newProjectBtn').click();
+    return;
+  }
+  aiInsertIntoEditor(gen.code);
+  switchTab('code');
+  status.textContent = gen.isCustom ? 'New command @' + gen.code.replace('@','') + ' created! Type it in editor & Run.' : 'Done! Click Run to execute.';
+  status.style.color = '#50e3c2';
+  renderCustomCmdList();
 });
 
 // Allow Enter to trigger generation in AI input

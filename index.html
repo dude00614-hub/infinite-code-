@@ -291,6 +291,43 @@
 
   </div>
 
+  <div id="cmdBuilderOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10000;justify-content:center;align-items:center;">
+    <div id="cmdBuilderModal" style="background:var(--bg-card,#1a1a2e);border:1px solid var(--border,#333);border-radius:12px;padding:24px;width:420px;max-width:90vw;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+      <h3 style="margin:0 0 16px;color:var(--text-primary,#eee);font-size:16px;">&#128295; Build a Custom Command</h3>
+      <p style="margin:0 0 16px;font-size:12px;color:var(--text-muted,#999);">I couldn't figure out what you wanted. Fill in the details below to create your command.</p>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:12px;color:var(--text-secondary,#bbb);margin-bottom:4px;">Command name</label>
+        <div style="display:flex;align-items:center;background:var(--bg-input,#0d0d1a);border:1px solid var(--border,#333);border-radius:8px;padding:0 10px;">
+          <span style="color:var(--text-muted,#666);font-size:13px;">@</span>
+          <input id="builderName" type="text" style="flex:1;padding:8px 4px;background:transparent;border:none;color:var(--text-primary,#eee);font-size:13px;font-family:inherit;outline:none;" placeholder="mycommand">
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:12px;color:var(--text-secondary,#bbb);margin-bottom:4px;">Action type</label>
+        <select id="builderAction" style="width:100%;padding:8px 10px;background:var(--bg-input,#0d0d1a);border:1px solid var(--border,#333);border-radius:8px;color:var(--text-primary,#eee);font-size:13px;font-family:inherit;outline:none;">
+          <option value="showMessage">Show a message</option>
+          <option value="openURL">Open a URL</option>
+          <option value="switchTab">Switch tab</option>
+          <option value="setBackground">Set background color</option>
+          <option value="injectHTML">Inject HTML</option>
+          <option value="eval">Run JavaScript code</option>
+        </select>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label id="builderValueLabel" style="display:block;font-size:12px;color:var(--text-secondary,#bbb);margin-bottom:4px;">Action value</label>
+        <textarea id="builderValue" rows="3" style="width:100%;padding:8px 10px;background:var(--bg-input,#0d0d1a);border:1px solid var(--border,#333);border-radius:8px;color:var(--text-primary,#eee);font-size:13px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;" placeholder="e.g. Hello world"></textarea>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;color:var(--text-secondary,#bbb);margin-bottom:4px;">Description (optional)</label>
+        <input id="builderDesc" type="text" style="width:100%;padding:8px 10px;background:var(--bg-input,#0d0d1a);border:1px solid var(--border,#333);border-radius:8px;color:var(--text-primary,#eee);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;" placeholder="What does this command do?">
+      </div>
+      <div id="builderStatus" style="font-size:12px;color:var(--text-muted,#999);margin-bottom:12px;display:none;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button id="builderCancelBtn" style="padding:8px 16px;font-size:12px;background:var(--bg-input,#0d0d1a);border:1px solid var(--border,#333);border-radius:6px;color:var(--text-secondary,#bbb);cursor:pointer;font-family:inherit;">Cancel</button>
+        <button id="builderCreateBtn" style="padding:8px 16px;font-size:12px;background:linear-gradient(135deg,#6b3fa0,#8860ff);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:inherit;font-weight:500;">&#10003; Create Command</button>
+      </div>
+    </div>
+  </div>
   <script src="script.js"></script>
 </body>
 </html>

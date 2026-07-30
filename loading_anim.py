@@ -1,127 +1,82 @@
-from manim import *
-import numpy as np
-
-# ── Scene ──────────────────────────────────────────────────────
-class LoadingAnimation(Scene):
-    def construct(self):
-        self.camera.background_color = "#080a18"
-
-        # Stars at different depths (size = depth cue)
-        stars = VGroup()
-        for _ in range(350):
-            z = np.random.uniform(-5, 2)
-            r = np.interp(z, [-5, 2], [0.006, 0.035])
-            op = np.interp(z, [-5, 2], [0.25, 0.9])
-            c = ["#a070d0", "#b080e0", "#c090f0", "#d0a0ff"][np.random.randint(0, 4)]
-            dot = Dot(radius=r, color=c, fill_opacity=op)
-            dot.move_to([np.random.uniform(-8, 8), np.random.uniform(-5, 5), 0])
-            stars.add(dot)
-        self.add(stars)
-
-        # Glow haze
-        haze = VGroup()
-        for _ in range(60):
-            g = Dot(radius=np.random.uniform(0.04, 0.10), color="#c090f0", fill_opacity=0.12)
-            g.move_to([np.random.uniform(-9, 9), np.random.uniform(-5, 5), 0])
-            haze.add(g)
-        self.add(haze)
-
-        # Black holes
-        def bh(x, y, sc, hue):
-            g = VGroup()
-            for r,w,o in [(1.2*sc,1.5,0.12),(0.9*sc,2.0,0.18),(0.6*sc,2.5,0.25)]:
-                g.add(Circle(radius=r, stroke_width=w, color=hue, stroke_opacity=o))
-            g.add(Circle(radius=0.35*sc, stroke_width=3.5, color="#d080ff", stroke_opacity=0.5))
-            g.add(Dot(radius=0.25*sc, color="#000000", fill_opacity=1))
-            g.add(Dot(radius=0.15*sc, color=hue, fill_opacity=0.35))
-            g.move_to([x, y, 0]); return g
-        b1 = bh(-4.5, 2.5, 0.7, "#8040b0")
-        b2 = bh(5, -2.8, 0.5, "#603090")
-        b3 = bh(-2, -3.5, 0.35, "#9050c0")
-        self.add(b1, b2, b3)
-
-        # Infinity symbol (32 offset layers for 3D depth)
-        layers = VGroup()
-        for i in range(32):
-            d = i / 32
-            b = 0.2 + 0.8 * (1 - d)
-            h = "#2a0840" if d > 0.75 else "#7030a0" if d > 0.5 else "#b080e0" if d > 0.25 else "#d0a0ff"
-            t = Text("\u221E", font_size=180, color=h, weight=BOLD)
-            t.set_stroke(width=1.5 if d < 0.5 else 0.5, color="#d0a0ff", opacity=0.08 * (1 - d))
-            t.shift([-i*0.04, i*0.015, -i*0.02])
-            t.set_opacity(b * 0.75)
-            t.set(width=3.2 - d * 0.3)
-            layers.add(t)
-
-        front = Text("\u221E", font_size=180, color="#f0e0ff", weight=BOLD)
-        front.set_stroke(width=2.5, color="#d080ff", opacity=0.7)
-
-        glow1 = Circle(radius=1.2, stroke_width=4, color="#9050c0", stroke_opacity=0.2)
-        glow2 = Circle(radius=0.8, stroke_width=3, color="#d080ff", stroke_opacity=0.15)
-
-        sp = [9, 5, 0]
-        ep = [0, 0.3, 0]
-        for m in [*layers, front, glow1, glow2]:
-            m.move_to(sp); m.scale(0.2)
-
-        trail = Circle(radius=0.8, color="#8030b0", fill_opacity=0.06, stroke_opacity=0).move_to(sp)
-        self.add(trail, *layers, front, glow1, glow2)
-
-        all_inf = VGroup(*layers, front, glow1, glow2)
-        self.play(all_inf.animate.move_to(ep).scale(5.2), trail.animate.move_to(ep).scale(0.2).set_opacity(0.01), rate_func=rate_functions.ease_out_cubic, run_time=0.9)
-        self.remove(trail)
-
-        glow = front.copy()
-        glow.set_stroke(width=60, opacity=0.1, color="#9050c0")
-        self.add(glow)
-        self.play(glow.animate.set_stroke(width=70, opacity=0.08), all_inf.animate.scale(0.96), rate_func=there_and_back, run_time=0.5)
-
-        # 360° rotation of the infinity symbol (3D depth visible through layer parallax)
-        self.play(Rotate(layers, angle=2*PI, axis=UP, run_time=2.0, rate_func=rate_functions.ease_in_out_sine))
-        self.play(Rotate(layers, angle=PI/2, axis=UP, run_time=0.5, rate_func=smooth))
-
-        # Accretion rings
-        r1 = Circle(radius=1.9, stroke_width=2.0, color="#9050c0", stroke_opacity=0.3)
-        r2 = Circle(radius=2.05, stroke_width=1.2, color="#d080ff", stroke_opacity=0.2)
-        self.add(r1, r2)
-        self.play(r1.animate.scale(1.3).set_stroke(opacity=0.03), r2.animate.scale(1.4).set_stroke(opacity=0.015), glow.animate.set_stroke(width=65, opacity=0.03), run_time=0.6, rate_func=smooth)
-
-        # Orbit
-        o_ring = Circle(radius=2.3, stroke_width=2, color="#8030b0", stroke_opacity=0.15)
-        o_dot = Dot(radius=0.05, color="#d080ff", fill_opacity=0.7).move_to(o_ring.point_from_proportion(0))
-        self.add(o_ring, o_dot)
-        self.play(glow.animate.set_stroke(width=70, opacity=0.03), all_inf.animate.scale(1.04), rate_func=there_and_back, run_time=0.6)
-
-        for i in range(8):
-            t = i / 8
-            self.play(o_dot.animate.move_to(o_ring.point_from_proportion(t)).set_color("#e0c0ff" if i%2==0 else "#8030b0"), o_ring.animate.set_stroke(opacity=0.08+0.07*abs(np.sin(t*PI))), glow.animate.set_stroke(width=50+15*abs(np.sin(t*PI)), opacity=0.02+0.02*abs(np.sin(t*PI))), run_time=0.14, rate_func=smooth)
-
-        # Star rotation
-        self.play(stars.animate.rotate(0.04), b1.animate.rotate(-0.06), b2.animate.rotate(0.05), b3.animate.rotate(-0.04), run_time=0.5, rate_func=smooth)
-
-        # Title
-        title = Text("Infinite Code", font_size=46, color="#f0e0ff", weight=BOLD).next_to(all_inf, DOWN, buff=0.45)
-        sub = Text("Loading", font_size=20, color="#a080d0").next_to(title, DOWN, buff=0.2)
-        ul = Line(title.get_left()+DOWN*0.15, title.get_right()+DOWN*0.15, stroke_width=2.0, color="#a070d0", stroke_opacity=0.5)
-        self.play(Write(title, run_time=0.4), FadeIn(sub, shift=UP*0.1, run_time=0.25), GrowFromCenter(ul, run_time=0.25))
-
-        # Loading dots
-        dots = VGroup()
-        for i in range(3):
-            d = Dot(radius=0.04, color="#8060a0", fill_opacity=0.8)
-            d.shift(RIGHT * i * 0.25); dots.add(d)
-        dots.next_to(sub, DOWN, buff=0.3)
-        self.play(LaggedStart(*[FadeIn(d, scale=0.5) for d in dots], lag_ratio=0.2))
-
-        on_c = "#e0b0ff"; off_c = "#a070d0"
-        for _ in range(2):
-            self.play(dots[0].animate.shift(UP*0.08).set_color(on_c), run_time=0.07)
-            self.play(dots[0].animate.shift(DOWN*0.08).set_color(off_c), dots[1].animate.shift(UP*0.08).set_color(on_c), run_time=0.09)
-            self.play(dots[1].animate.shift(DOWN*0.08).set_color(off_c), dots[2].animate.shift(UP*0.08).set_color(on_c), run_time=0.09)
-            self.play(dots[2].animate.shift(DOWN*0.08).set_color(off_c), run_time=0.07)
-
-        self.play(all_inf.animate.scale(1.06).set_opacity(0.85), glow.animate.set_stroke(width=80, opacity=0.025), o_ring.animate.set_stroke(opacity=0.25), o_dot.animate.set_opacity(0.8), ul.animate.set_stroke(opacity=0.5), glow1.animate.set_stroke(opacity=0.12), glow2.animate.set_stroke(opacity=0.08), rate_func=there_and_back, run_time=0.5)
-
-        self.wait(0.15)
-        self.play(*[FadeOut(m, shift=UP*0.2) for m in self.mobjects], run_time=0.35)
-        self.wait(0.1)
+from manim import *
+
+class LoadingAnimation(Scene):
+    def construct(self):
+        self.camera.background_color = "#0d0808"
+
+        # Infinity symbol using SVG or Text
+        infinity = Text(
+            "\u221E",
+            font_size=200,
+            color="#ff4444",
+            weight=BOLD,
+        )
+
+        glow = infinity.copy().set_stroke(
+            width=40, opacity=0.12, color="#ff4444"
+        )
+
+        self.play(
+            DrawBorderThenFill(glow, run_time=1.2, rate_func=smooth),
+            DrawBorderThenFill(infinity, run_time=1.2, rate_func=smooth),
+        )
+
+        # Pulse glow
+        self.play(
+            glow.animate.set_stroke(width=55, opacity=0.06),
+            infinity.animate.scale(1.03),
+            rate_func=there_and_back,
+            run_time=1.0,
+        )
+
+        # Title
+        title = Text(
+            "Infinite Code",
+            font_size=48,
+            color="#e8c8c8",
+            weight=BOLD,
+        ).next_to(infinity, DOWN, buff=0.5)
+
+        subtitle = Text(
+            "Loading",
+            font_size=22,
+            color="#a07070",
+        ).next_to(title, DOWN, buff=0.25)
+
+        self.play(
+            Write(title, run_time=0.7),
+            FadeIn(subtitle, shift=UP * 0.15, run_time=0.5),
+        )
+
+        # Loading dots
+        dots = VGroup()
+        for i in range(3):
+            dot = Dot(radius=0.05, color="#a07070").shift(RIGHT * i * 0.3)
+            dots.add(dot)
+        dots.next_to(subtitle, DOWN, buff=0.35)
+
+        self.play(LaggedStart(*[FadeIn(d, scale=0.5) for d in dots], lag_ratio=0.3))
+
+        for _ in range(4):
+            self.play(
+                *[dot.animate.shift(UP * 0.1) for dot in dots],
+                run_time=0.15, rate_func=rate_functions.ease_out_sine,
+            )
+            self.play(
+                *[dot.animate.shift(DOWN * 0.1) for dot in dots],
+                run_time=0.2, rate_func=rate_functions.ease_in_sine,
+            )
+
+        self.play(
+            infinity.animate.scale(1.04).set_opacity(0.85),
+            glow.animate.set_stroke(width=65, opacity=0.04),
+            rate_func=there_and_back, run_time=0.7,
+        )
+
+        self.wait(0.3)
+
+        self.play(
+            *[FadeOut(m, shift=UP * 0.25) for m in self.mobjects],
+            run_time=0.5,
+        )
+        self.wait(0.1)

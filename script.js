@@ -2821,42 +2821,49 @@ function renderCustomCmdList() {
 function checkCustomCommands(trimmed, outputEl) {
   const list = getCC();
   for (const c of list) {
-    if (trimmed.toLowerCase() === c.cmdLine.toLowerCase()) {
-      if (c.action === 'switchTab') {
-        const tabId = c.actionValue;
-        if (document.querySelector('.topbar-tab[data-tab="' + tabId + '"]')) {
-          switchTab(tabId);
-          outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#9654; Switched to ' + tabId + ' tab</div>';
-        } else {
-          outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Tab "' + tabId + '" not found</div>';
-        }
-      } else if (c.action === 'showMessage') {
-        outputEl.innerHTML += '<div class="output-line">' + c.actionValue + '</div>';
-      } else if (c.action === 'openURL') {
-        window.open(c.actionValue, '_blank');
-        outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#128279; Opened ' + c.actionValue + '</div>';
-      } else if (c.action === 'setBackground') {
-        let color = c.actionValue;
-        if (/^[0-9a-f]{3,8}$/i.test(color.replace('#', ''))) color = color.startsWith('#') ? color : '#' + color;
-        document.getElementById('previewPanel').style.background = color;
-        outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#9632; Background set</div>';
-      } else if (c.action === 'injectHTML') {
-        outputEl.innerHTML += c.actionValue;
-      } else if (c.action === 'eval') {
+    const cmdLower = c.cmdLine.toLowerCase();
+    let param = '';
+    let matched = trimmed.toLowerCase() === cmdLower;
+    if (!matched && trimmed.toLowerCase().startsWith(cmdLower + ' ')) {
+      param = trimmed.substring(cmdLower.length + 1).trim();
+      if (param) matched = true;
+    }
+    if (!matched) continue;
+    var val = c.actionValue.replace(/\{\?\}/g, param || '');
+    if (c.action === 'switchTab') {
+      const tabId = val;
+      if (document.querySelector('.topbar-tab[data-tab="' + tabId + '"]')) {
+        switchTab(tabId);
+        outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#9654; Switched to ' + tabId + ' tab</div>';
+      } else {
+        outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Tab "' + tabId + '" not found</div>';
+      }
+    } else if (c.action === 'showMessage') {
+      outputEl.innerHTML += '<div class="output-line">' + val + '</div>';
+    } else if (c.action === 'openURL') {
+      window.open(val, '_blank');
+      outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#128279; Opened ' + val + '</div>';
+    } else if (c.action === 'setBackground') {
+      let color = val;
+      if (/^[0-9a-f]{3,8}$/i.test(color.replace('#', ''))) color = color.startsWith('#') ? color : '#' + color;
+      document.getElementById('previewPanel').style.background = color;
+      outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#9632; Background set</div>';
+    } else if (c.action === 'injectHTML') {
+      outputEl.innerHTML += val;
+    } else if (c.action === 'eval') {
+      try {
+        var evalResult = Function('"use strict"; return (' + val + ')')();
+        outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">= ' + evalResult + '</div>';
+      } catch (e) {
         try {
-          var evalResult = Function('"use strict"; return (' + c.actionValue + ')')();
-          outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">= ' + evalResult + '</div>';
-        } catch (e) {
-          try {
-            var evalResult2 = Function('"use strict"; ' + c.actionValue)();
-            outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">= ' + evalResult2 + '</div>';
-          } catch (e2) {
-            outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Error: ' + e2.message + '</div>';
-          }
+          var evalResult2 = Function('"use strict"; ' + val)();
+          outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">= ' + evalResult2 + '</div>';
+        } catch (e2) {
+          outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Error: ' + e2.message + '</div>';
         }
       }
-      return true;
     }
+    return true;
   }
   return false;
 }
@@ -3168,11 +3175,11 @@ document.getElementById('builderAction').addEventListener('change', function() {
   const label = document.getElementById('builderValueLabel');
   const val = document.getElementById('builderValue');
   const map = {
-    showMessage: 'Message text to display',
+    showMessage: 'Message text to display (use {?} for user input)',
     openURL: 'URL to open (e.g. https://google.com)',
     switchTab: 'Tab name (settings, code, preview, database)',
     setBackground: 'Hex color (e.g. #ff4444)',
-    injectHTML: 'HTML code to inject',
+    injectHTML: 'HTML to inject (use {?} for user input)',
     eval: 'JavaScript code to execute (e.g. 5+3 or (a,b)=>a+b)'
   };
   label.textContent = map[this.value] || 'Action value';

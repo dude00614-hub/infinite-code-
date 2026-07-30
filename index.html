@@ -9,7 +9,7 @@
 </head>
 <body>
   <div id="loadingOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0d0808;z-index:9999;display:flex;align-items:center;justify-content:center;">
-    <video id="loadingVideo" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover;">
+    <video id="loadingVideo" autoplay muted playsinline disablepictureinpicture controlslist="nodownload nofullscreen noremoteplaytube" style="width:100%;height:100%;object-fit:cover;pointer-events:none;-webkit-user-select:none;user-select:none;" oncontextmenu="return false;">
       <source src="loading.mp4" type="video/mp4">
     </video>
   </div>

@@ -69,16 +69,16 @@ if not os.path.exists(ap): gen_audio()
 # ── Scene ──────────────────────────────────────────────────────
 class LoadingAnimation(Scene):
     def construct(self):
-        self.camera.background_color = "#020105"
+        self.camera.background_color = "#080a18"
         self.add_sound(ap)
 
         # Stars at different depths (size = depth cue)
         stars = VGroup()
         for _ in range(350):
             z = np.random.uniform(-5, 2)
-            r = np.interp(z, [-5, 2], [0.002, 0.018])
-            op = np.interp(z, [-5, 2], [0.06, 0.5])
-            c = ["#604080", "#8060a0", "#9070c0", "#b090d0"][np.random.randint(0, 4)]
+            r = np.interp(z, [-5, 2], [0.006, 0.035])
+            op = np.interp(z, [-5, 2], [0.25, 0.9])
+            c = ["#a070d0", "#b080e0", "#c090f0", "#d0a0ff"][np.random.randint(0, 4)]
             dot = Dot(radius=r, color=c, fill_opacity=op)
             dot.move_to([np.random.uniform(-8, 8), np.random.uniform(-5, 5), 0])
             stars.add(dot)
@@ -87,7 +87,7 @@ class LoadingAnimation(Scene):
         # Glow haze
         haze = VGroup()
         for _ in range(60):
-            g = Dot(radius=np.random.uniform(0.02, 0.06), color="#b090d0", fill_opacity=0.04)
+            g = Dot(radius=np.random.uniform(0.04, 0.10), color="#c090f0", fill_opacity=0.12)
             g.move_to([np.random.uniform(-9, 9), np.random.uniform(-5, 5), 0])
             haze.add(g)
         self.add(haze)
@@ -95,34 +95,34 @@ class LoadingAnimation(Scene):
         # Black holes
         def bh(x, y, sc, hue):
             g = VGroup()
-            for r,w,o in [(1.2*sc,0.8,0.04),(0.9*sc,1.2,0.07),(0.6*sc,1.5,0.12)]:
+            for r,w,o in [(1.2*sc,1.5,0.12),(0.9*sc,2.0,0.18),(0.6*sc,2.5,0.25)]:
                 g.add(Circle(radius=r, stroke_width=w, color=hue, stroke_opacity=o))
-            g.add(Circle(radius=0.35*sc, stroke_width=2.5, color="#d080ff", stroke_opacity=0.25))
+            g.add(Circle(radius=0.35*sc, stroke_width=3.5, color="#d080ff", stroke_opacity=0.5))
             g.add(Dot(radius=0.25*sc, color="#000000", fill_opacity=1))
-            g.add(Dot(radius=0.15*sc, color=hue, fill_opacity=0.15))
+            g.add(Dot(radius=0.15*sc, color=hue, fill_opacity=0.35))
             g.move_to([x, y, 0]); return g
-        b1 = bh(-4.5, 2.5, 0.7, "#6b30a0")
-        b2 = bh(5, -2.8, 0.5, "#4a2070")
-        b3 = bh(-2, -3.5, 0.35, "#8030b0")
+        b1 = bh(-4.5, 2.5, 0.7, "#8040b0")
+        b2 = bh(5, -2.8, 0.5, "#603090")
+        b3 = bh(-2, -3.5, 0.35, "#9050c0")
         self.add(b1, b2, b3)
 
         # Infinity symbol (16 offset layers for 3D depth)
         layers = VGroup()
         for i in range(16):
             d = i / 16
-            b = 0.15 + 0.85 * (1 - d)
-            h = "#1a0033" if d > 0.7 else "#6b30a0" if d > 0.4 else "#c090ff"
+            b = 0.3 + 0.7 * (1 - d)
+            h = "#3a1050" if d > 0.7 else "#9050c0" if d > 0.4 else "#d0a0ff"
             t = Text("\u221E", font_size=180, color=h, weight=BOLD)
-            t.set_stroke(width=1, color="#c090ff", opacity=0.05 * (1 - d))
+            t.set_stroke(width=1.5, color="#d0a0ff", opacity=0.12 * (1 - d))
             t.shift([-i*0.025, i*0.008, 0])
-            t.set_opacity(b * 0.6)
+            t.set_opacity(b * 0.85)
             layers.add(t)
 
-        front = Text("\u221E", font_size=180, color="#e0c0ff", weight=BOLD)
-        front.set_stroke(width=1.5, color="#d080ff", opacity=0.5)
+        front = Text("\u221E", font_size=180, color="#f0e0ff", weight=BOLD)
+        front.set_stroke(width=2.5, color="#d080ff", opacity=0.7)
 
-        glow1 = Circle(radius=1.2, stroke_width=3, color="#8030b0", stroke_opacity=0.08)
-        glow2 = Circle(radius=0.8, stroke_width=2, color="#d080ff", stroke_opacity=0.05)
+        glow1 = Circle(radius=1.2, stroke_width=4, color="#9050c0", stroke_opacity=0.2)
+        glow2 = Circle(radius=0.8, stroke_width=3, color="#d080ff", stroke_opacity=0.15)
 
         sp = [9, 5, 0]
         ep = [0, 0.3, 0]
@@ -137,17 +137,17 @@ class LoadingAnimation(Scene):
         self.remove(trail)
 
         glow = front.copy()
-        glow.set_stroke(width=60, opacity=0.04, color="#8030b0")
+        glow.set_stroke(width=60, opacity=0.1, color="#9050c0")
         self.add(glow)
-        self.play(glow.animate.set_stroke(width=70, opacity=0.03), all_inf.animate.scale(0.96), rate_func=there_and_back, run_time=0.5)
+        self.play(glow.animate.set_stroke(width=70, opacity=0.08), all_inf.animate.scale(0.96), rate_func=there_and_back, run_time=0.5)
 
         # 360° rotation of the infinity symbol (3D depth visible through layer parallax)
         self.play(Rotate(layers, angle=2*PI, axis=UP, run_time=2.0, rate_func=rate_functions.ease_in_out_sine))
         self.play(Rotate(layers, angle=PI/2, axis=UP, run_time=0.5, rate_func=smooth))
 
         # Accretion rings
-        r1 = Circle(radius=1.9, stroke_width=1.5, color="#8030b0", stroke_opacity=0.12)
-        r2 = Circle(radius=2.05, stroke_width=0.8, color="#d080ff", stroke_opacity=0.06)
+        r1 = Circle(radius=1.9, stroke_width=2.0, color="#9050c0", stroke_opacity=0.3)
+        r2 = Circle(radius=2.05, stroke_width=1.2, color="#d080ff", stroke_opacity=0.2)
         self.add(r1, r2)
         self.play(r1.animate.scale(1.3).set_stroke(opacity=0.03), r2.animate.scale(1.4).set_stroke(opacity=0.015), glow.animate.set_stroke(width=65, opacity=0.03), run_time=0.6, rate_func=smooth)
 
@@ -165,9 +165,9 @@ class LoadingAnimation(Scene):
         self.play(stars.animate.rotate(0.04), b1.animate.rotate(-0.06), b2.animate.rotate(0.05), b3.animate.rotate(-0.04), run_time=0.5, rate_func=smooth)
 
         # Title
-        title = Text("Infinite Code", font_size=46, color="#e8d0ff", weight=BOLD).next_to(all_inf, DOWN, buff=0.45)
-        sub = Text("Loading", font_size=20, color="#8060a0").next_to(title, DOWN, buff=0.2)
-        ul = Line(title.get_left()+DOWN*0.15, title.get_right()+DOWN*0.15, stroke_width=1.5, color="#8030b0", stroke_opacity=0.3)
+        title = Text("Infinite Code", font_size=46, color="#f0e0ff", weight=BOLD).next_to(all_inf, DOWN, buff=0.45)
+        sub = Text("Loading", font_size=20, color="#a080d0").next_to(title, DOWN, buff=0.2)
+        ul = Line(title.get_left()+DOWN*0.15, title.get_right()+DOWN*0.15, stroke_width=2.0, color="#a070d0", stroke_opacity=0.5)
         self.play(Write(title, run_time=0.4), FadeIn(sub, shift=UP*0.1, run_time=0.25), GrowFromCenter(ul, run_time=0.25))
 
         # Loading dots
@@ -178,7 +178,7 @@ class LoadingAnimation(Scene):
         dots.next_to(sub, DOWN, buff=0.3)
         self.play(LaggedStart(*[FadeIn(d, scale=0.5) for d in dots], lag_ratio=0.2))
 
-        on_c = "#d080ff"; off_c = "#8060a0"
+        on_c = "#e0b0ff"; off_c = "#a070d0"
         for _ in range(2):
             self.play(dots[0].animate.shift(UP*0.08).set_color(on_c), run_time=0.07)
             self.play(dots[0].animate.shift(DOWN*0.08).set_color(off_c), dots[1].animate.shift(UP*0.08).set_color(on_c), run_time=0.09)

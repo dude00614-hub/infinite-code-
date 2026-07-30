@@ -2880,15 +2880,26 @@ function checkCustomCommands(trimmed, outputEl) {
         frame.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;padding:16px;margin:0;background:#0d0d1a;color:#eee}</style></head><body>' + val + '</body></html>';
       }
     } else if (c.action === 'eval') {
-      try {
-        var evalResult = Function('"use strict"; return (' + val + ')')();
-        outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">= ' + evalResult + '</div>';
-      } catch (e) {
+      if (/document\.body|createElement|appendChild|innerHTML|querySelector|getElementById|addEventListener/i.test(val)) {
+        var evalFrame = document.getElementById('inject-iframe');
+        if (evalFrame) evalFrame.remove();
+        evalFrame = document.createElement('iframe');
+        evalFrame.id = 'inject-iframe';
+        evalFrame.style.cssText = 'width:100%;height:100%;min-height:400px;border:none;display:block;background:transparent;';
+        evalFrame.setAttribute('sandbox', 'allow-scripts');
+        outputEl.appendChild(evalFrame);
+        evalFrame.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;background:#0d0d1a;overflow:hidden}</style></head><body><script>' + val + '<\/script></body></html>';
+      } else {
         try {
-          var evalResult2 = Function('"use strict"; ' + val)();
-          outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">= ' + evalResult2 + '</div>';
-        } catch (e2) {
-          outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Error: ' + e2.message + '</div>';
+          var evalResult = Function('"use strict"; return (' + val + ')')();
+          outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">= ' + evalResult + '</div>';
+        } catch (e) {
+          try {
+            var evalResult2 = Function('"use strict"; ' + val)();
+            outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">= ' + evalResult2 + '</div>';
+          } catch (e2) {
+            outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Error: ' + e2.message + '</div>';
+          }
         }
       }
     }
@@ -3229,6 +3240,12 @@ function createFromBuilder() {
   }
   if (action === 'eval' && !/[+\-*/(){}[\]=>]/.test(value) && value.split(/\s+/).length > 2) {
     status.textContent = 'That looks like plain text, not JavaScript code. Choose a different action or enter valid code.';
+    status.style.color = '#ff6b6b';
+    status.style.display = 'block';
+    return;
+  }
+  if (action === 'eval' && /document\.body|createElement|appendChild|innerHTML|querySelector|getElementById|addEventListener/i.test(value)) {
+    status.textContent = 'This code modifies the page DOM — use Inject HTML instead of Run JavaScript code.';
     status.style.color = '#ff6b6b';
     status.style.display = 'block';
     return;

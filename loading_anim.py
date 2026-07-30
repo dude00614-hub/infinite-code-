@@ -1,76 +1,10 @@
 from manim import *
 import numpy as np
-import os, wave
-
-SR = 44100
-ASSET_DIR = "assets"
-os.makedirs(ASSET_DIR, exist_ok=True)
-
-# ── Audio ──────────────────────────────────────────────────────
-def write_wav(path, samples):
-    samples = np.nan_to_num(samples)
-    peak = np.max(np.abs(samples))
-    if peak > 0: samples = samples / peak * 0.98
-    with wave.open(path, 'w') as wf:
-        wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(SR)
-        wf.writeframes((samples * 32767).astype(np.int16).tobytes())
-
-def gen_audio():
-    dur = 11.0
-    t = np.linspace(0, dur, int(SR * dur), False)
-    d1 = np.sin(2 * np.pi * 65 * t) * 0.22
-    d2 = np.sin(2 * np.pi * 98 * t) * 0.16
-    d3 = np.sin(2 * np.pi * 131 * t) * 0.12
-    d4 = np.sin(2 * np.pi * 165 * t) * 0.08
-    lfo = 0.7 + 0.3 * np.sin(2 * np.pi * 0.15 * t)
-    drone = (d1 + d2 + d3 + d4) * lfo
-    pad = np.sin(2 * np.pi * 220 * t) * 0.03 + np.sin(2 * np.pi * 330 * t) * 0.02
-    pad *= 0.5 + 0.5 * np.sin(2 * np.pi * 0.08 * t)
-    noise = np.random.normal(0, 0.015, len(t)) * (0.3 + 0.7 * np.sin(2 * np.pi * 0.05 * t + 1) ** 2)
-
-    idx = lambda s: int(SR * s)
-    whoosh = np.zeros(len(t))
-    w = whoosh[:idx(1.2)]
-    wn = np.random.normal(0, 1, len(w))
-    we = np.exp(-((np.linspace(0,1.2,len(w)) - 0.2)**2) / (2*0.25**2))
-    ww = np.sin(2 * np.pi * (100 + 800 * np.linspace(0,1,len(w))) * np.linspace(0,1.2,len(w)))
-    whoosh[:len(w)] = wn * ww * we * 0.5
-
-    impact = np.zeros(len(t))
-    ii = idx(1.0)
-    iw = min(len(t) - ii, idx(0.8))
-    ir = np.linspace(0, 0.8, iw)
-    impact[ii:ii+iw] = (np.sin(2*np.pi*50*ir)*np.exp(-ir*20)*0.5 + np.sin(2*np.pi*100*ir)*np.exp(-ir*18)*0.3 + np.sin(2*np.pi*2000*ir)*np.exp(-ir*300)*0.08)
-
-    shimmer = np.zeros(len(t))
-    si = idx(1.8)
-    sw2 = min(len(t) - si, idx(0.8))
-    sr2 = np.linspace(0, 0.8, sw2)
-    sn = np.random.normal(0, 1, sw2)
-    se = np.exp(-((sr2 - 0.15)**2) / (2*0.1**2))
-    shimmer[si:si+sw2] = sn * np.sin(2 * np.pi * (800 + 2000 * sr2/0.8) * sr2) * se * 0.25
-
-    swell = np.zeros(len(t))
-    sl = idx(6.0)
-    sw3 = min(len(t) - sl, idx(1.5))
-    sr3 = np.linspace(0, 1.5, sw3)
-    se2 = np.sin(np.pi * sr3 / 1.5) ** 2
-    swell[sl:sl+sw3] = (np.sin(2*np.pi*65*sr3)*0.25 + np.sin(2*np.pi*130*sr3)*0.15 + np.sin(2*np.pi*260*sr3)*0.08 + np.random.normal(0,0.04,sw3)) * se2
-
-    mix = (drone + pad + noise + whoosh + impact + shimmer + swell) * 5.0
-    fade = np.ones_like(t)
-    fade[:idx(0.2)] = np.linspace(0,1,idx(0.2))
-    fade[-idx(0.4):] = np.linspace(1,0,idx(0.4))
-    write_wav(os.path.join(ASSET_DIR, "audio.wav"), mix * fade)
-
-ap = os.path.join(ASSET_DIR, "audio.wav")
-if not os.path.exists(ap): gen_audio()
 
 # ── Scene ──────────────────────────────────────────────────────
 class LoadingAnimation(Scene):
     def construct(self):
         self.camera.background_color = "#080a18"
-        self.add_sound(ap)
 
         # Stars at different depths (size = depth cue)
         stars = VGroup()
@@ -106,16 +40,17 @@ class LoadingAnimation(Scene):
         b3 = bh(-2, -3.5, 0.35, "#9050c0")
         self.add(b1, b2, b3)
 
-        # Infinity symbol (16 offset layers for 3D depth)
+        # Infinity symbol (32 offset layers for 3D depth)
         layers = VGroup()
-        for i in range(16):
-            d = i / 16
-            b = 0.3 + 0.7 * (1 - d)
-            h = "#3a1050" if d > 0.7 else "#9050c0" if d > 0.4 else "#d0a0ff"
+        for i in range(32):
+            d = i / 32
+            b = 0.2 + 0.8 * (1 - d)
+            h = "#2a0840" if d > 0.75 else "#7030a0" if d > 0.5 else "#b080e0" if d > 0.25 else "#d0a0ff"
             t = Text("\u221E", font_size=180, color=h, weight=BOLD)
-            t.set_stroke(width=1.5, color="#d0a0ff", opacity=0.12 * (1 - d))
-            t.shift([-i*0.025, i*0.008, 0])
-            t.set_opacity(b * 0.85)
+            t.set_stroke(width=1.5 if d < 0.5 else 0.5, color="#d0a0ff", opacity=0.08 * (1 - d))
+            t.shift([-i*0.04, i*0.015, -i*0.02])
+            t.set_opacity(b * 0.75)
+            t.set(width=3.2 - d * 0.3)
             layers.add(t)
 
         front = Text("\u221E", font_size=180, color="#f0e0ff", weight=BOLD)

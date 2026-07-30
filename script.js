@@ -3473,12 +3473,8 @@ function hideLoading() {
 if (loadingVideo) {
   loadingVideo.addEventListener('ended', hideLoading);
   loadingVideo.addEventListener('error', hideLoading);
-  var playPromise = loadingVideo.play();
-  if (playPromise !== undefined) {
-    playPromise.catch(function() {
-      document.addEventListener('click', function() { loadingVideo.play(); }, { once: true });
-    });
-  }
+  loadingVideo.load();
+  loadingVideo.play();
 }
 setTimeout(hideLoading, 6000);
 

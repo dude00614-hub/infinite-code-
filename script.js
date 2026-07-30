@@ -3205,7 +3205,7 @@ document.getElementById('builderAction').addEventListener('change', function() {
 });
 
 function createFromBuilder() {
-  const name = document.getElementById('builderName').value.trim().toLowerCase().replace(/[^a-z0-9]/g, '') || 'mycommand';
+  const name = document.getElementById('builderName').value.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-\[\]\(\)\#\.]/g, '') || 'mycommand';
   const action = document.getElementById('builderAction').value;
   const value = document.getElementById('builderValue').value.trim();
   const desc = document.getElementById('builderDesc').value.trim() || 'Custom command';

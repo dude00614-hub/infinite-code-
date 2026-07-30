@@ -2840,6 +2840,8 @@ function checkCustomCommands(trimmed, outputEl) {
         if (/^[0-9a-f]{3,8}$/i.test(color.replace('#', ''))) color = color.startsWith('#') ? color : '#' + color;
         document.getElementById('previewPanel').style.background = color;
         outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#9632; Background set</div>';
+      } else if (c.action === 'injectHTML') {
+        outputEl.innerHTML += c.actionValue;
       }
       return true;
     }
@@ -2950,8 +2952,11 @@ function aiGenerateCommand(input) {
       intent = (explicitMatch[3] || '').trim();
     } else {
       intent = (implicitMatch[1] || '').trim();
-      const intentWords = intent.replace(/^(?:i\s+)?(?:want\s+(?:to\s+)?)?(?:create|make|show|do|have|get)\s+/i, '').trim().split(/\s+/);
-      cmdName = (intentWords.length > 0 ? intentWords[0].toLowerCase().replace(/[^a-z0-9]/g, '') : false) || 'mycommand';
+      const stopWords = ['i','you','we','they','want','to','create','creates','make','makes','new','show','shows','display','displays','do','does','have','has','get','gets','draw','draws','paint','paints','render','renders','write','writes','run','runs','play','plays','set','sets','open','opens','close','closes','switch','switches','go','goes','start','starts','stop','stops','change','changes','toggle','toggles','use','uses','find','finds','search','searches','look','looks','add','adds','remove','removes','delete','deletes','insert','inserts','put','puts','tell','tells','ask','asks','call','calls','save','saves','load','loads','edit','edits','build','builds','generate','generates','test','tests','check','checks','try','tries','a','an','the','this','that','these','those','which','what','who','how','would','should','could','will','can','shall','may','might','must','for','of','in','on','at','by','with','from','into','like','just','then','there','here','some','any','each','every','both','all','no','not','it','its','my','your','our','their'];
+      let nameStr = intent;
+      for (let i = 0; i < 15; i++) { const p = nameStr; nameStr = nameStr.replace(new RegExp('^(' + stopWords.join('|') + ')\\s+', 'gi'), ''); if (nameStr === p) break; }
+      const cleanParts = nameStr.trim().split(/\s+/);
+      cmdName = (cleanParts.length > 0 ? cleanParts[0].toLowerCase().replace(/[^a-z0-9]/g, '') : false) || 'mycommand';
     }
 
     let action = 'showMessage';
@@ -2984,6 +2989,28 @@ function aiGenerateCommand(input) {
       const colorMatch = intent.match(/(#?[0-9a-f]{3,8})\b/i);
       actionValue = colorMatch ? (colorMatch[1].startsWith('#')?colorMatch[1]:'#'+colorMatch[1]) : '#ff4444';
       desc = 'Sets background color';
+    } else if (/circle|square|triangle|rectangle|shape|draw|paint/i.test(intent)) {
+      action = 'injectHTML';
+      let shapeType = 'circle';
+      if (/square/i.test(intent)) shapeType = 'square';
+      else if (/triangle/i.test(intent)) shapeType = 'triangle';
+      else if (/rectangle/i.test(intent)) shapeType = 'rectangle';
+      const namedColors = {red:'#ff4444',blue:'#448aff',green:'#50e3c2',yellow:'#ffd700',white:'#ffffff',black:'#000000',purple:'#8860ff',orange:'#ff9100',pink:'#f48fb1',teal:'#00c8b4',cyan:'#00e5ff',brown:'#a1887f',gray:'#9e9e9e',grey:'#9e9e9e'};
+      let strokeColor = '#50e3c2';
+      for (const [name, hex] of Object.entries(namedColors)) {
+        if (intent.toLowerCase().includes(name)) { strokeColor = hex; break; }
+      }
+      const hexMatch = intent.match(/(#?[0-9a-f]{6})\b/i);
+      if (hexMatch) strokeColor = hexMatch[1].startsWith('#') ? hexMatch[1] : '#' + hexMatch[1];
+      const svgW = shapeType === 'rectangle' ? 300 : 200;
+      const svgMap = {
+        circle: '<svg width="200" height="200" style="display:block;margin:16px auto"><circle cx="100" cy="100" r="80" fill="none" stroke="' + strokeColor + '" stroke-width="4"/></svg>',
+        square: '<svg width="200" height="200" style="display:block;margin:16px auto"><rect x="20" y="20" width="160" height="160" fill="none" stroke="' + strokeColor + '" stroke-width="4"/></svg>',
+        triangle: '<svg width="200" height="200" style="display:block;margin:16px auto"><polygon points="100,20 180,180 20,180" fill="none" stroke="' + strokeColor + '" stroke-width="4"/></svg>',
+        rectangle: '<svg width="300" height="200" style="display:block;margin:16px auto"><rect x="20" y="20" width="260" height="160" fill="none" stroke="' + strokeColor + '" stroke-width="4"/></svg>',
+      };
+      actionValue = svgMap[shapeType] || svgMap.circle;
+      desc = 'Draws a ' + shapeType + ' in the preview';
     }
 
     const cmdLine = createCustomCmd(cmdName, action, actionValue, desc);
@@ -2997,8 +3024,11 @@ function aiGenerateCommand(input) {
   const generalCreate = lower.match(/(?:create|make|new)\s+(?:a|an|the|some|this|that)\s+(.+)/i) || lower.match(/(?:create|make|new)\s+(.+)/i);
   if (generalCreate) {
     const intent = generalCreate[1].trim();
-    const intentWords = intent.replace(/^(?:i\s+)?(?:want\s+(?:to\s+)?)?(?:create|make|show|do|have|get)\s+/i, '').trim().split(/\s+/);
-    const cmdName = (intentWords.length > 0 ? intentWords[0].toLowerCase().replace(/[^a-z0-9]/g, '') : false) || 'mycommand';
+    const stopWords = ['i','you','we','they','want','to','create','creates','make','makes','new','show','shows','display','displays','do','does','have','has','get','gets','draw','draws','paint','paints','render','renders','write','writes','run','runs','play','plays','set','sets','open','opens','close','closes','switch','switches','go','goes','start','starts','stop','stops','change','changes','toggle','toggles','use','uses','find','finds','search','searches','look','looks','add','adds','remove','removes','delete','deletes','insert','inserts','put','puts','tell','tells','ask','asks','call','calls','save','saves','load','loads','edit','edits','build','builds','generate','generates','test','tests','check','checks','try','tries','a','an','the','this','that','these','those','which','what','who','how','would','should','could','will','can','shall','may','might','must','for','of','in','on','at','by','with','from','into','like','just','then','there','here','some','any','each','every','both','all','no','not','it','its','my','your','our','their'];
+    let nameStr = intent;
+    for (let i = 0; i < 15; i++) { const p = nameStr; nameStr = nameStr.replace(new RegExp('^(' + stopWords.join('|') + ')\\s+', 'gi'), ''); if (nameStr === p) break; }
+    const cleanParts = nameStr.trim().split(/\s+/);
+    const cmdName = (cleanParts.length > 0 ? cleanParts[0].toLowerCase().replace(/[^a-z0-9]/g, '') : false) || 'mycommand';
     let action = 'showMessage';
     let actionValue = intent;
     let desc = 'Custom command: ' + intent;
@@ -3020,6 +3050,27 @@ function aiGenerateCommand(input) {
       const colorMatch = intent.match(/(#?[0-9a-f]{3,8})\b/i);
       actionValue = colorMatch ? (colorMatch[1].startsWith('#')?colorMatch[1]:'#'+colorMatch[1]) : '#ff4444';
       action = 'setBackground'; desc = 'Sets background color';
+    } else if (/circle|square|triangle|rectangle|shape|draw|paint/i.test(intent)) {
+      action = 'injectHTML';
+      let shapeType = 'circle';
+      if (/square/i.test(intent)) shapeType = 'square';
+      else if (/triangle/i.test(intent)) shapeType = 'triangle';
+      else if (/rectangle/i.test(intent)) shapeType = 'rectangle';
+      const namedColors = {red:'#ff4444',blue:'#448aff',green:'#50e3c2',yellow:'#ffd700',white:'#ffffff',black:'#000000',purple:'#8860ff',orange:'#ff9100',pink:'#f48fb1',teal:'#00c8b4',cyan:'#00e5ff',brown:'#a1887f',gray:'#9e9e9e',grey:'#9e9e9e'};
+      let strokeColor = '#50e3c2';
+      for (const [name, hex] of Object.entries(namedColors)) {
+        if (intent.toLowerCase().includes(name)) { strokeColor = hex; break; }
+      }
+      const hexMatch = intent.match(/(#?[0-9a-f]{6})\b/i);
+      if (hexMatch) strokeColor = hexMatch[1].startsWith('#') ? hexMatch[1] : '#' + hexMatch[1];
+      const svgMap = {
+        circle: '<svg width="200" height="200" style="display:block;margin:16px auto"><circle cx="100" cy="100" r="80" fill="none" stroke="' + strokeColor + '" stroke-width="4"/></svg>',
+        square: '<svg width="200" height="200" style="display:block;margin:16px auto"><rect x="20" y="20" width="160" height="160" fill="none" stroke="' + strokeColor + '" stroke-width="4"/></svg>',
+        triangle: '<svg width="200" height="200" style="display:block;margin:16px auto"><polygon points="100,20 180,180 20,180" fill="none" stroke="' + strokeColor + '" stroke-width="4"/></svg>',
+        rectangle: '<svg width="300" height="200" style="display:block;margin:16px auto"><rect x="20" y="20" width="260" height="160" fill="none" stroke="' + strokeColor + '" stroke-width="4"/></svg>',
+      };
+      actionValue = svgMap[shapeType] || svgMap.circle;
+      desc = 'Draws a ' + shapeType + ' in the preview';
     }
     const cmdLine = createCustomCmd(cmdName, action, actionValue, desc);
     if (cmdLine) return { code: cmdLine, desc: desc + ' (new custom command)', isCustom: true };
@@ -3034,8 +3085,11 @@ function aiGenerateCommand(input) {
   }
 
   // Fallback: create a custom command named after the main intent
-  const words = input.replace(/^(?:i\s+)?(?:want\s+(?:to\s+)?)?(?:create|make|show|do|have|get)\s+/i, '').trim().split(/\s+/);
-  const fallbackName = (words.length > 0 ? words[0].toLowerCase().replace(/[^a-z0-9]/g, '') : 'mycommand') || 'mycommand';
+  const fallbackStopWords = ['i','you','we','they','want','to','create','creates','make','makes','new','show','shows','display','displays','do','does','have','has','get','gets','draw','draws','paint','paints','render','renders','write','writes','run','runs','play','plays','set','sets','open','opens','close','closes','switch','switches','go','goes','start','starts','stop','stops','change','changes','toggle','toggles','use','uses','find','finds','search','searches','look','looks','add','adds','remove','removes','delete','deletes','insert','inserts','put','puts','tell','tells','ask','asks','call','calls','save','saves','load','loads','edit','edits','build','builds','generate','generates','test','tests','check','checks','try','tries','a','an','the','this','that','these','those','which','what','who','how','would','should','could','will','can','shall','may','might','must','for','of','in','on','at','by','with','from','into','like','just','then','there','here','some','any','each','every','both','all','no','not','it','its','my','your','our','their'];
+  let fallbackNameStr = input;
+  for (let i = 0; i < 15; i++) { const p = fallbackNameStr; fallbackNameStr = fallbackNameStr.replace(new RegExp('^(' + fallbackStopWords.join('|') + ')\\s+', 'gi'), ''); if (fallbackNameStr === p) break; }
+  const fallbackClean = fallbackNameStr.trim().split(/\s+/);
+  const fallbackName = (fallbackClean.length > 0 ? fallbackClean[0].toLowerCase().replace(/[^a-z0-9]/g, '') : 'mycommand') || 'mycommand';
   const fallbackAction = lower.includes('open') ? 'openURL' : lower.includes('tab') ? 'switchTab' : lower.includes('background') ? 'setBackground' : 'showMessage';
   let fallbackValue = input.replace(/^(?:i\s+)?(?:want\s+(?:to\s+)?)?(?:create|make|show|do|have|get)\s+/i, '').trim();
   if (fallbackAction === 'openURL') {

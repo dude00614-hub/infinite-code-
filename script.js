@@ -2812,7 +2812,8 @@ function renderCustomCmdList() {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No custom commands yet.</div>';
     return;
   }
-  el.innerHTML = list.map(c => {
+  var exportHtml = '<div style="margin-bottom:8px;"><button id="exportCCBtn" style="padding:6px 14px;font-size:11px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">&#128229; Export All (' + list.length + ')</button></div>';
+  el.innerHTML = exportHtml + list.map(c => {
     const name = c.cmdLine;
     const desc = c.description || '';
     const actionLabel = c.action === 'showMessage' ? 'Msg' : c.action === 'openURL' ? 'URL' : c.action === 'switchTab' ? 'Tab' : c.action === 'setBackground' ? 'BG' : c.action === 'injectHTML' ? 'HTML' : c.action === 'eval' ? 'JS' : '?';
@@ -2824,6 +2825,14 @@ function renderCustomCmdList() {
       '<button class="del-cc-btn" data-cmd="' + name + '" style="padding:4px 8px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Del</button>' +
       '</div>';
   }).join('');
+  document.getElementById('exportCCBtn').addEventListener('click', function() {
+    var blob = new Blob([JSON.stringify(getCC(), null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'custom-commands.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
   el.querySelectorAll('.edit-cc-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       editCC(this.getAttribute('data-cmd'));

@@ -2867,7 +2867,18 @@ function checkCustomCommands(trimmed, outputEl) {
       document.getElementById('previewPanel').style.background = color;
       outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">&#9632; Background set</div>';
     } else if (c.action === 'injectHTML') {
-      outputEl.innerHTML += val;
+      var oldFrame = document.getElementById('inject-iframe');
+      if (oldFrame) oldFrame.remove();
+      var frame = document.createElement('iframe');
+      frame.id = 'inject-iframe';
+      frame.style.cssText = 'width:100%;height:500px;border:none;display:block;background:transparent;';
+      frame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+      outputEl.appendChild(frame);
+      if (val.includes('<html') || val.includes('<!DOCTYPE')) {
+        frame.srcdoc = val;
+      } else {
+        frame.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;padding:16px;margin:0;background:#0d0d1a;color:#eee}</style></head><body>' + val + '</body></html>';
+      }
     } else if (c.action === 'eval') {
       try {
         var evalResult = Function('"use strict"; return (' + val + ')')();

@@ -599,7 +599,7 @@ const suggestionList = [
   { label: '@pathology [learn] (subject)', desc: 'learn about pathology subjects' },
   { label: '@generate [QR] (link:...)', desc: 'generate a QR code from a link' },
   { label: '@canvas [draw]', desc: 'open an interactive drawing canvas' },
-  { label: '@switch tab [name]', desc: 'switch to a tab (code, database, run, edit, settings)' },
+  { label: '@switch tab [name]', desc: 'switch to a tab (code, database, run, edit, courses, settings)' },
 ];
 
 let suggestionIndex = -1;
@@ -2714,6 +2714,7 @@ document.querySelectorAll('.topbar-tab').forEach(tab => {
     if (this.classList.contains('owner-only') && !OWNERS.includes(currentUser)) return;
     switchTab(tabId);
     if (tabId === 'database') renderDB();
+    if (tabId === 'courses') renderCourses();
   });
 });
 
@@ -3362,6 +3363,128 @@ document.getElementById('aiGenInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     document.getElementById('aiGenBtn').click();
+  }
+});
+
+// ===== COURSES =====
+const COURSES_KEY = 'ic_courses';
+
+function getCourses() {
+  try { return JSON.parse(localStorage.getItem(COURSES_KEY)) || []; } catch(e) { return []; }
+}
+
+function saveCourses(list) {
+  localStorage.setItem(COURSES_KEY, JSON.stringify(list));
+  if (!currentUser) return;
+  list.forEach(function(c) { sb('courses').upsert({id:c.id,title:c.title,content:c.content,author:c.author},'id'); });
+}
+
+function deleteCourse(id) {
+  var list = getCourses();
+  var filtered = list.filter(function(c) { return c.id !== id; });
+  if (filtered.length === list.length) return false;
+  saveCourses(filtered);
+  if (currentUser) sb('courses').delete({id:id});
+  renderCourses();
+  return true;
+}
+
+function renderCourses() {
+  var list = getCourses();
+  var sidebar = document.getElementById('coursesList');
+  var content = document.getElementById('coursesContent');
+  if (!sidebar) return;
+
+  if (list.length === 0) {
+    sidebar.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:12px;">No courses yet. Create the first one!</div>';
+    content.innerHTML = '<div class="courses-placeholder">No courses yet. Click + to create one.</div>';
+    return;
+  }
+
+  sidebar.innerHTML = list.map(function(c) {
+    var active = selectedCourseId === c.id ? 'courses-item-active' : '';
+    return '<div class="courses-item ' + active + '" data-id="' + c.id + '">' +
+      '<div class="courses-item-title">' + c.title + '</div>' +
+      '<div class="courses-item-author">by ' + c.author + '</div>' +
+      '</div>';
+  }).join('');
+
+  sidebar.querySelectorAll('.courses-item').forEach(function(el) {
+    el.addEventListener('click', function() {
+      selectedCourseId = parseInt(this.dataset.id);
+      renderCourses();
+    });
+  });
+
+  if (selectedCourseId) {
+    var course = list.find(function(c) { return c.id === selectedCourseId; });
+    if (course) {
+      content.innerHTML = '<div class="courses-detail">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">' +
+        '<h2 style="margin:0;font-size:20px;color:var(--text-primary);">' + course.title + '</h2>' +
+        '<div style="display:flex;gap:6px;">' +
+        (course.author === currentUser ? '<button class="courses-btn edit-course-btn" data-id="' + course.id + '" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #50e3c2;border-radius:4px;color:#50e3c2;cursor:pointer;font-family:inherit;">Edit</button>' : '') +
+        (course.author === currentUser ? '<button class="courses-btn del-course-btn" data-id="' + course.id + '" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Del</button>' : '') +
+        '</div></div>' +
+        '<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">by ' + course.author + ' &middot; ' + (course.createdAt || 'recently') + '</div>' +
+        '<div class="courses-body">' + course.content + '</div>' +
+        '</div>';
+      content.querySelectorAll('.del-course-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) { e.stopPropagation(); if (confirm('Delete this course?')) deleteCourse(parseInt(this.dataset.id)); });
+      });
+      content.querySelectorAll('.edit-course-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) { e.stopPropagation(); showCourseForm(parseInt(this.dataset.id)); });
+      });
+    } else {
+      selectedCourseId = null;
+      content.innerHTML = '<div class="courses-placeholder">Course not found.</div>';
+    }
+  } else {
+    content.innerHTML = '<div class="courses-placeholder">Select a course from the sidebar.</div>';
+  }
+}
+
+var selectedCourseId = null;
+
+function showCourseForm(editId) {
+  var list = getCourses();
+  var course = editId ? list.find(function(c) { return c.id === editId; }) : null;
+  var html = '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Course Title</label>' +
+    '<input id="courseTitleInput" type="text" value="' + (course ? course.title.replace(/"/g,'&quot;') : '') + '" style="width:100%;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;" placeholder="e.g. Getting Started with @inf"></div>' +
+    '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Content (HTML or markdown)</label>' +
+    '<textarea id="courseContentInput" rows="12" style="width:100%;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;white-space:pre-wrap;" placeholder="Write your course content here...">' + (course ? course.content.replace(/</g,'&lt;') : '') + '</textarea></div>' +
+    '<div id="courseFormStatus" style="font-size:12px;color:var(--text-muted);margin-bottom:8px;display:none;"></div>' +
+    '<div style="display:flex;gap:8px;">' +
+    '<button id="courseSaveBtn" style="padding:8px 20px;font-size:12px;background:linear-gradient(135deg,#6b3fa0,#8860ff);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:inherit;font-weight:500;">' + (editId ? 'Update' : 'Publish') + ' Course</button>' +
+    '<button id="courseCancelBtn" style="padding:8px 20px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">Cancel</button></div>';
+  document.getElementById('coursesContent').innerHTML = html;
+  document.getElementById('courseSaveBtn').addEventListener('click', function() {
+    var title = document.getElementById('courseTitleInput').value.trim();
+    var content = document.getElementById('courseContentInput').value.trim();
+    var status = document.getElementById('courseFormStatus');
+    if (!title || !content) {
+      status.textContent = 'Title and content are required.'; status.style.color = '#ff6b6b'; status.style.display = 'block';
+      return;
+    }
+    var list = getCourses();
+    if (editId) {
+      var idx = list.findIndex(function(c) { return c.id === editId; });
+      if (idx >= 0) { list[idx].title = title; list[idx].content = content; }
+    } else {
+      list.push({ id: Date.now(), title: title, content: content, author: currentUser || 'guest', createdAt: new Date().toLocaleDateString() });
+    }
+    saveCourses(list);
+    selectedCourseId = editId || Date.now();
+    renderCourses();
+  });
+  document.getElementById('courseCancelBtn').addEventListener('click', function() { renderCourses(); });
+  document.getElementById('courseTitleInput').focus();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var newBtn = document.getElementById('newCourseBtn');
+  if (newBtn) {
+    newBtn.addEventListener('click', function() { showCourseForm(null); });
   }
 });
 

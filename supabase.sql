@@ -52,6 +52,14 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS courses (
+  id BIGINT PRIMARY KEY,
+  title TEXT NOT NULL,
+  content TEXT DEFAULT '',
+  author TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Insert default edit layout row
 INSERT INTO edit_layouts (id, layout) VALUES (1, '{}') ON CONFLICT (id) DO NOTHING;
 
@@ -63,6 +71,7 @@ ALTER TABLE themes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE edit_layouts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE friend_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow all" ON users;
 DROP POLICY IF EXISTS "Allow all" ON projects;
@@ -71,6 +80,7 @@ DROP POLICY IF EXISTS "Allow all" ON themes;
 DROP POLICY IF EXISTS "Allow all" ON edit_layouts;
 DROP POLICY IF EXISTS "Allow all" ON friend_requests;
 DROP POLICY IF EXISTS "Allow all" ON chat_messages;
+DROP POLICY IF EXISTS "Allow all" ON courses;
 
 CREATE POLICY "Allow all" ON users FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON projects FOR ALL USING (true) WITH CHECK (true);
@@ -79,3 +89,4 @@ CREATE POLICY "Allow all" ON themes FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON edit_layouts FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON friend_requests FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON chat_messages FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON courses FOR ALL USING (true) WITH CHECK (true);

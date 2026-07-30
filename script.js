@@ -2786,6 +2786,8 @@ fetchAndDisplay('index.html');
 const CC_KEY = 'ic_custom_commands';
 function getCC() { try { return JSON.parse(localStorage.getItem(CC_KEY)) || []; } catch(e) { return []; } }
 function saveCC(list) { localStorage.setItem(CC_KEY, JSON.stringify(list)); }
+let editingCmdName = null;
+
 function deleteCC(cmdName) {
   const list = getCC();
   const filtered = list.filter(c => c.cmdLine.toLowerCase().replace(/^@/,'') !== cmdName.toLowerCase().replace(/^@/,''));
@@ -2793,6 +2795,14 @@ function deleteCC(cmdName) {
   saveCC(filtered);
   renderCustomCmdList();
   return true;
+}
+
+function editCC(cmdName) {
+  const list = getCC();
+  const c = list.find(x => x.cmdLine.toLowerCase().replace(/^@/,'') === cmdName.toLowerCase().replace(/^@/,''));
+  if (!c) return;
+  editingCmdName = c.cmdLine;
+  showCmdBuilder(c.name.replace(/^@/,''), c.action, c.actionValue, c.description);
 }
 function renderCustomCmdList() {
   const el = document.getElementById('customCmdList');
@@ -2805,12 +2815,20 @@ function renderCustomCmdList() {
   el.innerHTML = list.map(c => {
     const name = c.cmdLine;
     const desc = c.description || '';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">' +
-      '<span style="color:var(--accent);font-weight:500;min-width:100px;">' + name + '</span>' +
-      '<span style="color:var(--text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + desc + '</span>' +
-      '<button class="del-cc-btn" data-cmd="' + name + '" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Delete</button>' +
+    const actionLabel = c.action === 'showMessage' ? 'Msg' : c.action === 'openURL' ? 'URL' : c.action === 'switchTab' ? 'Tab' : c.action === 'setBackground' ? 'BG' : c.action === 'injectHTML' ? 'HTML' : c.action === 'eval' ? 'JS' : '?';
+    return '<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">' +
+      '<span style="background:var(--bg-input);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--text-muted);min-width:28px;text-align:center;">' + actionLabel + '</span>' +
+      '<span style="color:var(--accent);font-weight:500;min-width:90px;">' + name + '</span>' +
+      '<span style="color:var(--text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">' + desc + '</span>' +
+      '<button class="edit-cc-btn" data-cmd="' + name + '" style="padding:4px 8px;font-size:11px;background:transparent;border:1px solid #50e3c2;border-radius:4px;color:#50e3c2;cursor:pointer;font-family:inherit;">Edit</button>' +
+      '<button class="del-cc-btn" data-cmd="' + name + '" style="padding:4px 8px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Del</button>' +
       '</div>';
   }).join('');
+  el.querySelectorAll('.edit-cc-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      editCC(this.getAttribute('data-cmd'));
+    });
+  });
   el.querySelectorAll('.del-cc-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       deleteCC(this.getAttribute('data-cmd'));
@@ -3204,17 +3222,32 @@ function createFromBuilder() {
     status.style.display = 'block';
     return;
   }
-  const cmdLine = createCustomCmd(name, action, value, desc);
-  if (!cmdLine) {
-    status.textContent = 'Command @' + name + ' already exists. Pick a different name.';
-    status.style.color = '#ff6b6b';
-    status.style.display = 'block';
-    return;
+  const newCmdLine = '@' + name.toLowerCase();
+  if (editingCmdName) {
+    const list = getCC();
+    const idx = list.findIndex(c => c.cmdLine === editingCmdName);
+    if (idx >= 0) {
+      list[idx].cmdLine = newCmdLine;
+      list[idx].name = newCmdLine;
+      list[idx].action = action;
+      list[idx].actionValue = value;
+      list[idx].description = desc;
+      saveCC(list);
+    }
+    editingCmdName = null;
+  } else {
+    const cmdLine = createCustomCmd(name, action, value, desc);
+    if (!cmdLine) {
+      status.textContent = 'Command @' + name + ' already exists. Pick a different name.';
+      status.style.color = '#ff6b6b';
+      status.style.display = 'block';
+      return;
+    }
   }
   document.getElementById('cmdBuilderOverlay').style.display = 'none';
   const inputField = document.getElementById('aiGenInput');
   const statusSpan = document.getElementById('aiGenStatus');
-  statusSpan.textContent = 'Command @' + name + ' created! Type @' + name + ' in your code & Run.';
+  statusSpan.textContent = 'Command @' + name + ' saved! Type @' + name + ' in your code & Run.';
   statusSpan.style.color = '#50e3c2';
   inputField.value = '';
   renderCustomCmdList();
@@ -3222,6 +3255,7 @@ function createFromBuilder() {
 
 document.getElementById('builderCreateBtn').addEventListener('click', createFromBuilder);
 document.getElementById('builderCancelBtn').addEventListener('click', function() {
+  editingCmdName = null;
   document.getElementById('cmdBuilderOverlay').style.display = 'none';
 });
 document.getElementById('cmdBuilderOverlay').addEventListener('click', function(e) {

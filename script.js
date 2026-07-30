@@ -3156,12 +3156,28 @@ function aiGenerateCommand(input) {
 function showCmdBuilder(name, action, value, desc) {
   document.getElementById('builderName').value = name;
   document.getElementById('builderAction').value = action;
+  document.getElementById('builderAction').dispatchEvent(new Event('change'));
   document.getElementById('builderValue').value = value;
   document.getElementById('builderDesc').value = desc;
   document.getElementById('builderStatus').style.display = 'none';
   document.getElementById('cmdBuilderOverlay').style.display = 'flex';
   document.getElementById('builderName').focus();
 }
+
+document.getElementById('builderAction').addEventListener('change', function() {
+  const label = document.getElementById('builderValueLabel');
+  const val = document.getElementById('builderValue');
+  const map = {
+    showMessage: 'Message text to display',
+    openURL: 'URL to open (e.g. https://google.com)',
+    switchTab: 'Tab name (settings, code, preview, database)',
+    setBackground: 'Hex color (e.g. #ff4444)',
+    injectHTML: 'HTML code to inject',
+    eval: 'JavaScript code to execute (e.g. 5+3 or (a,b)=>a+b)'
+  };
+  label.textContent = map[this.value] || 'Action value';
+  val.placeholder = '';
+});
 
 function createFromBuilder() {
   const name = document.getElementById('builderName').value.trim().toLowerCase().replace(/[^a-z0-9]/g, '') || 'mycommand';
@@ -3171,6 +3187,12 @@ function createFromBuilder() {
   const status = document.getElementById('builderStatus');
   if (!value) {
     status.textContent = 'Action value is required.';
+    status.style.color = '#ff6b6b';
+    status.style.display = 'block';
+    return;
+  }
+  if (action === 'eval' && !/[+\-*/(){}[\]=>]/.test(value) && value.split(/\s+/).length > 2) {
+    status.textContent = 'That looks like plain text, not JavaScript code. Choose a different action or enter valid code.';
     status.style.color = '#ff6b6b';
     status.style.display = 'block';
     return;

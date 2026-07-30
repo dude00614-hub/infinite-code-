@@ -3408,5 +3408,19 @@ document.getElementById('importFileInput').addEventListener('change', function(e
   this.value = '';
 });
 
+// Hide loading overlay when video ends or after 6s
+const loadingVideo = document.getElementById('loadingVideo');
+const loadingOverlay = document.getElementById('loadingOverlay');
+function hideLoading() {
+  loadingOverlay.style.transition = 'opacity 0.6s';
+  loadingOverlay.style.opacity = '0';
+  setTimeout(() => { loadingOverlay.style.display = 'none'; }, 700);
+}
+if (loadingVideo) {
+  loadingVideo.addEventListener('ended', hideLoading);
+  loadingVideo.addEventListener('error', hideLoading);
+}
+setTimeout(hideLoading, 6000);
+
 // Initialize custom commands list on load
 renderCustomCmdList();

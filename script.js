@@ -2220,6 +2220,18 @@ enterIDE = function(username) {
       renderProjectList();
     }
   });
+  // Sync courses from Supabase so all members see the same courses
+  sb('courses').select({}).then(r => {
+    if (r.ok && r.data && r.data.length) {
+      var localCourses = getCourses();
+      var merged = r.data.map(function(c) { return {id:c.id,title:c.title,content:c.content,author:c.author||'',createdAt:new Date(c.created_at).toLocaleDateString()}; });
+      for (var i = 0; i < localCourses.length; i++) {
+        var exists = merged.some(function(m) { return m.id === localCourses[i].id; });
+        if (!exists) merged.push(localCourses[i]);
+      }
+      localStorage.setItem(COURSES_KEY, JSON.stringify(merged));
+    }
+  });
 };
 
 function showSiteCode(output) {

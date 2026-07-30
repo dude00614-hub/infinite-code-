@@ -2837,7 +2837,7 @@ function renderCustomCmdList() {
 }
 
 function checkCustomCommands(trimmed, outputEl) {
-  const list = getCC();
+  const list = getCC().sort(function(a,b) { return b.cmdLine.length - a.cmdLine.length; });
   for (const c of list) {
     const cmdLower = c.cmdLine.toLowerCase();
     let param = '';
@@ -3205,7 +3205,7 @@ document.getElementById('builderAction').addEventListener('change', function() {
 });
 
 function createFromBuilder() {
-  const name = document.getElementById('builderName').value.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-\[\]\(\)\#\.]/g, '') || 'mycommand';
+  const name = document.getElementById('builderName').value.trim().toLowerCase().replace(/[^a-z0-9\s\-\[\]\(\)\#\.]/g, '') || 'mycommand';
   const action = document.getElementById('builderAction').value;
   const value = document.getElementById('builderValue').value.trim();
   const desc = document.getElementById('builderDesc').value.trim() || 'Custom command';

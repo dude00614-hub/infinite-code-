@@ -2871,8 +2871,8 @@ function checkCustomCommands(trimmed, outputEl) {
       if (oldFrame) oldFrame.remove();
       var frame = document.createElement('iframe');
       frame.id = 'inject-iframe';
-      frame.style.cssText = 'width:100%;height:500px;border:none;display:block;background:transparent;';
-      frame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+      frame.style.cssText = 'width:100%;height:100%;min-height:400px;border:none;display:block;background:#0d0d1a;';
+      frame.setAttribute('sandbox', 'allow-scripts');
       outputEl.appendChild(frame);
       if (val.includes('<html') || val.includes('<!DOCTYPE')) {
         frame.srcdoc = val;

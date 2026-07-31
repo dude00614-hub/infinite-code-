@@ -3595,7 +3595,14 @@ function parseIREModifiers(el, rest, idx, errors) {
     }
     const sizeM = mod.match(/^size\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
     if (sizeM) { el.size = parseFloat(sizeM[1]); return; }
-    if (/^writeline$/i.test(mod)) { el.animation = 'writeline'; return; }
+    if (/^writeline$/i.test(mod) || /^scalein$/i.test(mod)) {
+      if (el.animation) {
+        errors.push('Line ' + (idx + 1) + ': Only one animation allowed (got [' + mod + '])');
+      } else {
+        el.animation = mod.toLowerCase();
+      }
+      return;
+    }
     errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']');
   });
 }
@@ -3676,6 +3683,9 @@ function drawIREGrid(cx, cy) {
   ireCtx.fill();
 }
 
+const IRE_WRITELINE_CPS = 20;
+const IRE_SCALEIN_DURATION = 500; // ms
+
 function drawIREElements(elapsed) {
   let animating = false;
   const w = ireCanvas.width / (window.devicePixelRatio || 1);
@@ -3687,16 +3697,24 @@ function drawIREElements(elapsed) {
     const px = cx + el.pos.x;
     const py = cy - el.pos.y;
     let text = el.message;
+    let fontSize = el.size;
     if (el.animation === 'writeline') {
-      const revealed = Math.max(0, Math.min(text.length, Math.floor((elapsed / 1000) * 20)));
+      const revealed = Math.max(0, Math.min(text.length, Math.floor((elapsed / 1000) * IRE_WRITELINE_CPS)));
       text = text.substring(0, revealed);
       if (revealed < el.message.length) animating = true;
+    } else if (el.animation === 'scalein') {
+      const t = Math.min(1, elapsed / IRE_SCALEIN_DURATION);
+      const eased = 1 - Math.pow(1 - t, 3);
+      fontSize = el.size * eased;
+      if (t < 1) animating = true;
     }
-    ireCtx.font = el.size + 'px "Segoe UI", Arial, sans-serif';
-    ireCtx.fillStyle = el.color;
-    ireCtx.textAlign = 'center';
-    ireCtx.textBaseline = 'middle';
-    ireCtx.fillText(text, px, py);
+    if (fontSize > 0.5) {
+      ireCtx.font = fontSize + 'px "Segoe UI", Arial, sans-serif';
+      ireCtx.fillStyle = el.color;
+      ireCtx.textAlign = 'center';
+      ireCtx.textBaseline = 'middle';
+      ireCtx.fillText(text, px, py);
+    }
   });
   return animating;
 }

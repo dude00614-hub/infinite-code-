@@ -3532,7 +3532,7 @@ document.addEventListener('DOMContentLoaded', function() {
 const IRE_START_LABEL = '@start("IRE")';
 const IRE_SUGGESTIONS = [
   { label: '@start("IRE")', desc: 'required entry point' },
-  { label: '@text("message")', desc: 'text at pos(x,y) with optional color/size/writeline' }
+  { label: '@text("message") [pos(x,y)] [color("colorname")] [size(number)] [animation]', desc: 'text element template' }
 ];
 let ireSelIndex = 0;
 
@@ -3886,7 +3886,7 @@ function acceptIREsuggestion() {
   const replaceStart = atPos >= 0 ? lineStart + atPos : lineStart;
   textarea.value = value.substring(0, replaceStart) + label + value.substring(cursorPos);
   let end = replaceStart + label.length;
-  if (value.charAt(end) === ')' && label.endsWith(')')) {
+  while (end < textarea.value.length && ')]}'.indexOf(textarea.value.charAt(end)) !== -1) {
     textarea.value = textarea.value.substring(0, end) + textarea.value.substring(end + 1);
   }
   textarea.selectionStart = textarea.selectionEnd = end;

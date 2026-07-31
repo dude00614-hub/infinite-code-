@@ -1113,6 +1113,7 @@ body {
   color: var(--text-primary);
   cursor: pointer;
   transition: background 0.1s;
+  white-space: nowrap;
 }
 
 .suggestion-item:hover,

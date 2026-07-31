@@ -3533,7 +3533,8 @@ const IRE_START_LABEL = '@start("IRE")';
 const IRE_SUGGESTIONS = [
   { label: '@start("IRE")', desc: 'required entry point' },
   { label: '@text("message") [pos(x,y)] [color("colorname")] [size(number)] [animation]', desc: 'text element template' },
-  { label: '@circle [pos(x,y)] [radius(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation]', desc: 'circle element template' }
+  { label: '@circle [pos(x,y)] [radius(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation]', desc: 'circle element template' },
+  { label: '@rectangle [pos(x,y)] [width(number)] [height(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation]', desc: 'rectangle element template' }
 ];
 let ireSelIndex = 0;
 
@@ -3546,6 +3547,7 @@ function highlightIRE(code) {
   html = html.replace(/(@start\s*\(\s*["']IRE["']\s*\))/g, '<span class="token-ire">$1</span>');
   html = html.replace(/(@text\s*\(\s*["'][^"']*["']\s*\))/g, '<span class="token-ire-text">$1</span>');
   html = html.replace(/(@circle\b)/g, '<span class="token-ire-circle">$1</span>');
+  html = html.replace(/(@rectangle\b)/g, '<span class="token-ire-rectangle">$1</span>');
   return html;
 }
 
@@ -3595,25 +3597,38 @@ function parseIREModifiers(el, rest, idx, errors) {
       else { errors.push('Line ' + (idx + 1) + ': Unknown color "' + colM[1] + '"'); }
       return;
     }
+    const shape = el.type === 'circle' || el.type === 'rectangle';
     const radM = mod.match(/^radius\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
     if (radM) {
       if (el.type !== 'circle') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
       else { el.radius = parseFloat(radM[1]); }
       return;
     }
+    const wM = mod.match(/^width\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
+    if (wM) {
+      if (el.type !== 'rectangle') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      else { el.width = parseFloat(wM[1]); }
+      return;
+    }
+    const hM = mod.match(/^height\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
+    if (hM) {
+      if (el.type !== 'rectangle') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      else { el.height = parseFloat(hM[1]); }
+      return;
+    }
     if (/^fill-yes$/i.test(mod)) {
-      if (el.type !== 'circle') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      if (!shape) { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
       else { el.fillYes = true; }
       return;
     }
     if (/^fill-no$/i.test(mod)) {
-      if (el.type !== 'circle') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      if (!shape) { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
       else { el.fillNo = true; }
       return;
     }
     const fillColM = mod.match(/^fill-color\s*\(\s*["']?([^"')]+)["']?\s*\)$/i);
     if (fillColM) {
-      if (el.type !== 'circle') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      if (!shape) { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
       else {
         const c = resolveIREColor(fillColM[1]);
         if (c) { el.fillColor = c; }
@@ -3630,7 +3645,7 @@ function parseIREModifiers(el, rest, idx, errors) {
     const anim = mod.toLowerCase();
     const validAnim =
       (el.type === 'text' && (anim === 'writeline' || anim === 'scalein' || anim === 'fadein')) ||
-      (el.type === 'circle' && anim === 'scalein');
+      ((el.type === 'circle' || el.type === 'rectangle') && anim === 'scalein');
     if (validAnim) {
       if (el.animation) {
         errors.push('Line ' + (idx + 1) + ': Only one animation allowed (got [' + mod + '])');
@@ -3670,6 +3685,19 @@ function parseIRE(script) {
       elements.push(el);
       return;
     }
+    const rm = t.match(/^@rectangle\b\s*/i);
+    if (rm) {
+      const rest = t.slice(rm[0].length);
+      if (/^\s*\(/.test(rest)) {
+        errors.push('Line ' + (idx + 1) + ': @rectangle takes no arguments');
+        return;
+      }
+      const el = { type: 'rectangle', pos: { x: 0, y: 0 }, width: 100, height: 50, color: '#ffffff', fillColor: '#ffffff', fillYes: false, fillNo: false, animation: null };
+      parseIREModifiers(el, rest, idx, errors);
+      el.fill = !el.fillNo;
+      elements.push(el);
+      return;
+    }
     if (/^@\w/.test(t)) {
       errors.push('Line ' + (idx + 1) + ': Unknown IRE element "' + t + '"');
       return;
@@ -3677,7 +3705,7 @@ function parseIRE(script) {
     if (t.charAt(0) === '[' && elements.length) {
       const last = elements[elements.length - 1];
       parseIREModifiers(last, t, idx, errors);
-      if (last.type === 'circle') last.fill = !last.fillNo;
+      if (last.type === 'circle' || last.type === 'rectangle') last.fill = !last.fillNo;
     }
   });
   return { elements: elements, errors: errors };
@@ -3757,6 +3785,27 @@ function drawIREElements(elapsed) {
       }
       ireCtx.beginPath();
       ireCtx.arc(px, py, radius, 0, Math.PI * 2);
+      ireCtx.strokeStyle = el.color;
+      ireCtx.lineWidth = 2;
+      if (el.fill) {
+        ireCtx.fillStyle = el.fillColor;
+        ireCtx.fill();
+      }
+      ireCtx.stroke();
+      return;
+    }
+    if (el.type === 'rectangle') {
+      let rw = el.width;
+      let rh = el.height;
+      if (el.animation === 'scalein') {
+        const t = Math.min(1, elapsed / IRE_SCALEIN_DURATION);
+        const eased = 1 - Math.pow(1 - t, 3);
+        rw = el.width * eased;
+        rh = el.height * eased;
+        if (t < 1) animating = true;
+      }
+      ireCtx.beginPath();
+      ireCtx.rect(px - rw / 2, py - rh / 2, rw, rh);
       ireCtx.strokeStyle = el.color;
       ireCtx.lineWidth = 2;
       if (el.fill) {

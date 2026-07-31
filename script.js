@@ -3520,6 +3520,19 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+// ===== IRE (Infinite Render Engine) =====
+document.getElementById('ireRunBtn').addEventListener('click', function() {
+  console.log('IRE run triggered');
+  var status = document.getElementById('ireStatus');
+  if (status) { status.textContent = 'IRE run triggered — rendering engine coming soon.'; status.style.color = '#50e3c2'; }
+});
+
+document.getElementById('ireExportBtn').addEventListener('click', function() {
+  console.log('IRE MP4 export requested — not yet implemented');
+  var status = document.getElementById('ireStatus');
+  if (status) { status.textContent = 'MP4 export is not yet implemented.'; status.style.color = '#ff6b6b'; }
+});
+
 // ===== DATABASE =====
 const DB_KEY = 'ic_database';
 let dbFilterTag = null;

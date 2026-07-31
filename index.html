@@ -67,6 +67,7 @@
           <button class="topbar-tab owner-only" data-tab="run">&#9654; /run</button>
           <button class="topbar-tab owner-only" data-tab="edit">&#9998; Edit</button>
           <button class="topbar-tab" data-tab="courses">&#128218; Courses</button>
+          <button class="topbar-tab" data-tab="ire">&#127917; IRE</button>
           <button class="topbar-tab" data-tab="settings">&#9881; Settings</button>
         </div>
       </div>
@@ -299,6 +300,28 @@
               </div>
               <div class="courses-content" id="coursesContent">
                 <div class="courses-placeholder">Select a course from the sidebar or create a new one.</div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-content" id="tab-ire">
+            <div class="ire-layout">
+              <div class="ire-editor-area">
+                <div class="ire-header">
+                  <span class="ire-header-title">&#127917; IRE Script</span>
+                  <span class="ire-header-hint">.ire — Infinite Render Engine</span>
+                </div>
+                <textarea id="ireEditor" class="ire-editor" spellcheck="false" placeholder="-- Write your .ire script here --"></textarea>
+              </div>
+              <div class="ire-preview">
+                <div class="preview-header">IRE Preview</div>
+                <div class="preview-actions">
+                  <button class="run-btn" id="ireRunBtn">&#9654; Run</button>
+                  <button class="fullscreen-btn" id="ireExportBtn" title="Export as MP4">&#128268; Download MP4</button>
+                  <span id="ireStatus" class="ire-status"></span>
+                </div>
+                <div class="ire-preview-canvas" id="irePreview">
+                  <div class="ire-preview-placeholder">Animation preview will render here.</div>
+                </div>
               </div>
             </div>
           </div>

@@ -3532,9 +3532,9 @@ document.addEventListener('DOMContentLoaded', function() {
 const IRE_START_LABEL = '@start("IRE")';
 const IRE_SUGGESTIONS = [
   { label: '@start("IRE")', desc: 'required entry point' },
-  { label: '@text("message") [pos(x,y)] [color("colorname")] [size(number)] [animation]', desc: 'text element template' },
-  { label: '@circle [pos(x,y)] [radius(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation]', desc: 'circle element template' },
-  { label: '@rectangle [pos(x,y)] [width(number)] [height(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation]', desc: 'rectangle element template' }
+  { label: '@text("message") [pos(x,y)] [color("colorname")] [size(number)] [animation] [id=("name")]', desc: 'text element template' },
+  { label: '@circle [pos(x,y)] [radius(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'circle element template' },
+  { label: '@rectangle [pos(x,y)] [width(number)] [height(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'rectangle element template' }
 ];
 let ireSelIndex = 0;
 
@@ -3597,6 +3597,8 @@ function parseIREModifiers(el, rest, idx, errors) {
       else { errors.push('Line ' + (idx + 1) + ': Unknown color "' + colM[1] + '"'); }
       return;
     }
+    const idM = mod.match(/^id\s*=\s*\(\s*["']?([^"')]+)["']?\s*\)$/i);
+    if (idM) { el.id = idM[1].trim(); return; }
     const shape = el.type === 'circle' || el.type === 'rectangle';
     const radM = mod.match(/^radius\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
     if (radM) {
@@ -3667,7 +3669,7 @@ function parseIRE(script) {
     if (t.indexOf('--') === 0) return;
     const m = t.match(/@text\s*\(\s*["']([^"']*)["']\s*\)/);
     if (m) {
-      const el = { type: 'text', message: m[1], pos: { x: 0, y: 0 }, color: '#ffffff', size: 32, animation: null };
+      const el = { type: 'text', message: m[1], pos: { x: 0, y: 0 }, color: '#ffffff', size: 32, animation: null, id: null, line: idx + 1 };
       parseIREModifiers(el, t.slice(m[0].length), idx, errors);
       elements.push(el);
       return;
@@ -3679,7 +3681,7 @@ function parseIRE(script) {
         errors.push('Line ' + (idx + 1) + ': @circle takes no arguments');
         return;
       }
-      const el = { type: 'circle', pos: { x: 0, y: 0 }, radius: 50, color: '#ffffff', fillColor: '#ffffff', fillYes: false, fillNo: false, animation: null };
+      const el = { type: 'circle', pos: { x: 0, y: 0 }, radius: 50, color: '#ffffff', fillColor: '#ffffff', fillYes: false, fillNo: false, animation: null, id: null, line: idx + 1 };
       parseIREModifiers(el, rest, idx, errors);
       el.fill = !el.fillNo;
       elements.push(el);
@@ -3692,7 +3694,7 @@ function parseIRE(script) {
         errors.push('Line ' + (idx + 1) + ': @rectangle takes no arguments');
         return;
       }
-      const el = { type: 'rectangle', pos: { x: 0, y: 0 }, width: 100, height: 50, color: '#ffffff', fillColor: '#ffffff', fillYes: false, fillNo: false, animation: null };
+      const el = { type: 'rectangle', pos: { x: 0, y: 0 }, width: 100, height: 50, color: '#ffffff', fillColor: '#ffffff', fillYes: false, fillNo: false, animation: null, id: null, line: idx + 1 };
       parseIREModifiers(el, rest, idx, errors);
       el.fill = !el.fillNo;
       elements.push(el);
@@ -3708,6 +3710,16 @@ function parseIRE(script) {
       if (last.type === 'circle' || last.type === 'rectangle') last.fill = !last.fillNo;
     }
   });
+  const seenIds = {};
+  elements.forEach(function(el) {
+    if (el.id) {
+      if (seenIds[el.id]) {
+        errors.push('Line ' + el.line + ': Duplicate id "' + el.id + '" — ids must be unique');
+      } else {
+        seenIds[el.id] = true;
+      }
+    }
+  });
   return { elements: elements, errors: errors };
 }
 
@@ -3718,6 +3730,7 @@ let ireGridOn = true;
 let ireRendered = false;
 let ireStartTime = 0;
 let ireElements = [];
+let ireElementsById = {};
 let ireAnimFrame = null;
 let ireMouse = null;
 
@@ -3936,6 +3949,9 @@ function runIRE() {
     return;
   }
   ireElements = parsed.elements;
+  ireElementsById = {};
+  parsed.elements.forEach(function(el) { if (el.id) ireElementsById[el.id] = el; });
+  if (Object.keys(ireElementsById).length) console.log('IRE elements by id:', ireElementsById);
   ireRendered = true;
   ireStartTime = performance.now();
   syncIREPlaceholder();

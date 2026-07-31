@@ -3532,7 +3532,8 @@ document.addEventListener('DOMContentLoaded', function() {
 const IRE_START_LABEL = '@start("IRE")';
 const IRE_SUGGESTIONS = [
   { label: '@start("IRE")', desc: 'required entry point' },
-  { label: '@text("message") [pos(x,y)] [color("colorname")] [size(number)] [animation]', desc: 'text element template' }
+  { label: '@text("message") [pos(x,y)] [color("colorname")] [size(number)] [animation]', desc: 'text element template' },
+  { label: '@circle [pos(x,y)] [radius(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")]', desc: 'circle element template' }
 ];
 let ireSelIndex = 0;
 
@@ -3544,6 +3545,7 @@ function highlightIRE(code) {
   var html = escapeIRE(code);
   html = html.replace(/(@start\s*\(\s*["']IRE["']\s*\))/g, '<span class="token-ire">$1</span>');
   html = html.replace(/(@text\s*\(\s*["'][^"']*["']\s*\))/g, '<span class="token-ire-text">$1</span>');
+  html = html.replace(/(@circle\b)/g, '<span class="token-ire-circle">$1</span>');
   return html;
 }
 
@@ -3593,9 +3595,39 @@ function parseIREModifiers(el, rest, idx, errors) {
       else { errors.push('Line ' + (idx + 1) + ': Unknown color "' + colM[1] + '"'); }
       return;
     }
+    const radM = mod.match(/^radius\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
+    if (radM) {
+      if (el.type !== 'circle') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      else { el.radius = parseFloat(radM[1]); }
+      return;
+    }
+    if (/^fill-yes$/i.test(mod)) {
+      if (el.type !== 'circle') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      else { el.fillYes = true; }
+      return;
+    }
+    if (/^fill-no$/i.test(mod)) {
+      if (el.type !== 'circle') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      else { el.fillNo = true; }
+      return;
+    }
+    const fillColM = mod.match(/^fill-color\s*\(\s*["']?([^"')]+)["']?\s*\)$/i);
+    if (fillColM) {
+      if (el.type !== 'circle') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      else {
+        const c = resolveIREColor(fillColM[1]);
+        if (c) { el.fillColor = c; }
+        else { errors.push('Line ' + (idx + 1) + ': Unknown color "' + fillColM[1] + '"'); }
+      }
+      return;
+    }
     const sizeM = mod.match(/^size\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
-    if (sizeM) { el.size = parseFloat(sizeM[1]); return; }
-    if (/^writeline$/i.test(mod) || /^scalein$/i.test(mod) || /^fadein$/i.test(mod)) {
+    if (sizeM) {
+      if (el.type !== 'text') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      else { el.size = parseFloat(sizeM[1]); }
+      return;
+    }
+    if (el.type === 'text' && (/^writeline$/i.test(mod) || /^scalein$/i.test(mod) || /^fadein$/i.test(mod))) {
       if (el.animation) {
         errors.push('Line ' + (idx + 1) + ': Only one animation allowed (got [' + mod + '])');
       } else {
@@ -3621,12 +3653,27 @@ function parseIRE(script) {
       elements.push(el);
       return;
     }
+    const cm = t.match(/^@circle\b\s*/i);
+    if (cm) {
+      const rest = t.slice(cm[0].length);
+      if (/^\s*\(/.test(rest)) {
+        errors.push('Line ' + (idx + 1) + ': @circle takes no arguments');
+        return;
+      }
+      const el = { type: 'circle', pos: { x: 0, y: 0 }, radius: 50, color: '#ffffff', fillColor: '#ffffff', fillYes: false, fillNo: false };
+      parseIREModifiers(el, rest, idx, errors);
+      el.fill = !el.fillNo;
+      elements.push(el);
+      return;
+    }
     if (/^@\w/.test(t)) {
       errors.push('Line ' + (idx + 1) + ': Unknown IRE element "' + t + '"');
       return;
     }
     if (t.charAt(0) === '[' && elements.length) {
-      parseIREModifiers(elements[elements.length - 1], t, idx, errors);
+      const last = elements[elements.length - 1];
+      parseIREModifiers(last, t, idx, errors);
+      if (last.type === 'circle') last.fill = !last.fillNo;
     }
   });
   return { elements: elements, errors: errors };
@@ -3694,9 +3741,20 @@ function drawIREElements(elapsed) {
   const cx = w / 2;
   const cy = h / 2;
   ireElements.forEach(function(el) {
-    if (el.type !== 'text') return;
     const px = cx + el.pos.x;
     const py = cy - el.pos.y;
+    if (el.type === 'circle') {
+      ireCtx.beginPath();
+      ireCtx.arc(px, py, el.radius, 0, Math.PI * 2);
+      ireCtx.strokeStyle = el.color;
+      ireCtx.lineWidth = 2;
+      if (el.fill) {
+        ireCtx.fillStyle = el.fillColor;
+        ireCtx.fill();
+      }
+      ireCtx.stroke();
+      return;
+    }
     let text = el.message;
     let fontSize = el.size;
     let alpha = 1;
@@ -3824,7 +3882,7 @@ function runIRE() {
   resizeIRECanvas();
   const lines = body.split('\n').filter(function(l) { return l.trim(); }).length;
   logIRE('@start("IRE") found and removed. Script body ready (' + lines + ' non-empty line' + (lines === 1 ? '' : 's') + ').', 'success');
-  logIRE(parsed.elements.length + ' text element' + (parsed.elements.length === 1 ? '' : 's') + ' parsed. Rendering...', 'success');
+  logIRE(parsed.elements.length + ' element' + (parsed.elements.length === 1 ? '' : 's') + ' parsed. Rendering...', 'success');
   if (status) { status.textContent = 'Rendered ' + parsed.elements.length + ' element' + (parsed.elements.length === 1 ? '' : 's'); status.style.color = '#50e3c2'; }
 }
 

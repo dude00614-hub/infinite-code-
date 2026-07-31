@@ -2355,6 +2355,11 @@ body.dragging .edit-handle {
   font-weight: 600;
 }
 
+.token-ire-circle {
+  color: #7ee787;
+  font-weight: 600;
+}
+
 .ire-preview {
   width: 50%;
   min-width: 340px;

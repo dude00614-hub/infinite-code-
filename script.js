@@ -3549,6 +3549,154 @@ function logIRE(msg, type) {
   output.scrollTop = output.scrollHeight;
 }
 
+const IRE_COLOR_NAMES = {
+  white: '#ffffff', black: '#000000', red: '#ff5555', green: '#4caf50',
+  blue: '#55aaff', yellow: '#ffd700', orange: '#ffa500', purple: '#b066ff',
+  pink: '#ff66cc', cyan: '#55ffff', magenta: '#ff55ff', gray: '#aaaaaa',
+  grey: '#aaaaaa', brown: '#a0522d', lime: '#aaff00', navy: '#000080',
+  teal: '#008080', maroon: '#800000', gold: '#ffd700', silver: '#c0c0c0',
+  indigo: '#4b0082', violet: '#ee82ee', crimson: '#dc143c', skyblue: '#87ceeb'
+};
+
+function resolveIREColor(name) {
+  const v = String(name || '').trim().toLowerCase();
+  if (/^#[0-9a-f]{3,6}$/i.test(v)) return v;
+  if (IRE_COLOR_NAMES[v]) return IRE_COLOR_NAMES[v];
+  return null;
+}
+
+function parseIRE(script) {
+  const elements = [];
+  const errors = [];
+  script.split('\n').forEach(function(line, idx) {
+    const t = line.trim();
+    if (!t) return;
+    if (t.indexOf('--') === 0) return;
+    const m = t.match(/@text\s*\(\s*["']([^"']*)["']\s*\)/);
+    if (!m) {
+      if (/^@\w/.test(t)) errors.push('Line ' + (idx + 1) + ': Unknown IRE element "' + t + '"');
+      return;
+    }
+    const el = { type: 'text', message: m[1], pos: { x: 0, y: 0 }, color: '#ffffff', size: 32, animation: null };
+    const rest = t.slice(m[0].length);
+    const mods = rest.match(/\[[^\]]*\]/g) || [];
+    mods.forEach(function(modStr) {
+      const mod = modStr.slice(1, -1).trim();
+      if (!mod) return;
+      const posM = mod.match(/^pos\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)$/i);
+      if (posM) { el.pos = { x: parseFloat(posM[1]), y: parseFloat(posM[2]) }; return; }
+      const colM = mod.match(/^color\s*\(\s*["']?([^"')]+)["']?\s*\)$/i);
+      if (colM) {
+        const c = resolveIREColor(colM[1]);
+        if (c) { el.color = c; }
+        else { errors.push('Line ' + (idx + 1) + ': Unknown color "' + colM[1] + '"'); }
+        return;
+      }
+      const sizeM = mod.match(/^size\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
+      if (sizeM) { el.size = parseFloat(sizeM[1]); return; }
+      if (/^writeline$/i.test(mod)) { el.animation = 'writeline'; return; }
+      errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']');
+    });
+    elements.push(el);
+  });
+  return { elements: elements, errors: errors };
+}
+
+// ===== IRE RENDERER =====
+const ireCanvas = document.getElementById('irePreviewCanvas');
+const ireCtx = ireCanvas.getContext('2d');
+let ireGridOn = true;
+let ireRendered = false;
+let ireStartTime = 0;
+let ireElements = [];
+let ireAnimFrame = null;
+
+function resizeIRECanvas() {
+  const box = document.getElementById('irePreview');
+  if (!box) return;
+  const w = Math.max(1, box.clientWidth);
+  const h = Math.max(1, box.clientHeight);
+  const dpr = window.devicePixelRatio || 1;
+  ireCanvas.width = Math.floor(w * dpr);
+  ireCanvas.height = Math.floor(h * dpr);
+  ireCanvas.style.width = w + 'px';
+  ireCanvas.style.height = h + 'px';
+  ireCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawIREPreview();
+}
+
+function drawIREGrid(cx, cy) {
+  const spacing = 40;
+  ireCtx.strokeStyle = 'rgba(255,255,255,0.07)';
+  ireCtx.lineWidth = 1;
+  ireCtx.beginPath();
+  for (let x = ((cx % spacing) + spacing) % spacing; x < ireCanvas.width / (window.devicePixelRatio || 1); x += spacing) {
+    ireCtx.moveTo(x, 0);
+    ireCtx.lineTo(x, ireCanvas.height / (window.devicePixelRatio || 1));
+  }
+  for (let y = ((cy % spacing) + spacing) % spacing; y < ireCanvas.height / (window.devicePixelRatio || 1); y += spacing) {
+    ireCtx.moveTo(0, y);
+    ireCtx.lineTo(ireCanvas.width / (window.devicePixelRatio || 1), y);
+  }
+  ireCtx.stroke();
+  ireCtx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ireCtx.beginPath();
+  ireCtx.moveTo(cx, 0);
+  ireCtx.lineTo(cx, ireCanvas.height / (window.devicePixelRatio || 1));
+  ireCtx.moveTo(0, cy);
+  ireCtx.lineTo(ireCanvas.width / (window.devicePixelRatio || 1), cy);
+  ireCtx.stroke();
+  ireCtx.fillStyle = 'rgba(255,255,255,0.65)';
+  ireCtx.beginPath();
+  ireCtx.arc(cx, cy, 3, 0, Math.PI * 2);
+  ireCtx.fill();
+}
+
+function drawIREElements(elapsed) {
+  let animating = false;
+  const w = ireCanvas.width / (window.devicePixelRatio || 1);
+  const h = ireCanvas.height / (window.devicePixelRatio || 1);
+  const cx = w / 2;
+  const cy = h / 2;
+  ireElements.forEach(function(el) {
+    if (el.type !== 'text') return;
+    const px = cx + el.pos.x;
+    const py = cy - el.pos.y;
+    let text = el.message;
+    if (el.animation === 'writeline') {
+      const revealed = Math.max(0, Math.min(text.length, Math.floor((elapsed / 1000) * 20)));
+      text = text.substring(0, revealed);
+      if (revealed < el.message.length) animating = true;
+    }
+    ireCtx.font = el.size + 'px "Segoe UI", Arial, sans-serif';
+    ireCtx.fillStyle = el.color;
+    ireCtx.textAlign = 'center';
+    ireCtx.textBaseline = 'middle';
+    ireCtx.fillText(text, px, py);
+  });
+  return animating;
+}
+
+function drawIREPreview() {
+  ireAnimFrame = null;
+  const w = ireCanvas.width / (window.devicePixelRatio || 1);
+  const h = ireCanvas.height / (window.devicePixelRatio || 1);
+  ireCtx.clearRect(0, 0, w, h);
+  const cx = w / 2;
+  const cy = h / 2;
+  if (ireGridOn) drawIREGrid(cx, cy);
+  const elapsed = ireRendered ? (performance.now() - ireStartTime) : 0;
+  const animating = drawIREElements(elapsed);
+  if (animating && !ireAnimFrame) {
+    ireAnimFrame = requestAnimationFrame(drawIREPreview);
+  }
+}
+
+function syncIREPlaceholder() {
+  const ph = document.querySelector('.ire-preview-placeholder');
+  if (ph) ph.style.display = (!ireRendered && !ireGridOn) ? '' : 'none';
+}
+
 function runIRE() {
   const output = document.getElementById('ireOutput');
   if (output) output.innerHTML = '';
@@ -3562,9 +3710,21 @@ function runIRE() {
     return;
   }
   const body = raw.replace(/^\s*@start\s*\(\s*["']IRE["']\s*\)[^\n]*\n?/, '');
-  const nonEmpty = body.split('\n').filter(function(l) { return l.trim(); }).length;
-  logIRE('@start("IRE") found and removed. Script body ready (' + nonEmpty + ' non-empty line' + (nonEmpty === 1 ? '' : 's') + ').', 'success');
-  if (status) { status.textContent = 'Script accepted'; status.style.color = '#50e3c2'; }
+  const parsed = parseIRE(body);
+  if (parsed.errors.length) {
+    parsed.errors.forEach(function(e) { logIRE('Error: ' + e, 'error'); });
+    if (status) { status.textContent = 'Script rejected'; status.style.color = '#ff6b6b'; }
+    return;
+  }
+  ireElements = parsed.elements;
+  ireRendered = true;
+  ireStartTime = performance.now();
+  syncIREPlaceholder();
+  resizeIRECanvas();
+  const lines = body.split('\n').filter(function(l) { return l.trim(); }).length;
+  logIRE('@start("IRE") found and removed. Script body ready (' + lines + ' non-empty line' + (lines === 1 ? '' : 's') + ').', 'success');
+  logIRE(parsed.elements.length + ' text element' + (parsed.elements.length === 1 ? '' : 's') + ' parsed. Rendering...', 'success');
+  if (status) { status.textContent = 'Rendered ' + parsed.elements.length + ' element' + (parsed.elements.length === 1 ? '' : 's'); status.style.color = '#50e3c2'; }
 }
 
 function getIREPixelPos() {
@@ -3639,6 +3799,43 @@ document.getElementById('ireEditor').addEventListener('input', function() {
   showIREsuggestions();
 });
 
+document.getElementById('ireGridToggle').addEventListener('click', function() {
+  ireGridOn = !ireGridOn;
+  this.classList.toggle('active', ireGridOn);
+  syncIREPlaceholder();
+  resizeIRECanvas();
+});
+
+function toggleIREFullscreen() {
+  const panel = document.getElementById('irePreviewPanel');
+  const goingFull = !panel.classList.contains('ire-fullscreen');
+  panel.classList.toggle('ire-fullscreen');
+  const btn = document.getElementById('ireFullscreenBtn');
+  btn.classList.toggle('active', goingFull);
+  btn.innerHTML = goingFull ? '&#10006;' : '&#9974;';
+  resizeIRECanvas();
+}
+
+document.getElementById('ireFullscreenBtn').addEventListener('click', toggleIREFullscreen);
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const panel = document.getElementById('irePreviewPanel');
+    if (panel.classList.contains('ire-fullscreen')) toggleIREFullscreen();
+  }
+});
+
+if ('ResizeObserver' in window) {
+  const previewBox = document.getElementById('irePreview');
+  new ResizeObserver(resizeIRECanvas).observe(previewBox);
+} else {
+  window.addEventListener('resize', resizeIRECanvas);
+}
+
+updateIREHighlight();
+syncIREPlaceholder();
+resizeIRECanvas();
+
 document.getElementById('ireEditor').addEventListener('scroll', function() {
   const highlight = document.getElementById('ireHighlight');
   if (highlight) {
@@ -3712,8 +3909,6 @@ document.getElementById('ireExportBtn').addEventListener('click', function() {
   var status = document.getElementById('ireStatus');
   if (status) { status.textContent = 'MP4 export is not yet implemented.'; status.style.color = '#ff6b6b'; }
 });
-
-updateIREHighlight();
 
 // ===== DATABASE =====
 const DB_KEY = 'ic_database';

@@ -316,14 +316,17 @@
                 </div>
                 <div class="suggestions" id="ireSuggestionsDropdown"></div>
               </div>
-              <div class="ire-preview">
+              <div class="ire-preview" id="irePreviewPanel">
                 <div class="preview-header">IRE Preview</div>
                 <div class="preview-actions">
                   <button class="run-btn" id="ireRunBtn">&#9654; Run</button>
+                  <button class="ire-tool-btn active" id="ireGridToggle" title="Toggle coordinate overlay">&#9638; Grid</button>
+                  <button class="fullscreen-btn" id="ireFullscreenBtn" title="Fullscreen Preview">&#9974;</button>
                   <button class="fullscreen-btn" id="ireExportBtn" title="Export as MP4">&#128268; Download MP4</button>
                   <span id="ireStatus" class="ire-status"></span>
                 </div>
                 <div class="ire-preview-canvas" id="irePreview">
+                  <canvas id="irePreviewCanvas"></canvas>
                   <div class="ire-preview-placeholder">Animation preview will render here.</div>
                 </div>
                 <div class="ire-output">

@@ -2232,6 +2232,16 @@ enterIDE = function(username) {
       localStorage.setItem(COURSES_KEY, JSON.stringify(merged));
     }
   });
+  // Sync custom commands from Supabase so all members see the same commands
+  sb('commands').select({}).then(r => {
+    if (r.ok && r.data && r.data.length) {
+      var serverCC = r.data.map(function(c) { return {cmdLine:c.cmd_line, name:c.name||c.cmd_line, params:'', description:c.description||'Custom command', action:c.action, actionValue:c.action_value}; });
+      var localCC = getCC();
+      var merged = serverCC.concat(localCC.filter(function(l) { return !serverCC.some(function(s) { return s.cmdLine === l.cmdLine; }); }));
+      localStorage.setItem(CC_KEY, JSON.stringify(merged));
+      renderCustomCmdList();
+    }
+  });
 };
 
 function showSiteCode(output) {
@@ -2798,7 +2808,15 @@ fetchAndDisplay('index.html');
 // ===== CUSTOM COMMAND SYSTEM (AI-managed) =====
 const CC_KEY = 'ic_custom_commands';
 function getCC() { try { return JSON.parse(localStorage.getItem(CC_KEY)) || []; } catch(e) { return []; } }
-function saveCC(list) { localStorage.setItem(CC_KEY, JSON.stringify(list)); }
+function saveCC(list) {
+  const prev = getCC();
+  localStorage.setItem(CC_KEY, JSON.stringify(list));
+  if (!currentUser) return;
+  sb('commands').upsert(list.map(function(c) {
+    const old = prev.find(function(p) { return p.cmdLine === c.cmdLine; });
+    return {cmd_line:c.cmdLine, name:c.name, action:c.action, action_value:c.actionValue, description:c.description||'', author:(old && old.author) || currentUser};
+  }), 'cmd_line');
+}
 let editingCmdName = null;
 
 function deleteCC(cmdName) {
@@ -2806,6 +2824,8 @@ function deleteCC(cmdName) {
   const filtered = list.filter(c => c.cmdLine.toLowerCase().replace(/^@/,'') !== cmdName.toLowerCase().replace(/^@/,''));
   if (filtered.length === list.length) return false;
   saveCC(filtered);
+  const target = list.find(c => c.cmdLine.toLowerCase().replace(/^@/,'') === cmdName.toLowerCase().replace(/^@/,''));
+  if (target && currentUser) sb('commands').delete({cmd_line: target.cmdLine});
   renderCustomCmdList();
   return true;
 }

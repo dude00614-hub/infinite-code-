@@ -3521,10 +3521,165 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ===== IRE (Infinite Render Engine) =====
+const IRE_START_LABEL = '@start("IRE")';
+
+function logIRE(msg, type) {
+  const output = document.getElementById('ireOutput');
+  if (!output) return;
+  const line = document.createElement('div');
+  line.className = 'ire-output-line ' + (type || 'info');
+  line.textContent = msg;
+  output.appendChild(line);
+  output.scrollTop = output.scrollHeight;
+}
+
+function runIRE() {
+  const output = document.getElementById('ireOutput');
+  if (output) output.innerHTML = '';
+  const editor = document.getElementById('ireEditor');
+  const raw = editor.value;
+  const status = document.getElementById('ireStatus');
+  const match = raw.match(/^\s*@start\s*\(\s*["']IRE["']\s*\)/);
+  if (!match) {
+    logIRE('Error: Missing @start("IRE") directive. Add @start("IRE") at the top of your script.', 'error');
+    if (status) { status.textContent = 'Missing @start("IRE")'; status.style.color = '#ff6b6b'; }
+    return;
+  }
+  const body = raw.replace(/^\s*@start\s*\(\s*["']IRE["']\s*\)[^\n]*\n?/, '');
+  const nonEmpty = body.split('\n').filter(function(l) { return l.trim(); }).length;
+  logIRE('@start("IRE") found and removed. Script body ready (' + nonEmpty + ' non-empty line' + (nonEmpty === 1 ? '' : 's') + ').', 'success');
+  if (status) { status.textContent = 'Script accepted'; status.style.color = '#50e3c2'; }
+}
+
+function getIREPixelPos() {
+  const textarea = document.getElementById('ireEditor');
+  const pos = textarea.selectionStart;
+  const value = textarea.value;
+  const before = value.substring(0, pos);
+  const mirror = document.createElement('div');
+  const s = getComputedStyle(textarea);
+  mirror.style.cssText = 'position:fixed;top:0;left:0;visibility:hidden;pointer-events:none;white-space:pre;font-size:' + s.fontSize + ';line-height:' + s.lineHeight + ';font-family:' + s.fontFamily + ';padding:12px 14px;tab-size:2;width:' + textarea.clientWidth + 'px';
+  mirror.appendChild(document.createTextNode(before));
+  const marker = document.createElement('span');
+  marker.textContent = '|';
+  mirror.appendChild(marker);
+  document.body.appendChild(mirror);
+  const markerRect = marker.getBoundingClientRect();
+  const taRect = textarea.getBoundingClientRect();
+  const x = taRect.left + markerRect.left;
+  const y = taRect.top + (markerRect.top - textarea.scrollTop);
+  document.body.removeChild(mirror);
+  return { x: x, y: Math.max(taRect.top, y) };
+}
+
+function getIREWord() {
+  const textarea = document.getElementById('ireEditor');
+  const cursorPos = textarea.selectionStart;
+  const value = textarea.value;
+  const lineStart = value.lastIndexOf('\n', cursorPos - 1) + 1;
+  return value.substring(lineStart, cursorPos);
+}
+
+function showIREsuggestions() {
+  const dropdown = document.getElementById('ireSuggestionsDropdown');
+  const word = getIREWord();
+  const trimmed = word.trimStart();
+  if (!trimmed || trimmed[0] !== '@' || IRE_START_LABEL.length <= trimmed.length || !IRE_START_LABEL.toLowerCase().startsWith(trimmed.toLowerCase())) {
+    dropdown.classList.remove('active');
+    dropdown.innerHTML = '';
+    return;
+  }
+  dropdown.innerHTML = '<div class="suggestion-item" data-index="0"><span class="suggestion-label">' + IRE_START_LABEL + '</span><span class="suggestion-desc">required entry point</span></div>';
+  dropdown.classList.add('active');
+  const pos = getIREPixelPos();
+  dropdown.style.left = pos.x + 'px';
+  dropdown.style.top = (pos.y + 4) + 'px';
+}
+
+function acceptIREsuggestion() {
+  const dropdown = document.getElementById('ireSuggestionsDropdown');
+  const items = dropdown.querySelectorAll('.suggestion-item');
+  if (items.length === 0) return;
+  const textarea = document.getElementById('ireEditor');
+  const cursorPos = textarea.selectionStart;
+  const value = textarea.value;
+  const lineStart = value.lastIndexOf('\n', cursorPos - 1) + 1;
+  const beforeCursor = value.substring(lineStart, cursorPos);
+  const atPos = beforeCursor.lastIndexOf('@');
+  const replaceStart = atPos >= 0 ? lineStart + atPos : lineStart;
+  textarea.value = value.substring(0, replaceStart) + IRE_START_LABEL + value.substring(cursorPos);
+  let end = replaceStart + IRE_START_LABEL.length;
+  if (value.charAt(end) === ')' && IRE_START_LABEL.endsWith(')')) {
+    textarea.value = textarea.value.substring(0, end) + textarea.value.substring(end + 1);
+  }
+  textarea.selectionStart = textarea.selectionEnd = end;
+  textarea.dispatchEvent(new Event('input'));
+  dropdown.classList.remove('active');
+  dropdown.innerHTML = '';
+}
+
+document.getElementById('ireEditor').addEventListener('input', function() {
+  showIREsuggestions();
+});
+
+document.getElementById('ireEditor').addEventListener('keydown', function(e) {
+  const dropdown = document.getElementById('ireSuggestionsDropdown');
+  if (dropdown.classList.contains('active')) {
+    if (e.key === 'Tab' || e.key === 'Enter') {
+      e.preventDefault();
+      acceptIREsuggestion();
+      return;
+    } else if (e.key === 'Escape') {
+      dropdown.classList.remove('active');
+      dropdown.innerHTML = '';
+      return;
+    }
+  }
+  const openClose = { '(': ')', '[': ']', '{': '}' };
+  const closeOpen = { ')': '(', ']': '[', '}': '{' };
+  const start = this.selectionStart;
+  const end = this.selectionEnd;
+  if (e.key in openClose) {
+    e.preventDefault();
+    const open = e.key;
+    const close = openClose[open];
+    if (start !== end) {
+      const sel = this.value.substring(start, end);
+      this.setRangeText(open + sel + close, start, end, 'end');
+    } else {
+      this.setRangeText(open + close, start, end, 'end');
+      this.selectionStart = this.selectionEnd = start + 1;
+    }
+    this.dispatchEvent(new Event('input'));
+    return;
+  }
+  if (e.key in closeOpen) {
+    if (start === end && this.value.charAt(start) === e.key) {
+      e.preventDefault();
+      this.selectionStart = this.selectionEnd = start + 1;
+      return;
+    }
+  }
+});
+
+document.getElementById('ireEditor').addEventListener('blur', function() {
+  setTimeout(function() {
+    const dropdown = document.getElementById('ireSuggestionsDropdown');
+    dropdown.classList.remove('active');
+    dropdown.innerHTML = '';
+  }, 150);
+});
+
+document.getElementById('ireSuggestionsDropdown').addEventListener('mousedown', function(e) {
+  const item = e.target.closest('.suggestion-item');
+  if (!item) return;
+  e.preventDefault();
+  acceptIREsuggestion();
+});
+
 document.getElementById('ireRunBtn').addEventListener('click', function() {
   console.log('IRE run triggered');
-  var status = document.getElementById('ireStatus');
-  if (status) { status.textContent = 'IRE run triggered — rendering engine coming soon.'; status.style.color = '#50e3c2'; }
+  runIRE();
 });
 
 document.getElementById('ireExportBtn').addEventListener('click', function() {

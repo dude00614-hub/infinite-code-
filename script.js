@@ -3595,7 +3595,7 @@ function parseIREModifiers(el, rest, idx, errors) {
     }
     const sizeM = mod.match(/^size\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
     if (sizeM) { el.size = parseFloat(sizeM[1]); return; }
-    if (/^writeline$/i.test(mod) || /^scalein$/i.test(mod)) {
+    if (/^writeline$/i.test(mod) || /^scalein$/i.test(mod) || /^fadein$/i.test(mod)) {
       if (el.animation) {
         errors.push('Line ' + (idx + 1) + ': Only one animation allowed (got [' + mod + '])');
       } else {
@@ -3685,6 +3685,7 @@ function drawIREGrid(cx, cy) {
 
 const IRE_WRITELINE_CPS = 20;
 const IRE_SCALEIN_DURATION = 500; // ms
+const IRE_FADEIN_DURATION = 500; // ms
 
 function drawIREElements(elapsed) {
   let animating = false;
@@ -3698,6 +3699,7 @@ function drawIREElements(elapsed) {
     const py = cy - el.pos.y;
     let text = el.message;
     let fontSize = el.size;
+    let alpha = 1;
     if (el.animation === 'writeline') {
       const revealed = Math.max(0, Math.min(text.length, Math.floor((elapsed / 1000) * IRE_WRITELINE_CPS)));
       text = text.substring(0, revealed);
@@ -3707,13 +3709,19 @@ function drawIREElements(elapsed) {
       const eased = 1 - Math.pow(1 - t, 3);
       fontSize = el.size * eased;
       if (t < 1) animating = true;
+    } else if (el.animation === 'fadein') {
+      const t = Math.min(1, elapsed / IRE_FADEIN_DURATION);
+      alpha = t;
+      if (t < 1) animating = true;
     }
     if (fontSize > 0.5) {
+      ireCtx.globalAlpha = alpha;
       ireCtx.font = fontSize + 'px "Segoe UI", Arial, sans-serif';
       ireCtx.fillStyle = el.color;
       ireCtx.textAlign = 'center';
       ireCtx.textBaseline = 'middle';
       ireCtx.fillText(text, px, py);
+      ireCtx.globalAlpha = 1;
     }
   });
   return animating;

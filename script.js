@@ -3533,7 +3533,7 @@ const IRE_START_LABEL = '@start("IRE")';
 const IRE_SUGGESTIONS = [
   { label: '@start("IRE")', desc: 'required entry point' },
   { label: '@text("message") [pos(x,y)] [color("colorname")] [size(number)] [animation]', desc: 'text element template' },
-  { label: '@circle [pos(x,y)] [radius(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")]', desc: 'circle element template' }
+  { label: '@circle [pos(x,y)] [radius(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation]', desc: 'circle element template' }
 ];
 let ireSelIndex = 0;
 
@@ -3627,11 +3627,15 @@ function parseIREModifiers(el, rest, idx, errors) {
       else { el.size = parseFloat(sizeM[1]); }
       return;
     }
-    if (el.type === 'text' && (/^writeline$/i.test(mod) || /^scalein$/i.test(mod) || /^fadein$/i.test(mod))) {
+    const anim = mod.toLowerCase();
+    const validAnim =
+      (el.type === 'text' && (anim === 'writeline' || anim === 'scalein' || anim === 'fadein')) ||
+      (el.type === 'circle' && anim === 'scalein');
+    if (validAnim) {
       if (el.animation) {
         errors.push('Line ' + (idx + 1) + ': Only one animation allowed (got [' + mod + '])');
       } else {
-        el.animation = mod.toLowerCase();
+        el.animation = anim;
       }
       return;
     }
@@ -3660,7 +3664,7 @@ function parseIRE(script) {
         errors.push('Line ' + (idx + 1) + ': @circle takes no arguments');
         return;
       }
-      const el = { type: 'circle', pos: { x: 0, y: 0 }, radius: 50, color: '#ffffff', fillColor: '#ffffff', fillYes: false, fillNo: false };
+      const el = { type: 'circle', pos: { x: 0, y: 0 }, radius: 50, color: '#ffffff', fillColor: '#ffffff', fillYes: false, fillNo: false, animation: null };
       parseIREModifiers(el, rest, idx, errors);
       el.fill = !el.fillNo;
       elements.push(el);
@@ -3744,8 +3748,15 @@ function drawIREElements(elapsed) {
     const px = cx + el.pos.x;
     const py = cy - el.pos.y;
     if (el.type === 'circle') {
+      let radius = el.radius;
+      if (el.animation === 'scalein') {
+        const t = Math.min(1, elapsed / IRE_SCALEIN_DURATION);
+        const eased = 1 - Math.pow(1 - t, 3);
+        radius = el.radius * eased;
+        if (t < 1) animating = true;
+      }
       ireCtx.beginPath();
-      ireCtx.arc(px, py, el.radius, 0, Math.PI * 2);
+      ireCtx.arc(px, py, radius, 0, Math.PI * 2);
       ireCtx.strokeStyle = el.color;
       ireCtx.lineWidth = 2;
       if (el.fill) {

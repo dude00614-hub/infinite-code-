@@ -2291,15 +2291,45 @@ body.dragging .edit-handle {
   text-transform: none;
 }
 
-.ire-editor {
+.ire-editor-wrap {
   flex: 1;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ire-highlight {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: 'Consolas', 'Courier New', monospace;
+  white-space: pre;
+  tab-size: 2;
+  pointer-events: none;
+  overflow: hidden;
+  color: var(--text-primary);
+  background: var(--editor-bg);
+  border: none;
+}
+
+.ire-highlight code {
+  background: none !important;
+}
+
+.ire-editor {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 1;
   width: 100%;
   padding: 12px 14px;
-  background: var(--editor-bg);
+  background: transparent;
   border: none;
   outline: none;
   resize: none;
-  color: var(--text-primary);
+  color: transparent;
   caret-color: var(--accent);
   font-size: 14px;
   line-height: 1.5;
@@ -2308,6 +2338,15 @@ body.dragging .edit-handle {
   box-sizing: border-box;
   white-space: pre;
   overflow: auto;
+}
+
+.ire-editor::placeholder {
+  color: var(--text-placeholder);
+}
+
+.token-ire {
+  color: #ffd700;
+  font-weight: 600;
 }
 
 .ire-preview {

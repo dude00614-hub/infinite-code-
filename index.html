@@ -310,7 +310,10 @@
                   <span class="ire-header-title">&#127917; IRE Script</span>
                   <span class="ire-header-hint">.ire — Infinite Render Engine</span>
                 </div>
-                <textarea id="ireEditor" class="ire-editor" spellcheck="false" placeholder="-- Every .ire script starts with @start(&quot;IRE&quot;) --"></textarea>
+                <div class="ire-editor-wrap">
+                  <pre class="ire-highlight" id="ireHighlight"><code id="ireHighlightCode"></code></pre>
+                  <textarea id="ireEditor" class="ire-editor" spellcheck="false" placeholder="-- Every .ire script starts with @start(&quot;IRE&quot;) --"></textarea>
+                </div>
                 <div class="suggestions" id="ireSuggestionsDropdown"></div>
               </div>
               <div class="ire-preview">

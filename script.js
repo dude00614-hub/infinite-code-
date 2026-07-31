@@ -3523,6 +3523,22 @@ document.addEventListener('DOMContentLoaded', function() {
 // ===== IRE (Infinite Render Engine) =====
 const IRE_START_LABEL = '@start("IRE")';
 
+function escapeIRE(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function highlightIRE(code) {
+  var html = escapeIRE(code);
+  html = html.replace(/(@start\s*\(\s*["']IRE["']\s*\))/g, '<span class="token-ire">$1</span>');
+  return html;
+}
+
+function updateIREHighlight() {
+  const codeEl = document.getElementById('ireHighlightCode');
+  if (!codeEl) return;
+  codeEl.innerHTML = highlightIRE(document.getElementById('ireEditor').value);
+}
+
 function logIRE(msg, type) {
   const output = document.getElementById('ireOutput');
   if (!output) return;
@@ -3619,7 +3635,16 @@ function acceptIREsuggestion() {
 }
 
 document.getElementById('ireEditor').addEventListener('input', function() {
+  updateIREHighlight();
   showIREsuggestions();
+});
+
+document.getElementById('ireEditor').addEventListener('scroll', function() {
+  const highlight = document.getElementById('ireHighlight');
+  if (highlight) {
+    highlight.scrollTop = this.scrollTop;
+    highlight.scrollLeft = this.scrollLeft;
+  }
 });
 
 document.getElementById('ireEditor').addEventListener('keydown', function(e) {
@@ -3687,6 +3712,8 @@ document.getElementById('ireExportBtn').addEventListener('click', function() {
   var status = document.getElementById('ireStatus');
   if (status) { status.textContent = 'MP4 export is not yet implemented.'; status.style.color = '#ff6b6b'; }
 });
+
+updateIREHighlight();
 
 // ===== DATABASE =====
 const DB_KEY = 'ic_database';

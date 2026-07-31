@@ -2719,6 +2719,8 @@ document.getElementById('chatInput').addEventListener('keydown', function(e) {
 
 // ===== TAB SWITCHING =====
 function switchTab(tabId) {
+  const tabBtn = document.querySelector('.topbar-tab[data-tab="' + tabId + '"]');
+  if (tabBtn && tabBtn.classList.contains('owner-only') && !OWNERS.includes(currentUser)) return;
   document.querySelectorAll('.topbar-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.tab === tabId);
   });
@@ -3423,13 +3425,15 @@ function deleteCourse(id) {
 
 function renderCourses() {
   var list = getCourses();
+  var isOwner = OWNERS.includes(currentUser);
   var sidebar = document.getElementById('coursesList');
   var content = document.getElementById('coursesContent');
   if (!sidebar) return;
 
   if (list.length === 0) {
-    sidebar.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:12px;">No courses yet. Create the first one!</div>';
-    content.innerHTML = '<div class="courses-placeholder">No courses yet. Click + to create one.</div>';
+    var hint = isOwner ? 'No courses yet. Click + to create one.' : 'No courses yet.';
+    sidebar.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:12px;">' + hint + '</div>';
+    content.innerHTML = '<div class="courses-placeholder">' + hint + '</div>';
     return;
   }
 
@@ -3455,8 +3459,8 @@ function renderCourses() {
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">' +
         '<h2 style="margin:0;font-size:20px;color:var(--text-primary);">' + course.title + '</h2>' +
         '<div style="display:flex;gap:6px;">' +
-        (course.author === currentUser ? '<button class="courses-btn edit-course-btn" data-id="' + course.id + '" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #50e3c2;border-radius:4px;color:#50e3c2;cursor:pointer;font-family:inherit;">Edit</button>' : '') +
-        (course.author === currentUser ? '<button class="courses-btn del-course-btn" data-id="' + course.id + '" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Del</button>' : '') +
+        (isOwner ? '<button class="courses-btn edit-course-btn" data-id="' + course.id + '" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #50e3c2;border-radius:4px;color:#50e3c2;cursor:pointer;font-family:inherit;">Edit</button>' : '') +
+        (isOwner ? '<button class="courses-btn del-course-btn" data-id="' + course.id + '" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Del</button>' : '') +
         '</div></div>' +
         '<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">by ' + course.author + ' &middot; ' + (course.createdAt || 'recently') + '</div>' +
         '<div class="courses-body">' + course.content + '</div>' +
@@ -3479,6 +3483,7 @@ function renderCourses() {
 var selectedCourseId = null;
 
 function showCourseForm(editId) {
+  if (!OWNERS.includes(currentUser)) return;
   var list = getCourses();
   var course = editId ? list.find(function(c) { return c.id === editId; }) : null;
   var html = '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Course Title</label>' +
@@ -3516,12 +3521,20 @@ function showCourseForm(editId) {
 document.addEventListener('DOMContentLoaded', function() {
   var newBtn = document.getElementById('newCourseBtn');
   if (newBtn) {
-    newBtn.addEventListener('click', function() { showCourseForm(null); });
+    newBtn.addEventListener('click', function() {
+      if (!OWNERS.includes(currentUser)) return;
+      showCourseForm(null);
+    });
   }
 });
 
 // ===== IRE (Infinite Render Engine) =====
 const IRE_START_LABEL = '@start("IRE")';
+const IRE_SUGGESTIONS = [
+  { label: '@start("IRE")', desc: 'required entry point' },
+  { label: '@text("message")', desc: 'text at pos(x,y) with optional color/size/writeline' }
+];
+let ireSelIndex = 0;
 
 function escapeIRE(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -3530,6 +3543,7 @@ function escapeIRE(s) {
 function highlightIRE(code) {
   var html = escapeIRE(code);
   html = html.replace(/(@start\s*\(\s*["']IRE["']\s*\))/g, '<span class="token-ire">$1</span>');
+  html = html.replace(/(@text\s*\(\s*["'][^"']*["']\s*\))/g, '<span class="token-ire-text">$1</span>');
   return html;
 }
 
@@ -3565,6 +3579,27 @@ function resolveIREColor(name) {
   return null;
 }
 
+function parseIREModifiers(el, rest, idx, errors) {
+  const mods = rest.match(/\[[^\]]*\]/g) || [];
+  mods.forEach(function(modStr) {
+    const mod = modStr.slice(1, -1).trim();
+    if (!mod) return;
+    const posM = mod.match(/^pos\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)$/i);
+    if (posM) { el.pos = { x: parseFloat(posM[1]), y: parseFloat(posM[2]) }; return; }
+    const colM = mod.match(/^color\s*\(\s*["']?([^"')]+)["']?\s*\)$/i);
+    if (colM) {
+      const c = resolveIREColor(colM[1]);
+      if (c) { el.color = c; }
+      else { errors.push('Line ' + (idx + 1) + ': Unknown color "' + colM[1] + '"'); }
+      return;
+    }
+    const sizeM = mod.match(/^size\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
+    if (sizeM) { el.size = parseFloat(sizeM[1]); return; }
+    if (/^writeline$/i.test(mod)) { el.animation = 'writeline'; return; }
+    errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']');
+  });
+}
+
 function parseIRE(script) {
   const elements = [];
   const errors = [];
@@ -3573,31 +3608,19 @@ function parseIRE(script) {
     if (!t) return;
     if (t.indexOf('--') === 0) return;
     const m = t.match(/@text\s*\(\s*["']([^"']*)["']\s*\)/);
-    if (!m) {
-      if (/^@\w/.test(t)) errors.push('Line ' + (idx + 1) + ': Unknown IRE element "' + t + '"');
+    if (m) {
+      const el = { type: 'text', message: m[1], pos: { x: 0, y: 0 }, color: '#ffffff', size: 32, animation: null };
+      parseIREModifiers(el, t.slice(m[0].length), idx, errors);
+      elements.push(el);
       return;
     }
-    const el = { type: 'text', message: m[1], pos: { x: 0, y: 0 }, color: '#ffffff', size: 32, animation: null };
-    const rest = t.slice(m[0].length);
-    const mods = rest.match(/\[[^\]]*\]/g) || [];
-    mods.forEach(function(modStr) {
-      const mod = modStr.slice(1, -1).trim();
-      if (!mod) return;
-      const posM = mod.match(/^pos\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)$/i);
-      if (posM) { el.pos = { x: parseFloat(posM[1]), y: parseFloat(posM[2]) }; return; }
-      const colM = mod.match(/^color\s*\(\s*["']?([^"')]+)["']?\s*\)$/i);
-      if (colM) {
-        const c = resolveIREColor(colM[1]);
-        if (c) { el.color = c; }
-        else { errors.push('Line ' + (idx + 1) + ': Unknown color "' + colM[1] + '"'); }
-        return;
-      }
-      const sizeM = mod.match(/^size\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
-      if (sizeM) { el.size = parseFloat(sizeM[1]); return; }
-      if (/^writeline$/i.test(mod)) { el.animation = 'writeline'; return; }
-      errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']');
-    });
-    elements.push(el);
+    if (/^@\w/.test(t)) {
+      errors.push('Line ' + (idx + 1) + ': Unknown IRE element "' + t + '"');
+      return;
+    }
+    if (t.charAt(0) === '[' && elements.length) {
+      parseIREModifiers(elements[elements.length - 1], t, idx, errors);
+    }
   });
   return { elements: elements, errors: errors };
 }
@@ -3610,6 +3633,7 @@ let ireRendered = false;
 let ireStartTime = 0;
 let ireElements = [];
 let ireAnimFrame = null;
+let ireMouse = null;
 
 function resizeIRECanvas() {
   const box = document.getElementById('irePreview');
@@ -3677,6 +3701,22 @@ function drawIREElements(elapsed) {
   return animating;
 }
 
+function drawIRECrosshair(w, h) {
+  if (!ireGridOn || !ireMouse) return;
+  ireCtx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ireCtx.lineWidth = 1;
+  ireCtx.beginPath();
+  ireCtx.moveTo(ireMouse.x, 0);
+  ireCtx.lineTo(ireMouse.x, h);
+  ireCtx.moveTo(0, ireMouse.y);
+  ireCtx.lineTo(w, ireMouse.y);
+  ireCtx.stroke();
+  ireCtx.fillStyle = 'rgba(255,255,255,0.55)';
+  ireCtx.beginPath();
+  ireCtx.arc(ireMouse.x, ireMouse.y, 3, 0, Math.PI * 2);
+  ireCtx.fill();
+}
+
 function drawIREPreview() {
   ireAnimFrame = null;
   const w = ireCanvas.width / (window.devicePixelRatio || 1);
@@ -3687,10 +3727,45 @@ function drawIREPreview() {
   if (ireGridOn) drawIREGrid(cx, cy);
   const elapsed = ireRendered ? (performance.now() - ireStartTime) : 0;
   const animating = drawIREElements(elapsed);
+  drawIRECrosshair(w, h);
   if (animating && !ireAnimFrame) {
     ireAnimFrame = requestAnimationFrame(drawIREPreview);
   }
 }
+
+function updateIRECoord() {
+  const output = document.getElementById('ireOutput');
+  if (!output) return;
+  let line = document.getElementById('ireCoordLine');
+  if (!ireGridOn || !ireMouse) {
+    if (line) line.textContent = 'Cursor: —';
+    return;
+  }
+  const w = ireCanvas.width / (window.devicePixelRatio || 1);
+  const h = ireCanvas.height / (window.devicePixelRatio || 1);
+  const gx = Math.round(ireMouse.x - w / 2);
+  const gy = Math.round(-(ireMouse.y - h / 2));
+  if (!line) {
+    line = document.createElement('div');
+    line.id = 'ireCoordLine';
+    line.className = 'ire-output-line coord';
+    output.insertBefore(line, output.firstChild);
+  }
+  line.textContent = 'Cursor: (' + gx + ', ' + gy + ')';
+}
+
+document.getElementById('irePreview').addEventListener('mousemove', function(e) {
+  const rect = ireCanvas.getBoundingClientRect();
+  ireMouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  updateIRECoord();
+  drawIREPreview();
+});
+
+document.getElementById('irePreview').addEventListener('mouseleave', function() {
+  ireMouse = null;
+  updateIRECoord();
+  drawIREPreview();
+});
 
 function syncIREPlaceholder() {
   const ph = document.querySelector('.ire-preview-placeholder');
@@ -3760,22 +3835,48 @@ function showIREsuggestions() {
   const dropdown = document.getElementById('ireSuggestionsDropdown');
   const word = getIREWord();
   const trimmed = word.trimStart();
-  if (!trimmed || trimmed[0] !== '@' || IRE_START_LABEL.length <= trimmed.length || !IRE_START_LABEL.toLowerCase().startsWith(trimmed.toLowerCase())) {
+  if (!trimmed || trimmed[0] !== '@') {
     dropdown.classList.remove('active');
     dropdown.innerHTML = '';
     return;
   }
-  dropdown.innerHTML = '<div class="suggestion-item" data-index="0"><span class="suggestion-label">' + IRE_START_LABEL + '</span><span class="suggestion-desc">required entry point</span></div>';
+  const matches = IRE_SUGGESTIONS.filter(function(s) {
+    return s.label.length > trimmed.length && s.label.toLowerCase().startsWith(trimmed.toLowerCase());
+  });
+  if (matches.length === 0) {
+    dropdown.classList.remove('active');
+    dropdown.innerHTML = '';
+    return;
+  }
+  ireSelIndex = 0;
+  dropdown._labels = matches.map(function(s) { return s.label; });
+  dropdown.innerHTML = matches.map(function(s, i) {
+    return '<div class="suggestion-item' + (i === 0 ? ' active' : '') + '" data-index="' + i + '"><span class="suggestion-label">' + s.label + '</span><span class="suggestion-desc">' + s.desc + '</span></div>';
+  }).join('');
   dropdown.classList.add('active');
   const pos = getIREPixelPos();
   dropdown.style.left = pos.x + 'px';
   dropdown.style.top = (pos.y + 4) + 'px';
 }
 
+function selectIREsuggestion(index) {
+  const dropdown = document.getElementById('ireSuggestionsDropdown');
+  const items = dropdown.querySelectorAll('.suggestion-item');
+  if (index < 0) index = items.length - 1;
+  if (index >= items.length) index = 0;
+  ireSelIndex = index;
+  items.forEach(function(item, i) {
+    item.classList.toggle('active', i === index);
+  });
+}
+
 function acceptIREsuggestion() {
   const dropdown = document.getElementById('ireSuggestionsDropdown');
   const items = dropdown.querySelectorAll('.suggestion-item');
   if (items.length === 0) return;
+  const labels = dropdown._labels || [];
+  const label = labels[ireSelIndex] || labels[0];
+  if (!label) return;
   const textarea = document.getElementById('ireEditor');
   const cursorPos = textarea.selectionStart;
   const value = textarea.value;
@@ -3783,9 +3884,9 @@ function acceptIREsuggestion() {
   const beforeCursor = value.substring(lineStart, cursorPos);
   const atPos = beforeCursor.lastIndexOf('@');
   const replaceStart = atPos >= 0 ? lineStart + atPos : lineStart;
-  textarea.value = value.substring(0, replaceStart) + IRE_START_LABEL + value.substring(cursorPos);
-  let end = replaceStart + IRE_START_LABEL.length;
-  if (value.charAt(end) === ')' && IRE_START_LABEL.endsWith(')')) {
+  textarea.value = value.substring(0, replaceStart) + label + value.substring(cursorPos);
+  let end = replaceStart + label.length;
+  if (value.charAt(end) === ')' && label.endsWith(')')) {
     textarea.value = textarea.value.substring(0, end) + textarea.value.substring(end + 1);
   }
   textarea.selectionStart = textarea.selectionEnd = end;
@@ -3855,6 +3956,11 @@ document.getElementById('ireEditor').addEventListener('keydown', function(e) {
       dropdown.classList.remove('active');
       dropdown.innerHTML = '';
       return;
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const items = dropdown.querySelectorAll('.suggestion-item');
+      selectIREsuggestion(ireSelIndex + (e.key === 'ArrowDown' ? 1 : -1));
+      return;
     }
   }
   const openClose = { '(': ')', '[': ']', '{': '}' };
@@ -3896,6 +4002,7 @@ document.getElementById('ireSuggestionsDropdown').addEventListener('mousedown', 
   const item = e.target.closest('.suggestion-item');
   if (!item) return;
   e.preventDefault();
+  ireSelIndex = parseInt(item.dataset.index, 10) || 0;
   acceptIREsuggestion();
 });
 

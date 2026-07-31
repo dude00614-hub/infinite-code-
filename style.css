@@ -2349,6 +2349,11 @@ body.dragging .edit-handle {
   font-weight: 600;
 }
 
+.token-ire-text {
+  color: #66b3ff;
+  font-weight: 600;
+}
+
 .ire-preview {
   width: 50%;
   min-width: 340px;
@@ -2469,4 +2474,9 @@ body.dragging .edit-handle {
 
 .ire-output-line.info {
   color: var(--text-secondary);
+}
+
+.ire-output-line.coord {
+  color: #ffd740;
+  font-weight: 600;
 }

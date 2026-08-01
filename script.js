@@ -3532,9 +3532,9 @@ document.addEventListener('DOMContentLoaded', function() {
 const IRE_START_LABEL = '@start("IRE")';
 const IRE_SUGGESTIONS = [
   { label: '@start("IRE")', desc: 'required entry point' },
-  { label: '@text("message") [pos(x,y)] [color("colorname")] [size(number)] [animation] [id=("name")]', desc: 'text element template' },
-  { label: '@circle [pos(x,y)] [radius(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'circle element template' },
-  { label: '@rectangle [pos(x,y)] [width(number)] [height(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'rectangle element template' },
+  { label: '@text("message") [pos(x,y,z)] [color("colorname")] [size(number)] [animation] [id=("name")]', desc: 'text element template' },
+  { label: '@circle [pos(x,y,z)] [radius(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'circle element template' },
+  { label: '@rectangle [pos(x,y,z)] [width(number)] [height(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'rectangle element template' },
   { label: '@morph("idOne", "idTwo") [duration(seconds)]', desc: 'morph one shape into another' }
 ];
 let ireSelIndex = 0;
@@ -3590,8 +3590,11 @@ function parseIREModifiers(el, rest, idx, errors) {
   mods.forEach(function(modStr) {
     const mod = modStr.slice(1, -1).trim();
     if (!mod) return;
-    const posM = mod.match(/^pos\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)$/i);
-    if (posM) { el.pos = { x: parseFloat(posM[1]), y: parseFloat(posM[2]) }; return; }
+    const posM = mod.match(/^pos\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(?:\s*,\s*(-?\d+(?:\.\d+)?))?\s*\)$/i);
+    if (posM) {
+      el.pos = { x: parseFloat(posM[1]), y: parseFloat(posM[2]), z: posM[3] !== undefined ? parseFloat(posM[3]) : 0 };
+      return;
+    }
     const colM = mod.match(/^color\s*\(\s*["']?([^"')]+)["']?\s*\)$/i);
     if (colM) {
       const c = resolveIREColor(colM[1]);
@@ -3672,7 +3675,7 @@ function parseIRE(script) {
     if (t.indexOf('--') === 0) return;
     const m = t.match(/@text\s*\(\s*["']([^"']*)["']\s*\)/);
     if (m) {
-      const el = { type: 'text', message: m[1], pos: { x: 0, y: 0 }, color: '#ffffff', size: 32, animation: null, id: null, line: idx + 1 };
+      const el = { type: 'text', message: m[1], pos: { x: 0, y: 0, z: 0 }, color: '#ffffff', size: 32, animation: null, id: null, line: idx + 1 };
       parseIREModifiers(el, t.slice(m[0].length), idx, errors);
       elements.push(el);
       return;
@@ -3684,7 +3687,7 @@ function parseIRE(script) {
         errors.push('Line ' + (idx + 1) + ': @circle takes no arguments');
         return;
       }
-      const el = { type: 'circle', pos: { x: 0, y: 0 }, radius: 50, color: '#ffffff', fillColor: '#ffffff', fillYes: false, fillNo: false, animation: null, id: null, line: idx + 1 };
+      const el = { type: 'circle', pos: { x: 0, y: 0, z: 0 }, radius: 50, color: '#ffffff', fillColor: '#ffffff', fillYes: false, fillNo: false, animation: null, id: null, line: idx + 1 };
       parseIREModifiers(el, rest, idx, errors);
       el.fill = !el.fillNo;
       elements.push(el);
@@ -3697,7 +3700,7 @@ function parseIRE(script) {
         errors.push('Line ' + (idx + 1) + ': @rectangle takes no arguments');
         return;
       }
-      const el = { type: 'rectangle', pos: { x: 0, y: 0 }, width: 100, height: 50, color: '#ffffff', fillColor: '#ffffff', fillYes: false, fillNo: false, animation: null, id: null, line: idx + 1 };
+      const el = { type: 'rectangle', pos: { x: 0, y: 0, z: 0 }, width: 100, height: 50, color: '#ffffff', fillColor: '#ffffff', fillYes: false, fillNo: false, animation: null, id: null, line: idx + 1 };
       parseIREModifiers(el, rest, idx, errors);
       el.fill = !el.fillNo;
       elements.push(el);
@@ -3773,7 +3776,69 @@ let ireAnimFrame = null;
 let ireMouse = null;
 let ireExporting = false;
 
+// ===== IRE 3D LAYER (groundwork; three.js) =====
+// Renders a three.js scene into a separate WebGL canvas that is composited
+// beneath the 2D canvas. This layer is inert until a 3D shape type exists,
+// so all existing 2D behavior (and MP4 export) is unchanged.
+let ire3d = null;           // { renderer, scene, camera, canvas, hasObjects }
+let ire3dHas = false;       // true when at least one 3D object is in the scene
+const IRE3D_CAM_DIST = 1200;
+
+function ire3dInit() {
+  if (ire3d || typeof THREE === 'undefined') return;
+  try {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
+    camera.position.set(0, 0, IRE3D_CAM_DIST);
+    camera.lookAt(0, 0, 0);
+    const lights = new THREE.Group();
+    lights.name = '__ire_lights';
+    lights.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+    dir.position.set(1, 2, 3);
+    lights.add(dir);
+    scene.add(lights);
+    ire3d = { renderer: renderer, scene: scene, camera: camera, canvas: renderer.domElement, hasObjects: false };
+    ire3dHas = false;
+  } catch (e) {
+    console.warn('IRE 3D init failed:', e);
+    ire3d = null;
+  }
+}
+
+function ire3dResize(w, h) {
+  if (!ire3d || w < 1 || h < 1) return;
+  const dpr = window.devicePixelRatio || 1;
+  ire3d.renderer.setPixelRatio(dpr);
+  ire3d.renderer.setSize(w, h, false);
+  ire3d.camera.aspect = w / h;
+  ire3d.camera.fov = 2 * Math.atan((h / 2) / IRE3D_CAM_DIST) * 180 / Math.PI;
+  ire3d.camera.updateProjectionMatrix();
+}
+
+function ire3dComposite(w, h) {
+  if (!ire3d || !ire3d.hasObjects) return;
+  ire3d.renderer.render(ire3d.scene, ire3d.camera);
+  ireCtx.drawImage(ire3d.canvas, 0, 0, w, h);
+}
+
+// Rebuild the 3D scene from the current element list. Groundwork hook: future
+// 3D shape types (@sphere, @cube, ...) will add meshes to ire3d.scene here.
+function ire3dBuild() {
+  if (!ire3d) return;
+  while (ire3d.scene.children.length) {
+    const child = ire3d.scene.children[ire3d.scene.children.length - 1];
+    if (child === ire3d.scene.getObjectByName('__ire_lights') || child === ire3d.camera) break;
+    ire3d.scene.remove(child);
+  }
+  ire3d.hasObjects = false;
+  ire3dHas = false;
+}
+
 function resizeIRECanvas() {
+  if (ireExporting) return;
   const box = document.getElementById('irePreview');
   if (!box) return;
   const w = Math.max(1, box.clientWidth);
@@ -3784,7 +3849,29 @@ function resizeIRECanvas() {
   ireCanvas.style.width = w + 'px';
   ireCanvas.style.height = h + 'px';
   ireCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ire3dResize(w, h);
   drawIREPreview();
+}
+
+function sizeIRECanvasForExport() {
+  const box = document.getElementById('irePreview');
+  const exportW = 1920;
+  const exportH = 1080;
+  const dpr = window.devicePixelRatio || 1;
+  ireCanvas.width = exportW * dpr;
+  ireCanvas.height = exportH * dpr;
+  if (box) {
+    const boxW = Math.max(1, box.clientWidth);
+    const boxH = Math.max(1, box.clientHeight);
+    const scale = Math.min(boxW / exportW, boxH / exportH);
+    ireCanvas.style.width = Math.floor(exportW * scale) + 'px';
+    ireCanvas.style.height = Math.floor(exportH * scale) + 'px';
+  } else {
+    ireCanvas.style.width = exportW + 'px';
+    ireCanvas.style.height = exportH + 'px';
+  }
+  ireCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ire3dResize(exportW, exportH);
 }
 
 function drawIREGrid(cx, cy) {
@@ -3929,8 +4016,12 @@ function drawIREElements(elapsed) {
     morphConsumed.add(m.from);
     morphConsumed.add(m.to);
   });
-  ireElements.forEach(function(el) {
-    if (morphConsumed.has(el)) return;
+  const drawOrder = ireElements
+    .filter(function(el) { return !morphConsumed.has(el); })
+    .sort(function(a, b) {
+      return (a.pos.z || 0) - (b.pos.z || 0);
+    });
+  drawOrder.forEach(function(el) {
     const px = cx + el.pos.x;
     const py = cy - el.pos.y;
     if (el.type === 'circle') {
@@ -4028,6 +4119,7 @@ function drawIREPreview() {
   const w = ireCanvas.width / (window.devicePixelRatio || 1);
   const h = ireCanvas.height / (window.devicePixelRatio || 1);
   ireCtx.clearRect(0, 0, w, h);
+  ire3dComposite(w, h);
   const cx = w / 2;
   const cy = h / 2;
   if (ireGridOn) drawIREGrid(cx, cy);
@@ -4106,6 +4198,8 @@ function runIRE() {
   });
   ireRendered = true;
   ireStartTime = performance.now();
+  ire3dInit();
+  ire3dBuild();
   syncIREPlaceholder();
   resizeIRECanvas();
   const lines = body.split('\n').filter(function(l) { return l.trim(); }).length;
@@ -4143,6 +4237,7 @@ function renderIREExportFrame(elapsed) {
   const w = ireCanvas.width / (window.devicePixelRatio || 1);
   const h = ireCanvas.height / (window.devicePixelRatio || 1);
   ireCtx.clearRect(0, 0, w, h);
+  ire3dComposite(w, h);
   return drawIREElements(elapsed);
 }
 
@@ -4180,11 +4275,13 @@ function exportIREVideo() {
   });
   ireRendered = true;
   ireStartTime = performance.now();
+  ire3dInit();
+  ire3dBuild();
   syncIREPlaceholder();
   if (btn) btn.disabled = true;
   ireExporting = true;
   if (ireAnimFrame) { cancelAnimationFrame(ireAnimFrame); ireAnimFrame = null; }
-  resizeIRECanvas();
+  sizeIRECanvasForExport();
 
   const mimeType = irePickMimeType();
   const isMp4 = mimeType && mimeType.indexOf('mp4') !== -1;
@@ -4202,6 +4299,7 @@ function exportIREVideo() {
     ireExporting = false;
     if (btn) btn.disabled = false;
     if (status) { status.textContent = 'Export failed'; status.style.color = '#ff6b6b'; }
+    resizeIRECanvas();
     return;
   }
 
@@ -4214,6 +4312,7 @@ function exportIREVideo() {
     ireExporting = false;
     if (btn) btn.disabled = false;
     if (status) { status.textContent = 'Export failed'; status.style.color = '#ff6b6b'; }
+    resizeIRECanvas();
     return;
   }
 
@@ -4231,7 +4330,7 @@ function exportIREVideo() {
     if (status) { status.textContent = 'Export saved: ' + filename; status.style.color = '#50e3c2'; }
     logIRE('Export complete: ' + filename + ' (' + Math.round(blob.size / 1024) + ' KB).', 'success');
     ireStartTime = performance.now();
-    drawIREPreview();
+    resizeIRECanvas();
   };
   recorder.onerror = function(e) {
     logIRE('Error during recording: ' + (e.error ? e.error.message : 'unknown error'), 'error');
@@ -4395,6 +4494,7 @@ if ('ResizeObserver' in window) {
 
 updateIREHighlight();
 syncIREPlaceholder();
+ire3dInit();
 resizeIRECanvas();
 
 document.getElementById('ireEditor').addEventListener('scroll', function() {

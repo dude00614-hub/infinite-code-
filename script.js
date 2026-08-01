@@ -3534,7 +3534,8 @@ const IRE_SUGGESTIONS = [
   { label: '@start("IRE")', desc: 'required entry point' },
   { label: '@text("message") [pos(x,y)] [color("colorname")] [size(number)] [animation] [id=("name")]', desc: 'text element template' },
   { label: '@circle [pos(x,y)] [radius(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'circle element template' },
-  { label: '@rectangle [pos(x,y)] [width(number)] [height(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'rectangle element template' }
+  { label: '@rectangle [pos(x,y)] [width(number)] [height(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'rectangle element template' },
+  { label: '@morph("idOne", "idTwo") [duration(seconds)]', desc: 'morph one shape into another' }
 ];
 let ireSelIndex = 0;
 
@@ -3548,6 +3549,7 @@ function highlightIRE(code) {
   html = html.replace(/(@text\s*\(\s*["'][^"']*["']\s*\))/g, '<span class="token-ire-text">$1</span>');
   html = html.replace(/(@circle\b)/g, '<span class="token-ire-circle">$1</span>');
   html = html.replace(/(@rectangle\b)/g, '<span class="token-ire-rectangle">$1</span>');
+  html = html.replace(/(@morph\s*\(\s*["'][^"']*["']\s*,\s*["'][^"']*["']\s*\))/g, '<span class="token-ire-morph">$1</span>');
   return html;
 }
 
@@ -3662,6 +3664,7 @@ function parseIREModifiers(el, rest, idx, errors) {
 
 function parseIRE(script) {
   const elements = [];
+  const morphs = [];
   const errors = [];
   script.split('\n').forEach(function(line, idx) {
     const t = line.trim();
@@ -3700,6 +3703,24 @@ function parseIRE(script) {
       elements.push(el);
       return;
     }
+    const morphM = t.match(/^@morph\s*\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)/i);
+    if (morphM) {
+      const m = { idFrom: morphM[1], idTo: morphM[2], duration: 1, line: idx + 1 };
+      const morphRest = t.slice(morphM[0].length);
+      (morphRest.match(/\[[^\]]*\]/g) || []).forEach(function(modStr) {
+        const mod = modStr.slice(1, -1).trim();
+        const durM = mod.match(/^duration\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
+        if (durM) {
+          const d = parseFloat(durM[1]);
+          if (d > 0) m.duration = d;
+          else errors.push('Line ' + (idx + 1) + ': @morph duration must be greater than 0 (got ' + d + ')');
+        } else {
+          errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']');
+        }
+      });
+      morphs.push(m);
+      return;
+    }
     if (/^@\w/.test(t)) {
       errors.push('Line ' + (idx + 1) + ': Unknown IRE element "' + t + '"');
       return;
@@ -3720,7 +3741,23 @@ function parseIRE(script) {
       }
     }
   });
-  return { elements: elements, errors: errors };
+  const idMap = {};
+  elements.forEach(function(el) { if (el.id) idMap[el.id] = el; });
+  morphs.forEach(function(m) {
+    const from = idMap[m.idFrom];
+    const to = idMap[m.idTo];
+    if (!from) {
+      errors.push('Line ' + m.line + ': @morph references unknown id "' + m.idFrom + '"');
+    } else if (from.type !== 'circle' && from.type !== 'rectangle') {
+      errors.push('Line ' + m.line + ': @morph idOne "' + m.idFrom + '" must be a circle or rectangle');
+    }
+    if (!to) {
+      errors.push('Line ' + m.line + ': @morph references unknown id "' + m.idTo + '"');
+    } else if (to.type !== 'circle' && to.type !== 'rectangle') {
+      errors.push('Line ' + m.line + ': @morph idTwo "' + m.idTo + '" must be a circle or rectangle');
+    }
+  });
+  return { elements: elements, morphs: morphs, errors: errors };
 }
 
 // ===== IRE RENDERER =====
@@ -3731,6 +3768,7 @@ let ireRendered = false;
 let ireStartTime = 0;
 let ireElements = [];
 let ireElementsById = {};
+let ireMorphs = [];
 let ireAnimFrame = null;
 let ireMouse = null;
 
@@ -3778,6 +3816,106 @@ function drawIREGrid(cx, cy) {
 const IRE_WRITELINE_CPS = 20;
 const IRE_SCALEIN_DURATION = 500; // ms
 const IRE_FADEIN_DURATION = 500; // ms
+const IRE_MORPH_POINTS = 64;
+
+function ireMorphEase(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function ireMorphLerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function ireHexToRGB(hex) {
+  let v = String(hex).replace('#', '');
+  if (v.length === 3) v = v[0] + v[0] + v[1] + v[1] + v[2] + v[2];
+  return {
+    r: parseInt(v.substring(0, 2), 16),
+    g: parseInt(v.substring(2, 4), 16),
+    b: parseInt(v.substring(4, 6), 16)
+  };
+}
+
+function ireMorphLerpColor(c1, c2, t) {
+  const a = ireHexToRGB(c1);
+  const b = ireHexToRGB(c2);
+  return 'rgb(' + Math.round(ireMorphLerp(a.r, b.r, t)) + ',' + Math.round(ireMorphLerp(a.g, b.g, t)) + ',' + Math.round(ireMorphLerp(a.b, b.b, t)) + ')';
+}
+
+function ireMorphCirclePoints(radius, n) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    pts.push({ x: radius * Math.cos(a), y: radius * Math.sin(a) });
+  }
+  return pts;
+}
+
+function ireMorphRectPoints(width, height, n) {
+  const pts = [];
+  const P = 2 * (width + height);
+  for (let i = 0; i < n; i++) {
+    const t = (i / n) * P;
+    let x, y;
+    if (t < height / 2) {
+      x = width / 2;
+      y = t;
+    } else if (t < height / 2 + width) {
+      x = width / 2 - (t - height / 2);
+      y = height / 2;
+    } else if (t < height / 2 + width + height) {
+      x = -width / 2;
+      y = height / 2 - (t - height / 2 - width);
+    } else if (t < height / 2 + width + height + width) {
+      x = -width / 2 + (t - height / 2 - width - height);
+      y = -height / 2;
+    } else {
+      x = width / 2;
+      y = -height / 2 + (t - (height / 2 + width + height + width));
+    }
+    pts.push({ x: x, y: y });
+  }
+  return pts;
+}
+
+function drawIREMorph(m, elapsed, cx, cy) {
+  const dur = m.duration * 1000;
+  const t = Math.max(0, Math.min(1, elapsed / dur));
+  const eased = ireMorphEase(t);
+  const from = m.from;
+  const to = m.to;
+  const n = IRE_MORPH_POINTS;
+  const fromPts = from.type === 'circle'
+    ? ireMorphCirclePoints(from.radius, n)
+    : ireMorphRectPoints(from.width, from.height, n);
+  const toPts = to.type === 'circle'
+    ? ireMorphCirclePoints(to.radius, n)
+    : ireMorphRectPoints(to.width, to.height, n);
+  const px = cx + ireMorphLerp(from.pos.x, to.pos.x, eased);
+  const py = cy - ireMorphLerp(from.pos.y, to.pos.y, eased);
+  ireCtx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = px + ireMorphLerp(fromPts[i].x, toPts[i].x, eased);
+    const y = py + ireMorphLerp(fromPts[i].y, toPts[i].y, eased);
+    if (i === 0) ireCtx.moveTo(x, y);
+    else ireCtx.lineTo(x, y);
+  }
+  ireCtx.closePath();
+  ireCtx.strokeStyle = ireMorphLerpColor(from.color, to.color, eased);
+  ireCtx.lineWidth = 2;
+  let fillAlpha = 0;
+  if (from.fill && to.fill) fillAlpha = 1;
+  else if (from.fill) fillAlpha = 1 - eased;
+  else if (to.fill) fillAlpha = eased;
+  if (fillAlpha > 0) {
+    ireCtx.globalAlpha = fillAlpha;
+    ireCtx.fillStyle = ireMorphLerpColor(from.fillColor, to.fillColor, eased);
+    ireCtx.fill();
+    ireCtx.globalAlpha = 1;
+  }
+  ireCtx.stroke();
+  return t < 1;
+}
 
 function drawIREElements(elapsed) {
   let animating = false;
@@ -3785,7 +3923,13 @@ function drawIREElements(elapsed) {
   const h = ireCanvas.height / (window.devicePixelRatio || 1);
   const cx = w / 2;
   const cy = h / 2;
+  const morphConsumed = new Set();
+  ireMorphs.forEach(function(m) {
+    morphConsumed.add(m.from);
+    morphConsumed.add(m.to);
+  });
   ireElements.forEach(function(el) {
+    if (morphConsumed.has(el)) return;
     const px = cx + el.pos.x;
     const py = cy - el.pos.y;
     if (el.type === 'circle') {
@@ -3854,6 +3998,9 @@ function drawIREElements(elapsed) {
       ireCtx.fillText(text, px, py);
       ireCtx.globalAlpha = 1;
     }
+  });
+  ireMorphs.forEach(function(m) {
+    if (drawIREMorph(m, elapsed, cx, cy)) animating = true;
   });
   return animating;
 }
@@ -3952,14 +4099,17 @@ function runIRE() {
   ireElementsById = {};
   parsed.elements.forEach(function(el) { if (el.id) ireElementsById[el.id] = el; });
   if (Object.keys(ireElementsById).length) console.log('IRE elements by id:', ireElementsById);
+  ireMorphs = parsed.morphs.map(function(m) {
+    return { from: ireElementsById[m.idFrom], to: ireElementsById[m.idTo], duration: m.duration };
+  });
   ireRendered = true;
   ireStartTime = performance.now();
   syncIREPlaceholder();
   resizeIRECanvas();
   const lines = body.split('\n').filter(function(l) { return l.trim(); }).length;
   logIRE('@start("IRE") found and removed. Script body ready (' + lines + ' non-empty line' + (lines === 1 ? '' : 's') + ').', 'success');
-  logIRE(parsed.elements.length + ' element' + (parsed.elements.length === 1 ? '' : 's') + ' parsed. Rendering...', 'success');
-  if (status) { status.textContent = 'Rendered ' + parsed.elements.length + ' element' + (parsed.elements.length === 1 ? '' : 's'); status.style.color = '#50e3c2'; }
+  logIRE(parsed.elements.length + ' element' + (parsed.elements.length === 1 ? '' : 's') + ' and ' + parsed.morphs.length + ' morph' + (parsed.morphs.length === 1 ? '' : 's') + ' parsed. Rendering...', 'success');
+  if (status) { status.textContent = 'Rendered ' + parsed.elements.length + ' element' + (parsed.elements.length === 1 ? '' : 's') + ' + ' + parsed.morphs.length + ' morph' + (parsed.morphs.length === 1 ? '' : 's'); status.style.color = '#50e3c2'; }
 }
 
 function getIREPixelPos() {

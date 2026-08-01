@@ -67,6 +67,7 @@
           <button class="topbar-tab owner-only" data-tab="run">&#9654; /run</button>
           <button class="topbar-tab owner-only" data-tab="edit">&#9998; Edit</button>
           <button class="topbar-tab" data-tab="courses">&#128218; Courses</button>
+          <button class="topbar-tab" data-tab="notes">&#128221; Notes</button>
           <button class="topbar-tab owner-only" data-tab="ire">&#127917; IRE</button>
           <button class="topbar-tab" data-tab="settings">&#9881; Settings</button>
         </div>
@@ -332,6 +333,39 @@
                 <div class="ire-output">
                   <div class="ire-output-header">IRE Console</div>
                   <div class="ire-output-body" id="ireOutput"><div class="ire-output-line info">Run a script to check for the @start("IRE") directive.</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-content" id="tab-notes">
+            <div class="notes-layout">
+              <div class="notes-sidebar">
+                <div class="notes-sidebar-header">
+                  <span>NOTES</span>
+                  <button id="notesNewBtn" title="New Note">+</button>
+                </div>
+                <div class="notes-list" id="notesList"></div>
+              </div>
+              <div class="notes-main">
+                <div class="notes-toolbar">
+                  <input type="text" id="notesTitle" class="notes-title-input" placeholder="Untitled Note" spellcheck="false">
+                  <div class="notes-tools">
+                    <button class="notes-tool active" data-tool="pen" title="Draw">&#9999;&#65039;</button>
+                    <button class="notes-tool" data-tool="eraser" title="Eraser">&#10022;</button>
+                    <button class="notes-tool" data-tool="text" title="Text">&#128221;</button>
+                    <button class="notes-tool" data-tool="table" title="Table">&#128207;</button>
+                  </div>
+                  <input type="color" id="notesColor" value="#1a1a2e" title="Color">
+                  <input type="range" id="notesWidth" min="1" max="20" value="3" title="Stroke width">
+                  <span class="notes-status" id="notesStatus"></span>
+                  <button id="notesSaveBtn" class="notes-save-btn">&#128190; Save</button>
+                  <button id="notesClearBtn" class="notes-clear-btn" title="Clear page">&#128465;</button>
+                </div>
+                <div class="notes-page-wrap" id="notesPageWrap">
+                  <div class="notes-page" id="notesPage">
+                    <canvas id="notesCanvas"></canvas>
+                    <div class="notes-items" id="notesItems"></div>
+                  </div>
                 </div>
               </div>
             </div>

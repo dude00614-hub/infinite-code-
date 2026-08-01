@@ -2730,6 +2730,9 @@ function switchTab(tabId) {
   if (tabId === 'code') {
     renderProjectList();
   }
+  if (tabId === 'notes') {
+    renderNotes();
+  }
 }
 
 document.querySelectorAll('.topbar-tab').forEach(tab => {
@@ -2739,6 +2742,7 @@ document.querySelectorAll('.topbar-tab').forEach(tab => {
     switchTab(tabId);
     if (tabId === 'database') renderDB();
     if (tabId === 'courses') renderCourses();
+    if (tabId === 'notes') renderNotes();
   });
 });
 
@@ -4995,6 +4999,375 @@ function initCanvas(canvasId) {
     });
   }
 }
+
+// ===== NOTES TAB =====
+const NOTES_KEY = 'ic_notes';
+let notes = [];
+let notesCurrentId = null;
+let notesTool = 'pen';
+let notesColor = '#1a1a2e';
+let notesWidth = 3;
+let notesDrawing = false;
+let notesCurrentStroke = null;
+const notesCanvas = document.getElementById('notesCanvas');
+const notesCtx = notesCanvas.getContext('2d');
+
+function getNotes() {
+  try { return JSON.parse(localStorage.getItem(NOTES_KEY)) || []; } catch(e) { return []; }
+}
+function saveNotes(list) {
+  localStorage.setItem(NOTES_KEY, JSON.stringify(list));
+  notes = list;
+}
+function currentNote() {
+  return notes.find(n => n.id === notesCurrentId) || null;
+}
+function setNotesStatus(msg) {
+  const el = document.getElementById('notesStatus');
+  if (el) el.textContent = msg;
+}
+
+function renderNotesList() {
+  const list = document.getElementById('notesList');
+  if (!list) return;
+  if (!notes.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:12px;">No notes yet. Click + to create one.</div>';
+    return;
+  }
+  list.innerHTML = notes.map(function(n) {
+    return '<div class="notes-item ' + (n.id === notesCurrentId ? 'notes-item-active' : '') + '" data-id="' + n.id + '">' +
+      '<div style="min-width:0;flex:1;">' +
+      '<div class="notes-item-name">' + escapeIRE(n.name || 'Untitled') + '</div>' +
+      '<div class="notes-item-date">' + new Date(n.updatedAt).toLocaleDateString() + '</div>' +
+      '</div>' +
+      '<button class="notes-item-del-btn" data-del="' + n.id + '" title="Delete note">&#10005;</button>' +
+      '</div>';
+  }).join('');
+  list.querySelectorAll('.notes-item').forEach(function(el) {
+    el.addEventListener('click', function(ev) {
+      if (ev.target.closest('.notes-item-del-btn')) return;
+      openNote(this.dataset.id);
+    });
+  });
+  list.querySelectorAll('.notes-item-del-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { deleteNote(this.dataset.del); });
+  });
+}
+
+function resizeNotesCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  notesCanvas.width = 820 * dpr;
+  notesCanvas.height = 1060 * dpr;
+  notesCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  notesCtx.lineCap = 'round';
+  notesCtx.lineJoin = 'round';
+}
+
+function redrawNotes() {
+  resizeNotesCanvas();
+  notesCtx.clearRect(0, 0, 820, 1060);
+  const note = currentNote();
+  if (!note) return;
+  (note.elements || []).forEach(function(el) {
+    if (el.type !== 'draw') return;
+    notesCtx.globalCompositeOperation = el.eraser ? 'destination-out' : 'source-over';
+    notesCtx.strokeStyle = el.color;
+    notesCtx.lineWidth = el.width;
+    notesCtx.beginPath();
+    el.points.forEach(function(p, i) {
+      if (i === 0) notesCtx.moveTo(p[0], p[1]);
+      else notesCtx.lineTo(p[0], p[1]);
+    });
+    notesCtx.stroke();
+  });
+  notesCtx.globalCompositeOperation = 'source-over';
+}
+
+function notesPos(e) {
+  const rect = notesCanvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / (rect.width / 820),
+    y: (e.clientY - rect.top) / (rect.height / 1060)
+  };
+}
+
+notesCanvas.addEventListener('pointerdown', function(e) {
+  if (!currentNote()) return;
+  if (notesTool === 'text') { notesAddText(e); return; }
+  if (notesTool === 'table') { notesAddTable(e); return; }
+  if (notesTool === 'pen' || notesTool === 'eraser') {
+    e.preventDefault();
+    notesCanvas.setPointerCapture(e.pointerId);
+    notesDrawing = true;
+    const p = notesPos(e);
+    notesCurrentStroke = { type: 'draw', eraser: notesTool === 'eraser', color: notesColor, width: notesWidth, points: [[p.x, p.y]] };
+    currentNote().elements.push(notesCurrentStroke);
+    notesCtx.globalCompositeOperation = notesCurrentStroke.eraser ? 'destination-out' : 'source-over';
+    notesCtx.strokeStyle = notesCurrentStroke.color;
+    notesCtx.lineWidth = notesCurrentStroke.width;
+    notesCtx.beginPath();
+    notesCtx.moveTo(p.x, p.y);
+    notesCtx.lineTo(p.x + 0.1, p.y + 0.1);
+    notesCtx.stroke();
+  }
+});
+
+notesCanvas.addEventListener('pointermove', function(e) {
+  if (!notesDrawing) return;
+  const p = notesPos(e);
+  const pts = notesCurrentStroke.points;
+  const last = pts[pts.length - 1];
+  if (Math.hypot(p.x - last[0], p.y - last[1]) < 1) return;
+  pts.push([p.x, p.y]);
+  notesCtx.lineTo(p.x, p.y);
+  notesCtx.stroke();
+});
+
+function notesEndStroke() {
+  if (!notesDrawing) return;
+  notesDrawing = false;
+  notesCtx.globalCompositeOperation = 'source-over';
+  saveNotes(notes);
+  setNotesStatus('Saved');
+}
+notesCanvas.addEventListener('pointerup', notesEndStroke);
+notesCanvas.addEventListener('pointercancel', notesEndStroke);
+
+function notesMakeDraggable(div, el, handle) {
+  handle.addEventListener('pointerdown', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX, startY = e.clientY;
+    const origX = el.x, origY = el.y;
+    function onMove(ev) {
+      const rect = notesCanvas.getBoundingClientRect();
+      el.x = origX + (ev.clientX - startX) / (rect.width / 820);
+      el.y = origY + (ev.clientY - startY) / (rect.height / 1060);
+      div.style.left = el.x + 'px';
+      div.style.top = el.y + 'px';
+    }
+    function onUp() {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      saveNotes(notes);
+      setNotesStatus('Saved');
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  });
+}
+
+function renderNotesItems() {
+  const wrap = document.getElementById('notesItems');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const note = currentNote();
+  if (!note) return;
+  (note.elements || []).forEach(function(el) {
+    if (el.type === 'text') {
+      const div = document.createElement('div');
+      div.className = 'notes-text-item';
+      div.dataset.noteItem = el.id;
+      div.style.left = el.x + 'px';
+      div.style.top = el.y + 'px';
+      const body = document.createElement('div');
+      body.className = 'notes-text-body';
+      body.contentEditable = 'true';
+      body.spellcheck = false;
+      body.style.fontSize = el.size + 'px';
+      body.style.color = el.color;
+      body.textContent = el.text;
+      body.addEventListener('blur', function() {
+        el.text = body.textContent;
+        saveNotes(notes);
+        setNotesStatus('Saved');
+      });
+      const handle = document.createElement('span');
+      handle.className = 'notes-item-handle';
+      handle.textContent = '\u2630';
+      handle.title = 'Drag to move';
+      const del = document.createElement('button');
+      del.className = 'notes-item-del';
+      del.textContent = '\u00d7';
+      del.title = 'Delete';
+      del.addEventListener('click', function(ev) { ev.stopPropagation(); notesDeleteItem(el.id); });
+      div.appendChild(handle);
+      div.appendChild(body);
+      div.appendChild(del);
+      notesMakeDraggable(div, el, handle);
+      wrap.appendChild(div);
+    } else if (el.type === 'table') {
+      const div = document.createElement('div');
+      div.className = 'notes-table-item';
+      div.dataset.noteItem = el.id;
+      div.style.left = el.x + 'px';
+      div.style.top = el.y + 'px';
+      const table = document.createElement('table');
+      table.className = 'notes-table';
+      el.cells.forEach(function(row, r) {
+        const tr = document.createElement('tr');
+        row.forEach(function(val, c) {
+          const td = document.createElement('td');
+          td.contentEditable = 'true';
+          td.spellcheck = false;
+          td.textContent = val;
+          td.addEventListener('blur', function() {
+            el.cells[r][c] = td.textContent;
+            saveNotes(notes);
+            setNotesStatus('Saved');
+          });
+          tr.appendChild(td);
+        });
+        table.appendChild(tr);
+      });
+      const handle = document.createElement('span');
+      handle.className = 'notes-item-handle';
+      handle.textContent = '\u2630';
+      handle.title = 'Drag to move';
+      const del = document.createElement('button');
+      del.className = 'notes-item-del';
+      del.textContent = '\u00d7';
+      del.title = 'Delete';
+      del.addEventListener('click', function(ev) { ev.stopPropagation(); notesDeleteItem(el.id); });
+      div.appendChild(handle);
+      div.appendChild(table);
+      div.appendChild(del);
+      notesMakeDraggable(div, el, handle);
+      wrap.appendChild(div);
+    }
+  });
+}
+
+function notesDeleteItem(id) {
+  const note = currentNote();
+  if (!note) return;
+  note.elements = note.elements.filter(function(el) { return el.id !== id; });
+  saveNotes(notes);
+  renderNotesItems();
+  redrawNotes();
+  setNotesStatus('Deleted');
+}
+
+function notesAddText(e) {
+  const note = currentNote();
+  if (!note) return;
+  const p = notesPos(e);
+  const id = 'txt' + Date.now() + Math.random().toString(36).slice(2, 6);
+  note.elements.push({ type: 'text', id: id, x: p.x, y: p.y, text: '', size: 20, color: notesColor });
+  renderNotesItems();
+  saveNotes(notes);
+  const body = document.querySelector('[data-note-item="' + id + '"] .notes-text-body');
+  if (body) body.focus();
+}
+
+function notesAddTable(e) {
+  const note = currentNote();
+  if (!note) return;
+  const p = notesPos(e);
+  const rows = parseInt(prompt('How many rows?', '3'), 10) || 3;
+  const cols = parseInt(prompt('How many columns?', '3'), 10) || 3;
+  const cells = [];
+  for (let i = 0; i < Math.max(1, rows); i++) {
+    cells.push([]);
+    for (let j = 0; j < Math.max(1, cols); j++) cells[i].push('');
+  }
+  const id = 'tbl' + Date.now() + Math.random().toString(36).slice(2, 6);
+  note.elements.push({ type: 'table', id: id, x: p.x, y: p.y, rows: Math.max(1, rows), cols: Math.max(1, cols), cells: cells });
+  renderNotesItems();
+  saveNotes(notes);
+  setNotesStatus('Table added');
+}
+
+function openNote(id) {
+  notesCurrentId = id;
+  const note = currentNote();
+  document.getElementById('notesTitle').value = note ? note.name : '';
+  renderNotesList();
+  redrawNotes();
+  renderNotesItems();
+  setNotesStatus('');
+}
+
+function newNote() {
+  const note = { id: 'n' + Date.now() + Math.random().toString(36).slice(2, 6), name: 'Untitled Note', updatedAt: Date.now(), elements: [] };
+  notes.unshift(note);
+  notesCurrentId = note.id;
+  saveNotes(notes);
+  openNote(note.id);
+  setNotesStatus('New note created');
+}
+
+function deleteNote(id) {
+  if (!confirm('Delete this note?')) return;
+  notes = notes.filter(function(n) { return n.id !== id; });
+  if (notesCurrentId === id) notesCurrentId = notes.length ? notes[0].id : null;
+  saveNotes(notes);
+  renderNotesList();
+  if (notesCurrentId) openNote(notesCurrentId);
+  else {
+    document.getElementById('notesTitle').value = '';
+    redrawNotes();
+    renderNotesItems();
+  }
+}
+
+function notesSave() {
+  const note = currentNote();
+  if (!note) return;
+  const t = document.getElementById('notesTitle');
+  if (t.value.trim()) note.name = t.value.trim();
+  note.updatedAt = Date.now();
+  saveNotes(notes);
+  renderNotesList();
+  setNotesStatus('Saved ' + new Date().toLocaleTimeString());
+}
+
+function notesClearPage() {
+  const note = currentNote();
+  if (!note) return;
+  if (!confirm('Clear this page? This cannot be undone.')) return;
+  note.elements = [];
+  saveNotes(notes);
+  redrawNotes();
+  renderNotesItems();
+  setNotesStatus('Page cleared');
+}
+
+function renderNotes() {
+  notes = getNotes();
+  if (!notes.length) {
+    notes.push({ id: 'n' + Date.now() + Math.random().toString(36).slice(2, 6), name: 'Untitled Note', updatedAt: Date.now(), elements: [] });
+    saveNotes(notes);
+  }
+  if (!notesCurrentId || !currentNote()) notesCurrentId = notes[0].id;
+  document.getElementById('notesItems').classList.toggle('notes-items-hidden', notesTool === 'pen' || notesTool === 'eraser');
+  notesCanvas.style.cursor = (notesTool === 'pen' || notesTool === 'eraser') ? 'crosshair' : 'default';
+  openNote(notesCurrentId);
+}
+
+document.querySelectorAll('.notes-tool').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    notesTool = this.dataset.tool;
+    document.querySelectorAll('.notes-tool').forEach(function(b) { b.classList.toggle('active', b === this); });
+    const painting = notesTool === 'pen' || notesTool === 'eraser';
+    notesCanvas.style.cursor = painting ? 'crosshair' : 'default';
+    document.getElementById('notesItems').classList.toggle('notes-items-hidden', painting);
+  });
+});
+document.getElementById('notesColor').addEventListener('input', function() { notesColor = this.value; });
+document.getElementById('notesWidth').addEventListener('input', function() { notesWidth = parseInt(this.value, 10) || 3; });
+document.getElementById('notesSaveBtn').addEventListener('click', notesSave);
+document.getElementById('notesClearBtn').addEventListener('click', notesClearPage);
+document.getElementById('notesNewBtn').addEventListener('click', newNote);
+document.getElementById('notesTitle').addEventListener('change', function() {
+  const note = currentNote();
+  if (note) {
+    note.name = this.value.trim() || 'Untitled Note';
+    note.updatedAt = Date.now();
+    saveNotes(notes);
+    renderNotesList();
+  }
+});
 
 // ===== EXPORT / IMPORT DATA =====
 document.getElementById('exportBtn').addEventListener('click', function() {

@@ -2370,6 +2370,11 @@ body.dragging .edit-handle {
   font-weight: 600;
 }
 
+.token-ire-cube {
+  color: #c792ea;
+  font-weight: 600;
+}
+
 .token-ire-morph {
   color: #ff6b6b;
   font-weight: 600;

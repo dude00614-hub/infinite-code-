@@ -3536,6 +3536,7 @@ const IRE_SUGGESTIONS = [
   { label: '@circle [pos(x,y,z)] [radius(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'circle element template' },
   { label: '@rectangle [pos(x,y,z)] [width(number)] [height(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'rectangle element template' },
   { label: '@sphere [pos(x,y,z)] [radius(number)] [color("colorname")] [fill-color("colorname")] [animation] [id=("name")]', desc: '3D sphere element template' },
+  { label: '@cube [pos(x,y,z)] [width(number)] [height(number)] [depth(number)] [rotation(x,y,z)] [color("colorname")] [fill-color("colorname")] [animation] [id=("name")]', desc: '3D cube element template' },
   { label: '@morph("idOne", "idTwo") [duration(seconds)]', desc: 'morph one shape into another' }
 ];
 let ireSelIndex = 0;
@@ -3551,6 +3552,7 @@ function highlightIRE(code) {
   html = html.replace(/(@circle\b)/g, '<span class="token-ire-circle">$1</span>');
   html = html.replace(/(@rectangle\b)/g, '<span class="token-ire-rectangle">$1</span>');
   html = html.replace(/(@sphere\b)/g, '<span class="token-ire-sphere">$1</span>');
+  html = html.replace(/(@cube\b)/g, '<span class="token-ire-cube">$1</span>');
   html = html.replace(/(@morph\s*\(\s*["'][^"']*["']\s*,\s*["'][^"']*["']\s*\))/g, '<span class="token-ire-morph">$1</span>');
   return html;
 }
@@ -3607,6 +3609,7 @@ function parseIREModifiers(el, rest, idx, errors) {
     const idM = mod.match(/^id\s*=\s*\(\s*["']?([^"')]+)["']?\s*\)$/i);
     if (idM) { el.id = idM[1].trim(); return; }
     const isSphere = el.type === 'sphere';
+    const isCube = el.type === 'cube';
     const shape = el.type === 'circle' || el.type === 'rectangle';
     const radM = mod.match(/^radius\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
     if (radM) {
@@ -3616,14 +3619,26 @@ function parseIREModifiers(el, rest, idx, errors) {
     }
     const wM = mod.match(/^width\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
     if (wM) {
-      if (el.type !== 'rectangle') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      if (el.type !== 'rectangle' && el.type !== 'cube') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
       else { el.width = parseFloat(wM[1]); }
       return;
     }
     const hM = mod.match(/^height\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
     if (hM) {
-      if (el.type !== 'rectangle') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      if (el.type !== 'rectangle' && el.type !== 'cube') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
       else { el.height = parseFloat(hM[1]); }
+      return;
+    }
+    const dM = mod.match(/^depth\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
+    if (dM) {
+      if (el.type !== 'cube') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      else { el.depth = parseFloat(dM[1]); }
+      return;
+    }
+    const rotM = mod.match(/^rotation\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)$/i);
+    if (rotM) {
+      if (el.type !== 'cube') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      else { el.rotation = { x: parseFloat(rotM[1]), y: parseFloat(rotM[2]), z: parseFloat(rotM[3]) }; }
       return;
     }
     if (/^fill-yes$/i.test(mod)) {
@@ -3638,7 +3653,7 @@ function parseIREModifiers(el, rest, idx, errors) {
     }
     const fillColM = mod.match(/^fill-color\s*\(\s*["']?([^"')]+)["']?\s*\)$/i);
     if (fillColM) {
-      if (!shape && !isSphere) { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      if (!shape && !isSphere && !isCube) { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
       else {
         const c = resolveIREColor(fillColM[1]);
         if (c) { el.fillColor = c; }
@@ -3655,7 +3670,7 @@ function parseIREModifiers(el, rest, idx, errors) {
     const anim = mod.toLowerCase();
     const validAnim =
       (el.type === 'text' && (anim === 'writeline' || anim === 'scalein' || anim === 'fadein')) ||
-      ((el.type === 'circle' || el.type === 'rectangle' || el.type === 'sphere') && anim === 'scalein');
+      ((el.type === 'circle' || el.type === 'rectangle' || el.type === 'sphere' || el.type === 'cube') && anim === 'scalein');
     if (validAnim) {
       if (el.animation) {
         errors.push('Line ' + (idx + 1) + ': Only one animation allowed (got [' + mod + '])');
@@ -3717,6 +3732,18 @@ function parseIRE(script) {
         return;
       }
       const el = { type: 'sphere', pos: { x: 0, y: 0, z: 0 }, radius: 50, color: '#ffffff', fillColor: '#ffffff', animation: null, id: null, line: idx + 1 };
+      parseIREModifiers(el, rest, idx, errors);
+      elements.push(el);
+      return;
+    }
+    const cbm = t.match(/^@cube\b\s*/i);
+    if (cbm) {
+      const rest = t.slice(cbm[0].length);
+      if (/^\s*\(/.test(rest)) {
+        errors.push('Line ' + (idx + 1) + ': @cube takes no arguments');
+        return;
+      }
+      const el = { type: 'cube', pos: { x: 0, y: 0, z: 0 }, width: 50, height: 50, depth: 50, rotation: { x: 0, y: 0, z: 0 }, color: '#ffffff', fillColor: '#ffffff', animation: null, id: null, line: idx + 1 };
       parseIREModifiers(el, rest, idx, errors);
       elements.push(el);
       return;
@@ -3789,6 +3816,7 @@ let ireElementsById = {};
 let ireMorphs = [];
 let ireAnimFrame = null;
 let ireMouse = null;
+let ireMouseZ = 0;
 let ireExporting = false;
 
 // ===== IRE 3D LAYER (groundwork; three.js) =====
@@ -3840,7 +3868,7 @@ function ire3dComposite(w, h) {
 }
 
 // Rebuild the 3D scene from the current element list. Creates a mesh for each
-// @sphere element; other (2D) element types are handled by the 2D renderer.
+// @sphere and @cube element; other (2D) element types are handled by the 2D renderer.
 function ire3dBuild() {
   if (!ire3d) return;
   while (ire3d.scene.children.length) {
@@ -3852,14 +3880,32 @@ function ire3dBuild() {
   ire3d.hasObjects = false;
   ire3dHas = false;
   ireElements.forEach(function(el) {
-    if (el.type !== 'sphere') return;
-    const geometry = new THREE.SphereGeometry(1, 32, 24);
+    if (el.type !== 'sphere' && el.type !== 'cube') return;
+    const geometry = el.type === 'sphere'
+      ? new THREE.SphereGeometry(1, 32, 24)
+      : new THREE.BoxGeometry(1, 1, 1);
     const surface = el.fillColor || el.color || '#ffffff';
     const material = new THREE.MeshStandardMaterial({ color: surface, roughness: 0.6, metalness: 0.1 });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(el.pos.x, el.pos.y, el.pos.z);
-    mesh.scale.setScalar(Math.max(0.001, el.radius));
-    if (el.animation === 'scalein') mesh.scale.setScalar(0.001);
+    if (el.type === 'cube' && el.rotation) {
+      mesh.rotation.set(
+        el.rotation.x * Math.PI / 180,
+        el.rotation.y * Math.PI / 180,
+        el.rotation.z * Math.PI / 180
+      );
+    }
+    if (el.type === 'sphere') {
+      mesh.scale.setScalar(Math.max(0.001, el.radius));
+      if (el.animation === 'scalein') mesh.scale.setScalar(0.001);
+    } else {
+      mesh.scale.set(
+        Math.max(0.001, el.width),
+        Math.max(0.001, el.height),
+        Math.max(0.001, el.depth)
+      );
+      if (el.animation === 'scalein') mesh.scale.setScalar(0.001);
+    }
     ire3d.scene.add(mesh);
     ire3d.meshes.push({ el: el, mesh: mesh });
     ire3d.hasObjects = true;
@@ -3876,14 +3922,24 @@ function ire3dUpdate(elapsed) {
     const el = entry.el;
     const mesh = entry.mesh;
     mesh.position.set(el.pos.x, el.pos.y, el.pos.z);
-    let scale = Math.max(0.001, el.radius);
+    let sx = Math.max(0.001, el.radius);
+    let sy = sx;
+    let sz = sx;
+    if (el.type === 'cube') {
+      sx = Math.max(0.001, el.width);
+      sy = Math.max(0.001, el.height);
+      sz = Math.max(0.001, el.depth);
+    }
     if (el.animation === 'scalein') {
       const t = Math.min(1, elapsed / IRE_SCALEIN_DURATION);
       const eased = 1 - Math.pow(1 - t, 3);
-      scale = Math.max(0.001, el.radius * eased);
+      const f = Math.max(0.001, eased);
+      sx *= f;
+      sy *= f;
+      sz *= f;
       if (t < 1) animating = true;
     }
-    mesh.scale.setScalar(scale);
+    mesh.scale.set(sx, sy, sz);
   });
   return animating;
 }
@@ -4068,7 +4124,7 @@ function drawIREElements(elapsed) {
     morphConsumed.add(m.to);
   });
   const drawOrder = ireElements
-    .filter(function(el) { return !morphConsumed.has(el) && el.type !== 'sphere'; })
+    .filter(function(el) { return !morphConsumed.has(el) && el.type !== 'sphere' && el.type !== 'cube'; })
     .sort(function(a, b) {
       return (a.pos.z || 0) - (b.pos.z || 0);
     });
@@ -4201,7 +4257,7 @@ function updateIRECoord() {
     line.className = 'ire-output-line coord';
     output.insertBefore(line, output.firstChild);
   }
-  line.textContent = 'Cursor: (' + gx + ', ' + gy + ')';
+  line.textContent = 'Cursor: (' + gx + ', ' + gy + ', ' + Math.round(ireMouseZ) + ')';
 }
 
 document.getElementById('irePreview').addEventListener('mousemove', function(e) {
@@ -4216,6 +4272,14 @@ document.getElementById('irePreview').addEventListener('mouseleave', function() 
   updateIRECoord();
   drawIREPreview();
 });
+
+document.getElementById('irePreview').addEventListener('wheel', function(e) {
+  e.preventDefault();
+  const step = e.deltaY < 0 ? 10 : -10;
+  ireMouseZ += step;
+  updateIRECoord();
+  drawIREPreview();
+}, { passive: false });
 
 function syncIREPlaceholder() {
   const ph = document.querySelector('.ire-preview-placeholder');

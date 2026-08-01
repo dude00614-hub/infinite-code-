@@ -1,0 +1,3 @@
+@start("IRE")
+@sphere [pos(150,-80,50)] [radius(90)] [fill-color("orange")] [scalein]
+@circle [pos(-150,80)] [radius(60)] [color("cyan")] [fill-yes] [fill-color("blue")]

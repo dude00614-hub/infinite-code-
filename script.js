@@ -3535,6 +3535,7 @@ const IRE_SUGGESTIONS = [
   { label: '@text("message") [pos(x,y,z)] [color("colorname")] [size(number)] [animation] [id=("name")]', desc: 'text element template' },
   { label: '@circle [pos(x,y,z)] [radius(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'circle element template' },
   { label: '@rectangle [pos(x,y,z)] [width(number)] [height(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'rectangle element template' },
+  { label: '@sphere [pos(x,y,z)] [radius(number)] [color("colorname")] [fill-color("colorname")] [animation] [id=("name")]', desc: '3D sphere element template' },
   { label: '@morph("idOne", "idTwo") [duration(seconds)]', desc: 'morph one shape into another' }
 ];
 let ireSelIndex = 0;
@@ -3549,6 +3550,7 @@ function highlightIRE(code) {
   html = html.replace(/(@text\s*\(\s*["'][^"']*["']\s*\))/g, '<span class="token-ire-text">$1</span>');
   html = html.replace(/(@circle\b)/g, '<span class="token-ire-circle">$1</span>');
   html = html.replace(/(@rectangle\b)/g, '<span class="token-ire-rectangle">$1</span>');
+  html = html.replace(/(@sphere\b)/g, '<span class="token-ire-sphere">$1</span>');
   html = html.replace(/(@morph\s*\(\s*["'][^"']*["']\s*,\s*["'][^"']*["']\s*\))/g, '<span class="token-ire-morph">$1</span>');
   return html;
 }
@@ -3604,10 +3606,11 @@ function parseIREModifiers(el, rest, idx, errors) {
     }
     const idM = mod.match(/^id\s*=\s*\(\s*["']?([^"')]+)["']?\s*\)$/i);
     if (idM) { el.id = idM[1].trim(); return; }
+    const isSphere = el.type === 'sphere';
     const shape = el.type === 'circle' || el.type === 'rectangle';
     const radM = mod.match(/^radius\s*\(\s*(\d+(?:\.\d+)?)\s*\)$/i);
     if (radM) {
-      if (el.type !== 'circle') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      if (el.type !== 'circle' && el.type !== 'sphere') { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
       else { el.radius = parseFloat(radM[1]); }
       return;
     }
@@ -3635,7 +3638,7 @@ function parseIREModifiers(el, rest, idx, errors) {
     }
     const fillColM = mod.match(/^fill-color\s*\(\s*["']?([^"')]+)["']?\s*\)$/i);
     if (fillColM) {
-      if (!shape) { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
+      if (!shape && !isSphere) { errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']'); }
       else {
         const c = resolveIREColor(fillColM[1]);
         if (c) { el.fillColor = c; }
@@ -3652,7 +3655,7 @@ function parseIREModifiers(el, rest, idx, errors) {
     const anim = mod.toLowerCase();
     const validAnim =
       (el.type === 'text' && (anim === 'writeline' || anim === 'scalein' || anim === 'fadein')) ||
-      ((el.type === 'circle' || el.type === 'rectangle') && anim === 'scalein');
+      ((el.type === 'circle' || el.type === 'rectangle' || el.type === 'sphere') && anim === 'scalein');
     if (validAnim) {
       if (el.animation) {
         errors.push('Line ' + (idx + 1) + ': Only one animation allowed (got [' + mod + '])');
@@ -3703,6 +3706,18 @@ function parseIRE(script) {
       const el = { type: 'rectangle', pos: { x: 0, y: 0, z: 0 }, width: 100, height: 50, color: '#ffffff', fillColor: '#ffffff', fillYes: false, fillNo: false, animation: null, id: null, line: idx + 1 };
       parseIREModifiers(el, rest, idx, errors);
       el.fill = !el.fillNo;
+      elements.push(el);
+      return;
+    }
+    const sm = t.match(/^@sphere\b\s*/i);
+    if (sm) {
+      const rest = t.slice(sm[0].length);
+      if (/^\s*\(/.test(rest)) {
+        errors.push('Line ' + (idx + 1) + ': @sphere takes no arguments');
+        return;
+      }
+      const el = { type: 'sphere', pos: { x: 0, y: 0, z: 0 }, radius: 50, color: '#ffffff', fillColor: '#ffffff', animation: null, id: null, line: idx + 1 };
+      parseIREModifiers(el, rest, idx, errors);
       elements.push(el);
       return;
     }
@@ -3824,8 +3839,8 @@ function ire3dComposite(w, h) {
   ireCtx.drawImage(ire3d.canvas, 0, 0, w, h);
 }
 
-// Rebuild the 3D scene from the current element list. Groundwork hook: future
-// 3D shape types (@sphere, @cube, ...) will add meshes to ire3d.scene here.
+// Rebuild the 3D scene from the current element list. Creates a mesh for each
+// @sphere element; other (2D) element types are handled by the 2D renderer.
 function ire3dBuild() {
   if (!ire3d) return;
   while (ire3d.scene.children.length) {
@@ -3833,8 +3848,44 @@ function ire3dBuild() {
     if (child === ire3d.scene.getObjectByName('__ire_lights') || child === ire3d.camera) break;
     ire3d.scene.remove(child);
   }
+  ire3d.meshes = [];
   ire3d.hasObjects = false;
   ire3dHas = false;
+  ireElements.forEach(function(el) {
+    if (el.type !== 'sphere') return;
+    const geometry = new THREE.SphereGeometry(1, 32, 24);
+    const surface = el.fillColor || el.color || '#ffffff';
+    const material = new THREE.MeshStandardMaterial({ color: surface, roughness: 0.6, metalness: 0.1 });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(el.pos.x, el.pos.y, el.pos.z);
+    mesh.scale.setScalar(Math.max(0.001, el.radius));
+    if (el.animation === 'scalein') mesh.scale.setScalar(0.001);
+    ire3d.scene.add(mesh);
+    ire3d.meshes.push({ el: el, mesh: mesh });
+    ire3d.hasObjects = true;
+    ire3dHas = true;
+  });
+}
+
+// Update per-frame 3D animation state. Returns true while any mesh is still
+// animating, so the render loop keeps ticking. Currently handles scalein only.
+function ire3dUpdate(elapsed) {
+  if (!ire3d || !ire3d.meshes) return false;
+  let animating = false;
+  ire3d.meshes.forEach(function(entry) {
+    const el = entry.el;
+    const mesh = entry.mesh;
+    mesh.position.set(el.pos.x, el.pos.y, el.pos.z);
+    let scale = Math.max(0.001, el.radius);
+    if (el.animation === 'scalein') {
+      const t = Math.min(1, elapsed / IRE_SCALEIN_DURATION);
+      const eased = 1 - Math.pow(1 - t, 3);
+      scale = Math.max(0.001, el.radius * eased);
+      if (t < 1) animating = true;
+    }
+    mesh.scale.setScalar(scale);
+  });
+  return animating;
 }
 
 function resizeIRECanvas() {
@@ -4017,7 +4068,7 @@ function drawIREElements(elapsed) {
     morphConsumed.add(m.to);
   });
   const drawOrder = ireElements
-    .filter(function(el) { return !morphConsumed.has(el); })
+    .filter(function(el) { return !morphConsumed.has(el) && el.type !== 'sphere'; })
     .sort(function(a, b) {
       return (a.pos.z || 0) - (b.pos.z || 0);
     });
@@ -4119,12 +4170,13 @@ function drawIREPreview() {
   const w = ireCanvas.width / (window.devicePixelRatio || 1);
   const h = ireCanvas.height / (window.devicePixelRatio || 1);
   ireCtx.clearRect(0, 0, w, h);
+  const elapsed = ireRendered ? (performance.now() - ireStartTime) : 0;
+  const animating3d = ire3dUpdate(elapsed);
   ire3dComposite(w, h);
   const cx = w / 2;
   const cy = h / 2;
   if (ireGridOn) drawIREGrid(cx, cy);
-  const elapsed = ireRendered ? (performance.now() - ireStartTime) : 0;
-  const animating = drawIREElements(elapsed);
+  const animating = drawIREElements(elapsed) || animating3d;
   drawIRECrosshair(w, h);
   if (animating && !ireAnimFrame) {
     ireAnimFrame = requestAnimationFrame(drawIREPreview);
@@ -4237,8 +4289,9 @@ function renderIREExportFrame(elapsed) {
   const w = ireCanvas.width / (window.devicePixelRatio || 1);
   const h = ireCanvas.height / (window.devicePixelRatio || 1);
   ireCtx.clearRect(0, 0, w, h);
+  const animating3d = ire3dUpdate(elapsed);
   ire3dComposite(w, h);
-  return drawIREElements(elapsed);
+  return drawIREElements(elapsed) || animating3d;
 }
 
 function exportIREVideo() {

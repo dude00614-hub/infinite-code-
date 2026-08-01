@@ -3771,6 +3771,7 @@ let ireElementsById = {};
 let ireMorphs = [];
 let ireAnimFrame = null;
 let ireMouse = null;
+let ireExporting = false;
 
 function resizeIRECanvas() {
   const box = document.getElementById('irePreview');
@@ -4022,6 +4023,7 @@ function drawIRECrosshair(w, h) {
 }
 
 function drawIREPreview() {
+  if (ireExporting) return;
   ireAnimFrame = null;
   const w = ireCanvas.width / (window.devicePixelRatio || 1);
   const h = ireCanvas.height / (window.devicePixelRatio || 1);
@@ -4110,6 +4112,154 @@ function runIRE() {
   logIRE('@start("IRE") found and removed. Script body ready (' + lines + ' non-empty line' + (lines === 1 ? '' : 's') + ').', 'success');
   logIRE(parsed.elements.length + ' element' + (parsed.elements.length === 1 ? '' : 's') + ' and ' + parsed.morphs.length + ' morph' + (parsed.morphs.length === 1 ? '' : 's') + ' parsed. Rendering...', 'success');
   if (status) { status.textContent = 'Rendered ' + parsed.elements.length + ' element' + (parsed.elements.length === 1 ? '' : 's') + ' + ' + parsed.morphs.length + ' morph' + (parsed.morphs.length === 1 ? '' : 's'); status.style.color = '#50e3c2'; }
+}
+
+function irePickMimeType() {
+  if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') return null;
+  const candidates = [
+    'video/mp4',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm'
+  ];
+  for (let i = 0; i < candidates.length; i++) {
+    if (MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
+  }
+  return null;
+}
+
+function ireDownloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+}
+
+function renderIREExportFrame(elapsed) {
+  const w = ireCanvas.width / (window.devicePixelRatio || 1);
+  const h = ireCanvas.height / (window.devicePixelRatio || 1);
+  ireCtx.clearRect(0, 0, w, h);
+  return drawIREElements(elapsed);
+}
+
+function exportIREVideo() {
+  const status = document.getElementById('ireStatus');
+  const btn = document.getElementById('ireExportBtn');
+  const editor = document.getElementById('ireEditor');
+  const raw = editor.value;
+
+  if (typeof MediaRecorder === 'undefined' || typeof ireCanvas.captureStream !== 'function') {
+    logIRE('Error: Video export is not supported in this browser (needs MediaRecorder and canvas.captureStream).', 'error');
+    if (status) { status.textContent = 'Export unsupported'; status.style.color = '#ff6b6b'; }
+    return;
+  }
+
+  const match = raw.match(/^\s*@start\s*\(\s*["']IRE["']\s*\)/);
+  if (!match) {
+    logIRE('Error: Missing @start("IRE") directive. Add @start("IRE") at the top of your script.', 'error');
+    if (status) { status.textContent = 'Missing @start("IRE")'; status.style.color = '#ff6b6b'; }
+    return;
+  }
+  const body = raw.replace(/^\s*@start\s*\(\s*["']IRE["']\s*\)[^\n]*\n?/, '');
+  const parsed = parseIRE(body);
+  if (parsed.errors.length) {
+    parsed.errors.forEach(function(e) { logIRE('Error: ' + e, 'error'); });
+    if (status) { status.textContent = 'Script rejected'; status.style.color = '#ff6b6b'; }
+    return;
+  }
+
+  ireElements = parsed.elements;
+  ireElementsById = {};
+  parsed.elements.forEach(function(el) { if (el.id) ireElementsById[el.id] = el; });
+  ireMorphs = parsed.morphs.map(function(m) {
+    return { from: ireElementsById[m.idFrom], to: ireElementsById[m.idTo], duration: m.duration };
+  });
+  ireRendered = true;
+  ireStartTime = performance.now();
+  syncIREPlaceholder();
+  if (btn) btn.disabled = true;
+  ireExporting = true;
+  if (ireAnimFrame) { cancelAnimationFrame(ireAnimFrame); ireAnimFrame = null; }
+  resizeIRECanvas();
+
+  const mimeType = irePickMimeType();
+  const isMp4 = mimeType && mimeType.indexOf('mp4') !== -1;
+  const ext = isMp4 ? 'mp4' : 'webm';
+  const filename = 'ire-export.' + ext;
+
+  if (status) { status.textContent = 'Rendering export... do not close this tab'; status.style.color = '#ffd700'; }
+  logIRE('Exporting ' + filename + ' (' + (mimeType || 'browser default') + ')...', 'info');
+
+  let stream;
+  try {
+    stream = ireCanvas.captureStream(30);
+  } catch (e) {
+    logIRE('Error: Could not capture the preview canvas: ' + e.message, 'error');
+    ireExporting = false;
+    if (btn) btn.disabled = false;
+    if (status) { status.textContent = 'Export failed'; status.style.color = '#ff6b6b'; }
+    return;
+  }
+
+  let recorder;
+  try {
+    recorder = new MediaRecorder(stream, mimeType ? { mimeType: mimeType, videoBitsPerSecond: 8000000 } : { videoBitsPerSecond: 8000000 });
+  } catch (e) {
+    logIRE('Error: Could not start the recorder: ' + e.message, 'error');
+    stream.getTracks().forEach(function(t) { t.stop(); });
+    ireExporting = false;
+    if (btn) btn.disabled = false;
+    if (status) { status.textContent = 'Export failed'; status.style.color = '#ff6b6b'; }
+    return;
+  }
+
+  const chunks = [];
+  recorder.ondataavailable = function(e) {
+    if (e.data && e.data.size) chunks.push(e.data);
+  };
+  recorder.onstop = function() {
+    stream.getTracks().forEach(function(t) { t.stop(); });
+    ireExporting = false;
+    if (btn) btn.disabled = false;
+    const type = mimeType || 'video/' + ext;
+    const blob = new Blob(chunks, { type: type });
+    ireDownloadBlob(blob, filename);
+    if (status) { status.textContent = 'Export saved: ' + filename; status.style.color = '#50e3c2'; }
+    logIRE('Export complete: ' + filename + ' (' + Math.round(blob.size / 1024) + ' KB).', 'success');
+    ireStartTime = performance.now();
+    drawIREPreview();
+  };
+  recorder.onerror = function(e) {
+    logIRE('Error during recording: ' + (e.error ? e.error.message : 'unknown error'), 'error');
+    if (status) { status.textContent = 'Export failed'; status.style.color = '#ff6b6b'; }
+    try { recorder.stop(); } catch (e2) {}
+  };
+
+  recorder.start(250);
+
+  const exportStart = performance.now();
+  const MIN_EXPORT_MS = 1000;
+  let stopped = false;
+
+  function exportTick() {
+    if (stopped) return;
+    const elapsed = performance.now() - exportStart;
+    const animating = renderIREExportFrame(elapsed);
+    if (status) {
+      status.textContent = 'Rendering export... ' + (elapsed / 1000).toFixed(1) + 's — do not close this tab';
+    }
+    if (!animating && elapsed >= MIN_EXPORT_MS) {
+      stopped = true;
+      try { recorder.stop(); } catch (e) {}
+      return;
+    }
+    requestAnimationFrame(exportTick);
+  }
+  requestAnimationFrame(exportTick);
 }
 
 function getIREPixelPos() {
@@ -4322,9 +4472,8 @@ document.getElementById('ireRunBtn').addEventListener('click', function() {
 });
 
 document.getElementById('ireExportBtn').addEventListener('click', function() {
-  console.log('IRE MP4 export requested — not yet implemented');
-  var status = document.getElementById('ireStatus');
-  if (status) { status.textContent = 'MP4 export is not yet implemented.'; status.style.color = '#ff6b6b'; }
+  console.log('IRE MP4 export requested');
+  exportIREVideo();
 });
 
 // ===== DATABASE =====

@@ -3537,6 +3537,7 @@ const IRE_SUGGESTIONS = [
   { label: '@rectangle [pos(x,y,z)] [width(number)] [height(number)] [color("colorname")] [fill-yes] [fill-no] [fill-color("colorname")] [animation] [id=("name")]', desc: 'rectangle element template' },
   { label: '@sphere [pos(x,y,z)] [radius(number)] [color("colorname")] [fill-color("colorname")] [animation] [id=("name")]', desc: '3D sphere element template' },
   { label: '@cube [pos(x,y,z)] [width(number)] [height(number)] [depth(number)] [rotation(x,y,z)] [color("colorname")] [fill-color("colorname")] [animation] [id=("name")]', desc: '3D cube element template' },
+  { label: '@spin [id=("name")] [spin-axis(x,y,z)] [spin-speed(number)]', desc: 'continuously rotate a sphere or cube by id' },
   { label: '@morph("idOne", "idTwo") [duration(seconds)]', desc: 'morph one shape into another' }
 ];
 let ireSelIndex = 0;
@@ -3553,6 +3554,7 @@ function highlightIRE(code) {
   html = html.replace(/(@rectangle\b)/g, '<span class="token-ire-rectangle">$1</span>');
   html = html.replace(/(@sphere\b)/g, '<span class="token-ire-sphere">$1</span>');
   html = html.replace(/(@cube\b)/g, '<span class="token-ire-cube">$1</span>');
+  html = html.replace(/(@spin\b)/g, '<span class="token-ire-spin">$1</span>');
   html = html.replace(/(@morph\s*\(\s*["'][^"']*["']\s*,\s*["'][^"']*["']\s*\))/g, '<span class="token-ire-morph">$1</span>');
   return html;
 }
@@ -3686,6 +3688,7 @@ function parseIREModifiers(el, rest, idx, errors) {
 function parseIRE(script) {
   const elements = [];
   const morphs = [];
+  const spins = [];
   const errors = [];
   script.split('\n').forEach(function(line, idx) {
     const t = line.trim();
@@ -3766,6 +3769,37 @@ function parseIRE(script) {
       morphs.push(m);
       return;
     }
+    const spinM = t.match(/^@spin\b\s*/i);
+    if (spinM) {
+      const rest = t.slice(spinM[0].length);
+      if (/^\s*\(/.test(rest)) {
+        errors.push('Line ' + (idx + 1) + ': @spin takes no arguments');
+        return;
+      }
+      const s = { id: null, axis: { x: 0, y: 1, z: 0 }, speed: 0.5, line: idx + 1 };
+      (rest.match(/\[[^\]]*\]/g) || []).forEach(function(modStr) {
+        const mod = modStr.slice(1, -1).trim();
+        if (!mod) return;
+        const idM2 = mod.match(/^id\s*=\s*\(\s*["']?([^"')]+)["']?\s*\)$/i);
+        if (idM2) { s.id = idM2[1].trim(); return; }
+        const axM = mod.match(/^spin-axis\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)$/i);
+        if (axM) {
+          s.axis = { x: parseFloat(axM[1]), y: parseFloat(axM[2]), z: parseFloat(axM[3]) };
+          return;
+        }
+        const spM = mod.match(/^spin-speed\s*\(\s*(-?\d+(?:\.\d+)?)\s*\)$/i);
+        if (spM) {
+          const v = parseFloat(spM[1]);
+          if (v >= 0) s.speed = v;
+          else errors.push('Line ' + (idx + 1) + ': @spin speed must be 0 or greater (got ' + v + ')');
+          return;
+        }
+        errors.push('Line ' + (idx + 1) + ': Unknown modifier [' + mod + ']');
+      });
+      if (!s.id) errors.push('Line ' + (idx + 1) + ': @spin requires an [id=("name")] modifier');
+      spins.push(s);
+      return;
+    }
     if (/^@\w/.test(t)) {
       errors.push('Line ' + (idx + 1) + ': Unknown IRE element "' + t + '"');
       return;
@@ -3802,7 +3836,18 @@ function parseIRE(script) {
       errors.push('Line ' + m.line + ': @morph idTwo "' + m.idTo + '" must be a circle or rectangle');
     }
   });
-  return { elements: elements, morphs: morphs, errors: errors };
+  spins.forEach(function(s) {
+    if (!s.id) return;
+    const target = idMap[s.id];
+    if (!target) {
+      errors.push('Line ' + s.line + ': @spin references unknown id "' + s.id + '"');
+    } else if (target.type !== 'sphere' && target.type !== 'cube') {
+      errors.push('Line ' + s.line + ': @spin target "' + s.id + '" must be a sphere or cube');
+    } else {
+      target.spin = { axis: s.axis, speed: s.speed };
+    }
+  });
+  return { elements: elements, morphs: morphs, spins: spins, errors: errors };
 }
 
 // ===== IRE RENDERER =====
@@ -3895,6 +3940,14 @@ function ire3dBuild() {
         el.rotation.z * Math.PI / 180
       );
     }
+    const entry = { el: el, mesh: mesh, baseQuat: mesh.quaternion.clone() };
+    if (el.spin) {
+      const a = el.spin.axis;
+      entry.spin = {
+        axis: new THREE.Vector3(a.x, a.y, a.z).normalize(),
+        speed: el.spin.speed
+      };
+    }
     if (el.type === 'sphere') {
       mesh.scale.setScalar(Math.max(0.001, el.radius));
       if (el.animation === 'scalein') mesh.scale.setScalar(0.001);
@@ -3907,21 +3960,29 @@ function ire3dBuild() {
       if (el.animation === 'scalein') mesh.scale.setScalar(0.001);
     }
     ire3d.scene.add(mesh);
-    ire3d.meshes.push({ el: el, mesh: mesh });
+    ire3d.meshes.push(entry);
     ire3d.hasObjects = true;
     ire3dHas = true;
   });
 }
 
-// Update per-frame 3D animation state. Returns true while any mesh is still
-// animating, so the render loop keeps ticking. Currently handles scalein only.
+// Update per-frame 3D animation state. Returns { finite, spinning }:
+// - finite: true while a time-limited animation (scalein) is still running
+// - spinning: true if any mesh has a continuous spin (never ends)
 function ire3dUpdate(elapsed) {
-  if (!ire3d || !ire3d.meshes) return false;
-  let animating = false;
+  if (!ire3d || !ire3d.meshes) return { finite: false, spinning: false };
+  let finite = false;
+  let spinning = false;
   ire3d.meshes.forEach(function(entry) {
     const el = entry.el;
     const mesh = entry.mesh;
     mesh.position.set(el.pos.x, el.pos.y, el.pos.z);
+    if (entry.spin) {
+      const angle = entry.spin.speed * Math.PI * 2 * (elapsed / 1000);
+      const spinQuat = new THREE.Quaternion().setFromAxisAngle(entry.spin.axis, angle);
+      mesh.quaternion.copy(entry.baseQuat).premultiply(spinQuat);
+      spinning = true;
+    }
     let sx = Math.max(0.001, el.radius);
     let sy = sx;
     let sz = sx;
@@ -3937,11 +3998,11 @@ function ire3dUpdate(elapsed) {
       sx *= f;
       sy *= f;
       sz *= f;
-      if (t < 1) animating = true;
+      if (t < 1) finite = true;
     }
     mesh.scale.set(sx, sy, sz);
   });
-  return animating;
+  return { finite: finite, spinning: spinning };
 }
 
 function resizeIRECanvas() {
@@ -4227,12 +4288,12 @@ function drawIREPreview() {
   const h = ireCanvas.height / (window.devicePixelRatio || 1);
   ireCtx.clearRect(0, 0, w, h);
   const elapsed = ireRendered ? (performance.now() - ireStartTime) : 0;
-  const animating3d = ire3dUpdate(elapsed);
+  const anim3d = ire3dUpdate(elapsed);
   ire3dComposite(w, h);
   const cx = w / 2;
   const cy = h / 2;
   if (ireGridOn) drawIREGrid(cx, cy);
-  const animating = drawIREElements(elapsed) || animating3d;
+  const animating = drawIREElements(elapsed) || anim3d.finite || anim3d.spinning;
   drawIRECrosshair(w, h);
   if (animating && !ireAnimFrame) {
     ireAnimFrame = requestAnimationFrame(drawIREPreview);
@@ -4353,9 +4414,9 @@ function renderIREExportFrame(elapsed) {
   const w = ireCanvas.width / (window.devicePixelRatio || 1);
   const h = ireCanvas.height / (window.devicePixelRatio || 1);
   ireCtx.clearRect(0, 0, w, h);
-  const animating3d = ire3dUpdate(elapsed);
+  const anim3d = ire3dUpdate(elapsed);
   ire3dComposite(w, h);
-  return drawIREElements(elapsed) || animating3d;
+  return drawIREElements(elapsed) || anim3d.finite;
 }
 
 function exportIREVideo() {

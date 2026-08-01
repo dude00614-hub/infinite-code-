@@ -1,0 +1,5 @@
+@start("IRE")
+@cube [pos(0,40,0)] [width(120)] [height(80)] [depth(60)] [rotation(20,0,35)] [fill-color("purple")] [id=("spinner")] [scalein]
+@sphere [pos(180,-120,50)] [radius(70)] [fill-color("orange")] [id=("ball")]
+@spin [id=("spinner")] [spin-axis(0,1,0)] [spin-speed(0.75)]
+@spin [id=("ball")] [spin-axis(1,0,0)] [spin-speed(0.5)]

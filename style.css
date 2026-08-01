@@ -2375,6 +2375,11 @@ body.dragging .edit-handle {
   font-weight: 600;
 }
 
+.token-ire-spin {
+  color: #f78c6c;
+  font-weight: 600;
+}
+
 .token-ire-morph {
   color: #ff6b6b;
   font-weight: 600;

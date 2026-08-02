@@ -3640,7 +3640,7 @@ function renderMath() {
     var answerCount = (p.answers || []).length;
     return '<div class="math-item ' + active + '" data-id="' + p.id + '">' +
       '<div class="math-item-title">' + p.question.replace(/</g,'&lt;') + '</div>' +
-      '<div class="math-item-author">by ' + p.author + ' &middot; ' + answerCount + ' choice' + (answerCount !== 1 ? 's' : '') + '</div>' +
+      '<div class="math-item-author">by ' + p.author + ' &middot; ' + answerCount + ' accepted answer' + (answerCount !== 1 ? 's' : '') + '</div>' +
       '</div>';
   }).join('');
 
@@ -3666,13 +3666,7 @@ function renderMath() {
 
 function renderMathProblem(problem, isOwner) {
   var content = document.getElementById('mathContent');
-  var saved = mathUserAnswers[problem.id] || null;
-  var answersHtml = (problem.answers || []).map(function(a, i) {
-    return '<label class="math-choice" data-idx="' + i + '">' +
-      '<input type="checkbox" class="math-choice-box">' +
-      '<span>' + a.text.replace(/</g,'&lt;') + '</span>' +
-      '</label>';
-  }).join('') || '<div style="font-size:12px;color:var(--text-muted);">No answer choices.</div>';
+  var saved = mathUserAnswers[problem.id] || '';
 
   content.innerHTML = '<div class="math-detail">' +
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">' +
@@ -3682,12 +3676,12 @@ function renderMathProblem(problem, isOwner) {
       '<button class="math-btn del-math-btn" data-id="' + problem.id + '" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Del</button>' +
       '</div>' : '') +
     '</div>' +
-    '<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">by ' + problem.author + ' &middot; Select all correct answers</div>' +
-    '<div class="math-answers">' + answersHtml + '</div>' +
-    '<div style="display:flex;align-items:center;gap:10px;margin-top:16px;">' +
-    '<button id="mathCheckBtn" class="math-btn" style="padding:8px 20px;font-size:12px;background:linear-gradient(135deg,#6b3fa0,#8860ff);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:inherit;font-weight:500;">Check Answers</button>' +
-    '<span id="mathResult" style="font-size:13px;font-weight:600;"></span>' +
+    '<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">by ' + problem.author + ' &middot; Type your answer below</div>' +
+    '<div style="display:flex;align-items:center;gap:10px;">' +
+    '<input id="mathAnswerInput" type="text" value="' + saved.replace(/"/g,'&quot;') + '" placeholder="Your answer..." style="flex:1;padding:10px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;"' + (saved ? ' disabled' : '') + '>' +
+    '<button id="mathCheckBtn" class="math-btn" style="padding:8px 20px;font-size:12px;background:linear-gradient(135deg,#6b3fa0,#8860ff);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:inherit;font-weight:500;white-space:nowrap;">Check Answer</button>' +
     '</div>' +
+    '<div style="margin-top:10px;"><span id="mathResult" style="font-size:13px;font-weight:600;"></span></div>' +
     '</div>';
 
   content.querySelectorAll('.del-math-btn').forEach(function(btn) {
@@ -3697,39 +3691,27 @@ function renderMathProblem(problem, isOwner) {
     btn.addEventListener('click', function(e) { e.stopPropagation(); showMathForm(parseInt(this.dataset.id)); });
   });
 
-  var boxes = content.querySelectorAll('.math-choice-box');
-  boxes.forEach(function(box) {
-    box.addEventListener('change', function() {
-      var res = document.getElementById('mathResult');
-      if (res) { res.textContent = ''; res.style.color = ''; }
-    });
+  var input = document.getElementById('mathAnswerInput');
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('mathCheckBtn').click();
   });
 
-  if (saved) {
-    boxes.forEach(function(box, i) {
-      if (saved.indexOf(i) >= 0) box.checked = true;
-    });
-  }
-
   document.getElementById('mathCheckBtn').addEventListener('click', function() {
-    var picked = [];
-    boxes.forEach(function(box, i) { if (box.checked) picked.push(i); });
-    var correct = [];
-    (problem.answers || []).forEach(function(a, i) { if (a.correct) correct.push(i); });
-    var allCorrect = picked.length === correct.length && correct.every(function(c) { return picked.indexOf(c) >= 0; });
-    mathUserAnswers[problem.id] = picked;
-
-    content.querySelectorAll('.math-choice').forEach(function(row, i) {
-      row.classList.remove('math-choice-correct', 'math-choice-wrong');
-      var isCorrect = correct.indexOf(i) >= 0;
-      var isPicked = picked.indexOf(i) >= 0;
-      if (isCorrect) row.classList.add('math-choice-correct');
-      if (isPicked && !isCorrect) row.classList.add('math-choice-wrong');
-    });
+    var typed = input.value.trim();
+    if (!typed) return;
+    var accepted = (problem.answers || []).map(function(a) { return String(a).trim().toLowerCase(); });
+    var correct = accepted.indexOf(typed.toLowerCase()) >= 0;
+    mathUserAnswers[problem.id] = typed;
 
     var res = document.getElementById('mathResult');
-    res.textContent = allCorrect ? 'Correct!' : 'Incorrect. Check your answers.';
-    res.style.color = allCorrect ? '#50e3c2' : '#ff6b6b';
+    if (correct) {
+      res.textContent = 'Correct! Nice work.';
+      res.style.color = '#50e3c2';
+      input.disabled = true;
+    } else {
+      res.textContent = 'Incorrect. Try again.';
+      res.style.color = '#ff6b6b';
+    }
   });
 }
 
@@ -3737,20 +3719,19 @@ function showMathForm(editId) {
   if (!OWNERS.includes(currentUser)) return;
   var list = getMathProblems();
   var problem = editId ? list.find(function(p) { return p.id === editId; }) : null;
-  var answers = (problem && problem.answers) ? problem.answers : [{text:'',correct:false}];
+  var answers = (problem && problem.answers) ? problem.answers : [''];
   var answersHtml = answers.map(function(a, i) {
     return '<div class="math-answer-row" data-idx="' + i + '">' +
-      '<input type="text" class="math-answer-text" value="' + (a.text || '').replace(/"/g,'&quot;') + '" placeholder="Answer choice ' + (i + 1) + '" style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">' +
-      '<label class="math-correct-label" title="Is this a correct answer?"><input type="checkbox" class="math-answer-correct"' + (a.correct ? ' checked' : '') + '> Correct</label>' +
+      '<input type="text" class="math-answer-text" value="' + String(a).replace(/"/g,'&quot;') + '" placeholder="Accepted answer ' + (i + 1) + '" style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">' +
       '<button type="button" class="math-answer-remove" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Remove</button>' +
       '</div>';
   }).join('');
 
   var html = '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Question</label>' +
     '<input id="mathQuestionInput" type="text" value="' + (problem ? problem.question.replace(/"/g,'&quot;') : '') + '" style="width:100%;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;" placeholder="e.g. What is 2 + 2?"></div>' +
-    '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Answer Choices (check the ones that are correct)</label>' +
+    '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Accepted Answers (add every correct spelling/variant)</label>' +
     '<div id="mathAnswersList">' + answersHtml + '</div>' +
-    '<button id="mathAddAnswerBtn" type="button" style="margin-top:6px;padding:6px 12px;font-size:11px;background:transparent;border:1px dashed var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">+ Add Choice</button></div>' +
+    '<button id="mathAddAnswerBtn" type="button" style="margin-top:6px;padding:6px 12px;font-size:11px;background:transparent;border:1px dashed var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">+ Add Answer</button></div>' +
     '<div id="mathFormStatus" style="font-size:12px;color:var(--text-muted);margin-bottom:8px;display:none;"></div>' +
     '<div style="display:flex;gap:8px;">' +
     '<button id="mathSaveBtn" style="padding:8px 20px;font-size:12px;background:linear-gradient(135deg,#6b3fa0,#8860ff);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:inherit;font-weight:500;">' + (editId ? 'Update' : 'Publish') + ' Problem</button>' +
@@ -3763,8 +3744,7 @@ function showMathForm(editId) {
     var row = document.createElement('div');
     row.className = 'math-answer-row';
     row.dataset.idx = idx;
-    row.innerHTML = '<input type="text" class="math-answer-text" placeholder="Answer choice ' + (idx + 1) + '" style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">' +
-      '<label class="math-correct-label" title="Is this a correct answer?"><input type="checkbox" class="math-answer-correct"> Correct</label>' +
+    row.innerHTML = '<input type="text" class="math-answer-text" placeholder="Accepted answer ' + (idx + 1) + '" style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">' +
       '<button type="button" class="math-answer-remove" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Remove</button>';
     listEl.appendChild(row);
   }
@@ -3780,22 +3760,15 @@ function showMathForm(editId) {
     var question = document.getElementById('mathQuestionInput').value.trim();
     var answerRows = Array.prototype.slice.call(document.querySelectorAll('#mathAnswersList .math-answer-row'));
     var answers = answerRows.map(function(row) {
-      return {
-        text: row.querySelector('.math-answer-text').value.trim(),
-        correct: row.querySelector('.math-answer-correct').checked
-      };
-    }).filter(function(a) { return a.text; });
+      return row.querySelector('.math-answer-text').value.trim();
+    }).filter(function(a) { return a; });
     var status = document.getElementById('mathFormStatus');
     if (!question) {
       status.textContent = 'Question is required.'; status.style.color = '#ff6b6b'; status.style.display = 'block';
       return;
     }
-    if (answers.length < 2) {
-      status.textContent = 'Add at least 2 answer choices.'; status.style.color = '#ff6b6b'; status.style.display = 'block';
-      return;
-    }
-    if (!answers.some(function(a) { return a.correct; })) {
-      status.textContent = 'Mark at least one answer as correct.'; status.style.color = '#ff6b6b'; status.style.display = 'block';
+    if (answers.length < 1) {
+      status.textContent = 'Add at least 1 accepted answer.'; status.style.color = '#ff6b6b'; status.style.display = 'block';
       return;
     }
     var list = getMathProblems();

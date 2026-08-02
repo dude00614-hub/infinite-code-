@@ -3055,43 +3055,8 @@ body.dragging .edit-handle {
   word-break: break-word;
 }
 
-.math-answers {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.math-choice {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  font-size: 14px;
-  color: var(--text-primary);
-}
-
-.math-choice:hover {
+#mathAnswerInput:focus {
   border-color: var(--accent);
-}
-
-.math-choice-box {
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-.math-choice-correct {
-  border-color: #50e3c2;
-  background: rgba(80, 227, 194, 0.12);
-}
-
-.math-choice-wrong {
-  border-color: #ff6b6b;
-  background: rgba(255, 107, 107, 0.12);
 }
 
 .math-answer-row {
@@ -3099,19 +3064,4 @@ body.dragging .edit-handle {
   align-items: center;
   gap: 10px;
   margin-bottom: 8px;
-}
-
-.math-correct-label {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.math-correct-label input {
-  accent-color: var(--accent);
-  cursor: pointer;
 }

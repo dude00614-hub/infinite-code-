@@ -73,6 +73,10 @@
         </div>
       </div>
       <div class="topbar-right">
+        <div class="topbar-search-wrap" id="navSearchWrap">
+          <input type="text" id="navSearchInput" class="topbar-search" placeholder="Search tabs..." autocomplete="off">
+          <div id="navSearchResults" class="nav-search-results hidden"></div>
+        </div>
         <span class="owner-badge hidden" id="ownerBadge">Owner</span>
         <button id="logoutBtn">Sign Out</button>
       </div>
@@ -367,6 +371,20 @@
                     <div class="notes-items" id="notesItems"></div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-content" id="tab-math">
+            <div class="math-layout">
+              <div class="math-sidebar">
+                <div class="math-sidebar-header">
+                  <span>MATH PROBLEMS</span>
+                  <button id="newMathBtn" class="owner-only" title="Create Problem">+</button>
+                </div>
+                <div id="mathList" class="math-list"></div>
+              </div>
+              <div class="math-content" id="mathContent">
+                <div class="math-placeholder">Open the Math tab to see problems. Owners can add problems using +.</div>
               </div>
             </div>
           </div>

@@ -2733,7 +2733,68 @@ function switchTab(tabId) {
   if (tabId === 'notes') {
     renderNotes();
   }
+  if (tabId === 'math') {
+    renderMath();
+  }
 }
+
+// ===== SEARCH NAVIGATION BAR =====
+var SEARCH_NAV_ITEMS = [
+  { tab: 'code', label: 'Code', icon: '&lt;/&gt;' },
+  { tab: 'database', label: 'Database', icon: '&#128451;' },
+  { tab: 'courses', label: 'Courses', icon: '&#128218;' },
+  { tab: 'notes', label: 'Notes', icon: '&#128221;' },
+  { tab: 'math', label: 'Math', icon: '&#128220;' },
+  { tab: 'settings', label: 'Settings', icon: '&#9881;' },
+  { tab: 'run', label: '/run', icon: '&#9654;', ownerOnly: true },
+  { tab: 'edit', label: 'Edit', icon: '&#9998;', ownerOnly: true },
+  { tab: 'ire', label: 'IRE', icon: '&#127917;', ownerOnly: true }
+];
+
+function openSearchNav(query) {
+  var list = SEARCH_NAV_ITEMS.filter(function(item) {
+    if (item.ownerOnly && !OWNERS.includes(currentUser)) return false;
+    if (!query) return true;
+    return item.label.toLowerCase().indexOf(query) >= 0 || item.tab.indexOf(query) >= 0;
+  });
+  var box = document.getElementById('navSearchResults');
+  if (!list.length) {
+    box.innerHTML = '<div class="nav-search-item nav-search-empty">No matching tabs</div>';
+  } else {
+    box.innerHTML = list.map(function(item) {
+      return '<div class="nav-search-item" data-tab="' + item.tab + '"><span class="nav-search-icon">' + item.icon + '</span>' + item.label + '</div>';
+    }).join('');
+  }
+  box.classList.remove('hidden');
+}
+
+function hideSearchNav() {
+  document.getElementById('navSearchResults').classList.add('hidden');
+}
+
+document.getElementById('navSearchInput').addEventListener('input', function() {
+  openSearchNav(this.value.trim().toLowerCase());
+});
+document.getElementById('navSearchInput').addEventListener('focus', function() {
+  openSearchNav(this.value.trim().toLowerCase());
+});
+document.getElementById('navSearchResults').addEventListener('click', function(e) {
+  var item = e.target.closest('.nav-search-item');
+  if (!item || !item.dataset.tab) return;
+  switchTab(item.dataset.tab);
+  document.getElementById('navSearchInput').value = '';
+  hideSearchNav();
+});
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#navSearchWrap')) hideSearchNav();
+});
+document.getElementById('navSearchInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    var first = document.querySelector('#navSearchResults .nav-search-item[data-tab]');
+    if (first) { switchTab(first.dataset.tab); this.value = ''; hideSearchNav(); }
+  }
+  if (e.key === 'Escape') { this.value = ''; hideSearchNav(); }
+});
 
 document.querySelectorAll('.topbar-tab').forEach(tab => {
   tab.addEventListener('click', function() {
@@ -3528,6 +3589,240 @@ document.addEventListener('DOMContentLoaded', function() {
     newBtn.addEventListener('click', function() {
       if (!OWNERS.includes(currentUser)) return;
       showCourseForm(null);
+    });
+  }
+});
+
+// ===== MATH =====
+const MATH_KEY = 'ic_math';
+let selectedMathId = null;
+let mathUserAnswers = {};
+
+function getMathProblems() {
+  try { return JSON.parse(localStorage.getItem(MATH_KEY)) || []; } catch(e) { return []; }
+}
+
+function saveMathProblems(list) {
+  localStorage.setItem(MATH_KEY, JSON.stringify(list));
+  if (!currentUser) return;
+  list.forEach(function(p) {
+    sb('math_problems').upsert({id:p.id, question:p.question, answers:p.answers, author:p.author}, 'id');
+  });
+}
+
+function deleteMathProblem(id) {
+  var list = getMathProblems();
+  var filtered = list.filter(function(p) { return p.id !== id; });
+  if (filtered.length === list.length) return false;
+  saveMathProblems(filtered);
+  if (currentUser) sb('math_problems').delete({id:id});
+  if (selectedMathId === id) selectedMathId = null;
+  renderMath();
+  return true;
+}
+
+function renderMath() {
+  var list = getMathProblems();
+  var isOwner = OWNERS.includes(currentUser);
+  var sidebar = document.getElementById('mathList');
+  var content = document.getElementById('mathContent');
+  if (!sidebar) return;
+
+  if (list.length === 0) {
+    var hint = isOwner ? 'No math problems yet. Click + to create one.' : 'No math problems yet.';
+    sidebar.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:12px;">' + hint + '</div>';
+    content.innerHTML = '<div class="math-placeholder">' + hint + '</div>';
+    return;
+  }
+
+  sidebar.innerHTML = list.map(function(p) {
+    var active = selectedMathId === p.id ? 'math-item-active' : '';
+    var answerCount = (p.answers || []).length;
+    return '<div class="math-item ' + active + '" data-id="' + p.id + '">' +
+      '<div class="math-item-title">' + p.question.replace(/</g,'&lt;') + '</div>' +
+      '<div class="math-item-author">by ' + p.author + ' &middot; ' + answerCount + ' choice' + (answerCount !== 1 ? 's' : '') + '</div>' +
+      '</div>';
+  }).join('');
+
+  sidebar.querySelectorAll('.math-item').forEach(function(el) {
+    el.addEventListener('click', function() {
+      selectedMathId = parseInt(this.dataset.id);
+      renderMath();
+    });
+  });
+
+  if (selectedMathId) {
+    var problem = list.find(function(p) { return p.id === selectedMathId; });
+    if (problem) {
+      renderMathProblem(problem, isOwner);
+    } else {
+      selectedMathId = null;
+      content.innerHTML = '<div class="math-placeholder">Problem not found.</div>';
+    }
+  } else {
+    content.innerHTML = '<div class="math-placeholder">Select a problem from the sidebar.</div>';
+  }
+}
+
+function renderMathProblem(problem, isOwner) {
+  var content = document.getElementById('mathContent');
+  var saved = mathUserAnswers[problem.id] || null;
+  var answersHtml = (problem.answers || []).map(function(a, i) {
+    return '<label class="math-choice" data-idx="' + i + '">' +
+      '<input type="checkbox" class="math-choice-box">' +
+      '<span>' + a.text.replace(/</g,'&lt;') + '</span>' +
+      '</label>';
+  }).join('') || '<div style="font-size:12px;color:var(--text-muted);">No answer choices.</div>';
+
+  content.innerHTML = '<div class="math-detail">' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">' +
+    '<h2 style="margin:0;font-size:20px;color:var(--text-primary);">' + problem.question.replace(/</g,'&lt;') + '</h2>' +
+    (isOwner ? '<div style="display:flex;gap:6px;">' +
+      '<button class="math-btn edit-math-btn" data-id="' + problem.id + '" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #50e3c2;border-radius:4px;color:#50e3c2;cursor:pointer;font-family:inherit;">Edit</button>' +
+      '<button class="math-btn del-math-btn" data-id="' + problem.id + '" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Del</button>' +
+      '</div>' : '') +
+    '</div>' +
+    '<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">by ' + problem.author + ' &middot; Select all correct answers</div>' +
+    '<div class="math-answers">' + answersHtml + '</div>' +
+    '<div style="display:flex;align-items:center;gap:10px;margin-top:16px;">' +
+    '<button id="mathCheckBtn" class="math-btn" style="padding:8px 20px;font-size:12px;background:linear-gradient(135deg,#6b3fa0,#8860ff);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:inherit;font-weight:500;">Check Answers</button>' +
+    '<span id="mathResult" style="font-size:13px;font-weight:600;"></span>' +
+    '</div>' +
+    '</div>';
+
+  content.querySelectorAll('.del-math-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) { e.stopPropagation(); if (confirm('Delete this problem?')) deleteMathProblem(parseInt(this.dataset.id)); });
+  });
+  content.querySelectorAll('.edit-math-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) { e.stopPropagation(); showMathForm(parseInt(this.dataset.id)); });
+  });
+
+  var boxes = content.querySelectorAll('.math-choice-box');
+  boxes.forEach(function(box) {
+    box.addEventListener('change', function() {
+      var res = document.getElementById('mathResult');
+      if (res) { res.textContent = ''; res.style.color = ''; }
+    });
+  });
+
+  if (saved) {
+    boxes.forEach(function(box, i) {
+      if (saved.indexOf(i) >= 0) box.checked = true;
+    });
+  }
+
+  document.getElementById('mathCheckBtn').addEventListener('click', function() {
+    var picked = [];
+    boxes.forEach(function(box, i) { if (box.checked) picked.push(i); });
+    var correct = [];
+    (problem.answers || []).forEach(function(a, i) { if (a.correct) correct.push(i); });
+    var allCorrect = picked.length === correct.length && correct.every(function(c) { return picked.indexOf(c) >= 0; });
+    mathUserAnswers[problem.id] = picked;
+
+    content.querySelectorAll('.math-choice').forEach(function(row, i) {
+      row.classList.remove('math-choice-correct', 'math-choice-wrong');
+      var isCorrect = correct.indexOf(i) >= 0;
+      var isPicked = picked.indexOf(i) >= 0;
+      if (isCorrect) row.classList.add('math-choice-correct');
+      if (isPicked && !isCorrect) row.classList.add('math-choice-wrong');
+    });
+
+    var res = document.getElementById('mathResult');
+    res.textContent = allCorrect ? 'Correct!' : 'Incorrect. Check your answers.';
+    res.style.color = allCorrect ? '#50e3c2' : '#ff6b6b';
+  });
+}
+
+function showMathForm(editId) {
+  if (!OWNERS.includes(currentUser)) return;
+  var list = getMathProblems();
+  var problem = editId ? list.find(function(p) { return p.id === editId; }) : null;
+  var answers = (problem && problem.answers) ? problem.answers : [{text:'',correct:false}];
+  var answersHtml = answers.map(function(a, i) {
+    return '<div class="math-answer-row" data-idx="' + i + '">' +
+      '<input type="text" class="math-answer-text" value="' + (a.text || '').replace(/"/g,'&quot;') + '" placeholder="Answer choice ' + (i + 1) + '" style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">' +
+      '<label class="math-correct-label" title="Is this a correct answer?"><input type="checkbox" class="math-answer-correct"' + (a.correct ? ' checked' : '') + '> Correct</label>' +
+      '<button type="button" class="math-answer-remove" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Remove</button>' +
+      '</div>';
+  }).join('');
+
+  var html = '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Question</label>' +
+    '<input id="mathQuestionInput" type="text" value="' + (problem ? problem.question.replace(/"/g,'&quot;') : '') + '" style="width:100%;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;" placeholder="e.g. What is 2 + 2?"></div>' +
+    '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Answer Choices (check the ones that are correct)</label>' +
+    '<div id="mathAnswersList">' + answersHtml + '</div>' +
+    '<button id="mathAddAnswerBtn" type="button" style="margin-top:6px;padding:6px 12px;font-size:11px;background:transparent;border:1px dashed var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">+ Add Choice</button></div>' +
+    '<div id="mathFormStatus" style="font-size:12px;color:var(--text-muted);margin-bottom:8px;display:none;"></div>' +
+    '<div style="display:flex;gap:8px;">' +
+    '<button id="mathSaveBtn" style="padding:8px 20px;font-size:12px;background:linear-gradient(135deg,#6b3fa0,#8860ff);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:inherit;font-weight:500;">' + (editId ? 'Update' : 'Publish') + ' Problem</button>' +
+    '<button id="mathCancelBtn" style="padding:8px 20px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">Cancel</button></div>';
+  document.getElementById('mathContent').innerHTML = html;
+
+  function addAnswerRow() {
+    var listEl = document.getElementById('mathAnswersList');
+    var idx = listEl.children.length;
+    var row = document.createElement('div');
+    row.className = 'math-answer-row';
+    row.dataset.idx = idx;
+    row.innerHTML = '<input type="text" class="math-answer-text" placeholder="Answer choice ' + (idx + 1) + '" style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">' +
+      '<label class="math-correct-label" title="Is this a correct answer?"><input type="checkbox" class="math-answer-correct"> Correct</label>' +
+      '<button type="button" class="math-answer-remove" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Remove</button>';
+    listEl.appendChild(row);
+  }
+
+  document.getElementById('mathAddAnswerBtn').addEventListener('click', addAnswerRow);
+  document.getElementById('mathAnswersList').addEventListener('click', function(e) {
+    if (e.target.classList.contains('math-answer-remove')) {
+      e.target.closest('.math-answer-row').remove();
+    }
+  });
+
+  document.getElementById('mathSaveBtn').addEventListener('click', function() {
+    var question = document.getElementById('mathQuestionInput').value.trim();
+    var answerRows = Array.prototype.slice.call(document.querySelectorAll('#mathAnswersList .math-answer-row'));
+    var answers = answerRows.map(function(row) {
+      return {
+        text: row.querySelector('.math-answer-text').value.trim(),
+        correct: row.querySelector('.math-answer-correct').checked
+      };
+    }).filter(function(a) { return a.text; });
+    var status = document.getElementById('mathFormStatus');
+    if (!question) {
+      status.textContent = 'Question is required.'; status.style.color = '#ff6b6b'; status.style.display = 'block';
+      return;
+    }
+    if (answers.length < 2) {
+      status.textContent = 'Add at least 2 answer choices.'; status.style.color = '#ff6b6b'; status.style.display = 'block';
+      return;
+    }
+    if (!answers.some(function(a) { return a.correct; })) {
+      status.textContent = 'Mark at least one answer as correct.'; status.style.color = '#ff6b6b'; status.style.display = 'block';
+      return;
+    }
+    var list = getMathProblems();
+    if (editId) {
+      var idx = list.findIndex(function(p) { return p.id === editId; });
+      if (idx >= 0) {
+        list[idx].question = question;
+        list[idx].answers = answers;
+        list[idx].updatedAt = new Date().toLocaleDateString();
+      }
+    } else {
+      list.push({ id: Date.now(), question: question, answers: answers, author: currentUser || 'guest', createdAt: new Date().toLocaleDateString() });
+    }
+    saveMathProblems(list);
+    selectedMathId = editId || list[list.length - 1].id;
+    renderMath();
+  });
+  document.getElementById('mathCancelBtn').addEventListener('click', function() { renderMath(); });
+  document.getElementById('mathQuestionInput').focus();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var newBtn = document.getElementById('newMathBtn');
+  if (newBtn) {
+    newBtn.addEventListener('click', function() {
+      if (!OWNERS.includes(currentUser)) return;
+      showMathForm(null);
     });
   }
 });

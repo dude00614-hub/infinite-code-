@@ -5001,7 +5001,9 @@ function initCanvas(canvasId) {
 }
 
 // ===== NOTES TAB =====
-const NOTES_KEY = 'ic_notes';
+function getNotesKey() {
+  return 'ic_notes_' + (currentUser || 'guest');
+}
 let notes = [];
 let notesCurrentId = null;
 let notesTool = 'pen';
@@ -5013,10 +5015,10 @@ const notesCanvas = document.getElementById('notesCanvas');
 const notesCtx = notesCanvas.getContext('2d');
 
 function getNotes() {
-  try { return JSON.parse(localStorage.getItem(NOTES_KEY)) || []; } catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem(getNotesKey())) || []; } catch(e) { return []; }
 }
 function saveNotes(list) {
-  localStorage.setItem(NOTES_KEY, JSON.stringify(list));
+  localStorage.setItem(getNotesKey(), JSON.stringify(list));
   notes = list;
 }
 function currentNote() {

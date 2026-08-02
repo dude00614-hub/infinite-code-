@@ -3701,16 +3701,18 @@ function renderMathProblem(problem, isOwner) {
     if (!typed) return;
     var accepted = (problem.answers || []).map(function(a) { return String(a).trim().toLowerCase(); });
     var correct = accepted.indexOf(typed.toLowerCase()) >= 0;
-    mathUserAnswers[problem.id] = typed;
 
     var res = document.getElementById('mathResult');
     if (correct) {
+      mathUserAnswers[problem.id] = typed;
       res.textContent = 'Correct! Nice work.';
       res.style.color = '#50e3c2';
       input.disabled = true;
     } else {
       res.textContent = 'Incorrect. Try again.';
       res.style.color = '#ff6b6b';
+      input.focus();
+      input.select();
     }
   });
 }

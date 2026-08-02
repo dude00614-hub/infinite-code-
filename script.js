@@ -3596,7 +3596,18 @@ document.addEventListener('DOMContentLoaded', function() {
 // ===== MATH =====
 const MATH_KEY = 'ic_math';
 let selectedMathId = null;
-let mathUserAnswers = {};
+
+function getMathProgressKey() {
+  return 'ic_math_progress_' + (currentUser || 'guest');
+}
+
+function getMathProgress() {
+  try { return JSON.parse(localStorage.getItem(getMathProgressKey())) || {}; } catch(e) { return {}; }
+}
+
+function saveMathProgress(progress) {
+  localStorage.setItem(getMathProgressKey(), JSON.stringify(progress));
+}
 
 function getMathProblems() {
   try { return JSON.parse(localStorage.getItem(MATH_KEY)) || []; } catch(e) { return []; }
@@ -3635,11 +3646,13 @@ function renderMath() {
     return;
   }
 
+  var progress = getMathProgress();
   sidebar.innerHTML = list.map(function(p) {
     var active = selectedMathId === p.id ? 'math-item-active' : '';
     var answerCount = (p.answers || []).length;
+    var solved = !!progress[p.id];
     return '<div class="math-item ' + active + '" data-id="' + p.id + '">' +
-      '<div class="math-item-title">' + p.question.replace(/</g,'&lt;') + '</div>' +
+      '<div class="math-item-title">' + (solved ? '<span class="math-item-tick" title="Solved">&#10003;</span> ' : '') + p.question.replace(/</g,'&lt;') + '</div>' +
       '<div class="math-item-author">by ' + p.author + ' &middot; ' + answerCount + ' accepted answer' + (answerCount !== 1 ? 's' : '') + '</div>' +
       '</div>';
   }).join('');
@@ -3666,7 +3679,7 @@ function renderMath() {
 
 function renderMathProblem(problem, isOwner) {
   var content = document.getElementById('mathContent');
-  var saved = mathUserAnswers[problem.id] || '';
+  var saved = getMathProgress()[problem.id] || '';
 
   content.innerHTML = '<div class="math-detail">' +
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">' +
@@ -3704,10 +3717,16 @@ function renderMathProblem(problem, isOwner) {
 
     var res = document.getElementById('mathResult');
     if (correct) {
-      mathUserAnswers[problem.id] = typed;
+      var progress = getMathProgress();
+      progress[problem.id] = typed;
+      saveMathProgress(progress);
       res.textContent = 'Correct! Nice work.';
       res.style.color = '#50e3c2';
       input.disabled = true;
+      var tick = document.querySelector('.math-item[data-id="' + problem.id + '"] .math-item-title');
+      if (tick && tick.innerHTML.indexOf('math-item-tick') < 0) {
+        tick.innerHTML = '<span class="math-item-tick" title="Solved">&#10003;</span> ' + tick.innerHTML;
+      }
     } else {
       res.textContent = 'Incorrect. Try again.';
       res.style.color = '#ff6b6b';

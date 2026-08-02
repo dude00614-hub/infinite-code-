@@ -3029,6 +3029,11 @@ body.dragging .edit-handle {
   margin-bottom: 2px;
 }
 
+.math-item-tick {
+  color: #50e3c2;
+  font-weight: 700;
+}
+
 .math-item-author {
   font-size: 11px;
   color: var(--text-muted);

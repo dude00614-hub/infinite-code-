@@ -448,6 +448,28 @@
               </div>
             </div>
           </div>
+          <div class="tab-content" id="tab-notes">
+            <div class="notes-layout">
+              <div class="notes-sidebar">
+                <div class="notes-sidebar-header">
+                  <span>NOTES</span>
+                  <button id="notesNewBtn" title="New Note">+</button>
+                </div>
+                <div class="notes-list" id="notesList"></div>
+              </div>
+              <div class="notes-main">
+                <div class="notes-toolbar">
+                  <input type="text" id="notesTitle" class="notes-title-input" placeholder="Untitled Note" spellcheck="false">
+                  <span class="notes-status" id="notesStatus"></span>
+                  <button id="notesSaveBtn" class="notes-save-btn">&#128190; Save</button>
+                  <button id="notesDeleteBtn" class="notes-delete-btn" title="Delete note">&#128465;</button>
+                </div>
+                <div class="notes-editor-wrap">
+                  <textarea id="notesEditor" class="notes-editor" placeholder="Start typing your note here..."></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
     </div>
 
   </div>

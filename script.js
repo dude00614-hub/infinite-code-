@@ -2739,6 +2739,9 @@ function switchTab(tabId) {
   if (tabId === 'math-practice') {
     renderMathPractice();
   }
+  if (tabId === 'notes') {
+    renderNotesTab();
+  }
 }
 
 // ===== SEARCH NAVIGATION BAR =====
@@ -2749,6 +2752,7 @@ var SEARCH_NAV_ITEMS = [
   { tab: 'canvas', label: 'Canvas', icon: '&#127912;' },
   { tab: 'math', label: 'Math', icon: '&#128220;' },
   { tab: 'math-practice', label: 'Math Practice', icon: '&#127891;' },
+  { tab: 'notes', label: 'Notes', icon: '&#128221;' },
   { tab: 'settings', label: 'Settings', icon: '&#9881;' },
   { tab: 'run', label: '/run', icon: '&#9654;', ownerOnly: true },
   { tab: 'edit', label: 'Edit', icon: '&#9998;', ownerOnly: true },
@@ -5973,6 +5977,127 @@ document.addEventListener('DOMContentLoaded', function() {
     mpRenderStatsRow();
     mpRenderDashboard();
   });
+});
+
+// ===== NOTES TAB (search-only, typed notes saved as projects) =====
+function getNotesTabKey() {
+  return 'ic_notes_' + (currentUser || 'guest');
+}
+let notesProjects = [];
+let notesCurrentId = null;
+
+function getNotesProjects() {
+  try { return JSON.parse(localStorage.getItem(getNotesTabKey())) || []; } catch(e) { return []; }
+}
+function saveNotesProjects(list) {
+  localStorage.setItem(getNotesTabKey(), JSON.stringify(list));
+  notesProjects = list;
+}
+function currentNoteProject() {
+  return notesProjects.find(function(n) { return n.id === notesCurrentId; }) || null;
+}
+function setNotesStatus(msg) {
+  const el = document.getElementById('notesStatus');
+  if (el) el.textContent = msg;
+}
+
+function renderNotesList() {
+  const list = document.getElementById('notesList');
+  if (!list) return;
+  if (!notesProjects.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:12px;">No notes yet. Click + to create one.</div>';
+    return;
+  }
+  list.innerHTML = notesProjects.map(function(n) {
+    return '<div class="notes-item ' + (n.id === notesCurrentId ? 'notes-item-active' : '') + '" data-id="' + n.id + '">' +
+      '<div style="min-width:0;flex:1;">' +
+      '<div class="notes-item-name">' + escapeIRE(n.name || 'Untitled') + '</div>' +
+      '<div class="notes-item-date">' + new Date(n.updatedAt).toLocaleDateString() + '</div>' +
+      '</div>' +
+      '<button class="notes-item-del-btn" data-del="' + n.id + '" title="Delete note">&#10005;</button>' +
+      '</div>';
+  }).join('');
+  list.querySelectorAll('.notes-item').forEach(function(el) {
+    el.addEventListener('click', function(ev) {
+      if (ev.target.closest('.notes-item-del-btn')) return;
+      openNoteProject(this.dataset.id);
+    });
+  });
+  list.querySelectorAll('.notes-item-del-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { deleteNoteProject(this.dataset.del); });
+  });
+}
+
+function openNoteProject(id) {
+  notesCurrentId = id;
+  const note = currentNoteProject();
+  document.getElementById('notesTitle').value = note ? note.name : '';
+  document.getElementById('notesEditor').value = note ? (note.content || '') : '';
+  renderNotesList();
+  setNotesStatus('');
+}
+
+function newNoteProject() {
+  const note = { id: 'n' + Date.now() + Math.random().toString(36).slice(2, 6), name: 'Untitled Note', updatedAt: Date.now(), content: '' };
+  notesProjects.unshift(note);
+  notesCurrentId = note.id;
+  saveNotesProjects(notesProjects);
+  openNoteProject(note.id);
+  setNotesStatus('New note created');
+  document.getElementById('notesTitle').focus();
+}
+
+function deleteNoteProject(id) {
+  if (!confirm('Delete this note?')) return;
+  notesProjects = notesProjects.filter(function(n) { return n.id !== id; });
+  if (notesCurrentId === id) notesCurrentId = notesProjects.length ? notesProjects[0].id : null;
+  saveNotesProjects(notesProjects);
+  renderNotesList();
+  if (notesCurrentId) openNoteProject(notesCurrentId);
+  else {
+    document.getElementById('notesTitle').value = '';
+    document.getElementById('notesEditor').value = '';
+    setNotesStatus('');
+  }
+}
+
+function notesSaveProject() {
+  const note = currentNoteProject();
+  if (!note) return;
+  const t = document.getElementById('notesTitle');
+  const e = document.getElementById('notesEditor');
+  if (t.value.trim()) note.name = t.value.trim();
+  note.content = e.value;
+  note.updatedAt = Date.now();
+  saveNotesProjects(notesProjects);
+  renderNotesList();
+  setNotesStatus('Saved ' + new Date().toLocaleTimeString());
+}
+
+function renderNotesTab() {
+  notesProjects = getNotesProjects();
+  if (!notesProjects.length) {
+    const note = { id: 'n' + Date.now() + Math.random().toString(36).slice(2, 6), name: 'Untitled Note', updatedAt: Date.now(), content: '' };
+    notesProjects.push(note);
+    saveNotesProjects(notesProjects);
+  }
+  if (!notesCurrentId || !currentNoteProject()) notesCurrentId = notesProjects[0].id;
+  openNoteProject(notesCurrentId);
+}
+
+document.getElementById('notesNewBtn').addEventListener('click', newNoteProject);
+document.getElementById('notesSaveBtn').addEventListener('click', notesSaveProject);
+document.getElementById('notesDeleteBtn').addEventListener('click', function() {
+  if (notesCurrentId) deleteNoteProject(notesCurrentId);
+});
+document.getElementById('notesTitle').addEventListener('change', function() {
+  const note = currentNoteProject();
+  if (note) {
+    note.name = this.value.trim() || 'Untitled Note';
+    note.updatedAt = Date.now();
+    saveNotesProjects(notesProjects);
+    renderNotesList();
+  }
 });
 
 // ===== EXPORT / IMPORT DATA =====

@@ -3625,7 +3625,7 @@ function saveMathProblems(list) {
   localStorage.setItem(MATH_KEY, JSON.stringify(list));
   if (!currentUser) return;
   list.forEach(function(p) {
-    sb('math_problems').upsert({id:p.id, question:p.question, answers:p.answers, author:p.author}, 'id');
+    sb('math_problems').upsert({id:p.id, question:p.question, subject:p.subject, answers:p.answers, author:p.author}, 'id');
   });
 }
 
@@ -3640,17 +3640,67 @@ function deleteMathProblem(id) {
   return true;
 }
 
+function getMathSubjectFilterKey() {
+  return 'ic_math_subject_' + (currentUser || 'guest');
+}
+
+function getMathSubjectFilter() {
+  try { return localStorage.getItem(getMathSubjectFilterKey()) || 'All'; } catch(e) { return 'All'; }
+}
+
+function saveMathSubjectFilter(subject) {
+  try { localStorage.setItem(getMathSubjectFilterKey(), subject); } catch(e) {}
+}
+
+function getMathSubject(p) {
+  return (p.subject && String(p.subject).trim()) ? String(p.subject).trim() : 'General';
+}
+
 function renderMath() {
-  var list = getMathProblems();
+  var allList = getMathProblems();
   var isOwner = OWNERS.includes(currentUser);
   var sidebar = document.getElementById('mathList');
   var content = document.getElementById('mathContent');
   if (!sidebar) return;
 
-  if (list.length === 0) {
+  var subjects = [];
+  allList.forEach(function(p) {
+    var s = getMathSubject(p);
+    if (subjects.indexOf(s) < 0) subjects.push(s);
+  });
+  subjects.sort();
+
+  var filter = getMathSubjectFilter();
+  if (subjects.indexOf(filter) < 0) filter = 'All';
+
+  var filterEl = document.getElementById('mathFilter');
+  if (filterEl) {
+    var chips = ['<button type="button" class="math-filter-chip' + (filter === 'All' ? ' active' : '') + '" data-subject="All">All</button>'];
+    subjects.forEach(function(s) {
+      chips.push('<button type="button" class="math-filter-chip' + (filter === s ? ' active' : '') + '" data-subject="' + s.replace(/"/g,'&quot;') + '">' + s.replace(/</g,'&lt;') + '</button>');
+    });
+    filterEl.innerHTML = chips.join('');
+    filterEl.querySelectorAll('.math-filter-chip').forEach(function(el) {
+      el.addEventListener('click', function() {
+        saveMathSubjectFilter(this.dataset.subject);
+        selectedMathId = null;
+        renderMath();
+      });
+    });
+  }
+
+  if (allList.length === 0) {
     var hint = isOwner ? 'No math problems yet. Click + to create one.' : 'No math problems yet.';
     sidebar.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:12px;">' + hint + '</div>';
     content.innerHTML = '<div class="math-placeholder">' + hint + '</div>';
+    return;
+  }
+
+  var list = filter === 'All' ? allList : allList.filter(function(p) { return getMathSubject(p) === filter; });
+
+  if (list.length === 0) {
+    sidebar.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:12px;">No problems in &ldquo;' + filter.replace(/</g,'&lt;') + '&rdquo; yet.</div>';
+    content.innerHTML = '<div class="math-placeholder">No problems in this subject yet. Pick another subject to train.</div>';
     return;
   }
 
@@ -3661,7 +3711,7 @@ function renderMath() {
     var solved = !!progress[p.id];
     return '<div class="math-item ' + active + '" data-id="' + p.id + '">' +
       '<div class="math-item-title">' + (solved ? '<span class="math-item-tick" title="Solved">&#10003;</span> ' : '') + p.question.replace(/</g,'&lt;') + '</div>' +
-      '<div class="math-item-author">by ' + p.author + ' &middot; ' + answerCount + ' accepted answer' + (answerCount !== 1 ? 's' : '') + '</div>' +
+      '<div class="math-item-author">by ' + p.author + ' &middot; ' + getMathSubject(p).replace(/</g,'&lt;') + ' &middot; ' + answerCount + ' accepted answer' + (answerCount !== 1 ? 's' : '') + '</div>' +
       '</div>';
   }).join('');
 
@@ -3681,7 +3731,7 @@ function renderMath() {
       content.innerHTML = '<div class="math-placeholder">Problem not found.</div>';
     }
   } else {
-    content.innerHTML = '<div class="math-placeholder">Select a problem from the sidebar.</div>';
+    content.innerHTML = '<div class="math-placeholder">Select a problem from the sidebar to train.</div>';
   }
 }
 
@@ -3697,7 +3747,7 @@ function renderMathProblem(problem, isOwner) {
       '<button class="math-btn del-math-btn" data-id="' + problem.id + '" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid #ff4444;border-radius:4px;color:#ff4444;cursor:pointer;font-family:inherit;">Del</button>' +
       '</div>' : '') +
     '</div>' +
-    '<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">by ' + problem.author + ' &middot; Type your answer below</div>' +
+    '<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">by ' + problem.author + ' &middot; ' + getMathSubject(problem).replace(/</g,'&lt;') + ' &middot; Type your answer below</div>' +
     '<div style="display:flex;align-items:center;gap:10px;">' +
     '<input id="mathAnswerInput" type="text" value="' + saved.replace(/"/g,'&quot;') + '" placeholder="Your answer..." style="flex:1;padding:10px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;"' + (saved ? ' disabled' : '') + '>' +
     '<button id="mathCheckBtn" class="math-btn" style="padding:8px 20px;font-size:12px;background:linear-gradient(135deg,#6b3fa0,#8860ff);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:inherit;font-weight:500;white-space:nowrap;">Check Answer</button>' +
@@ -3758,6 +3808,8 @@ function showMathForm(editId) {
 
   var html = '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Question</label>' +
     '<input id="mathQuestionInput" type="text" value="' + (problem ? problem.question.replace(/"/g,'&quot;') : '') + '" style="width:100%;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;" placeholder="e.g. What is 2 + 2?"></div>' +
+    '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Subject (used to train a specific subject)</label>' +
+    '<input id="mathSubjectInput" type="text" value="' + (problem && problem.subject ? String(problem.subject).replace(/"/g,'&quot;') : '') + '" style="width:100%;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;" placeholder="e.g. Algebra, Geometry, Calculus (optional)"></div>' +
     '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Accepted Answers (add every correct spelling/variant)</label>' +
     '<div id="mathAnswersList">' + answersHtml + '</div>' +
     '<button id="mathAddAnswerBtn" type="button" style="margin-top:6px;padding:6px 12px;font-size:11px;background:transparent;border:1px dashed var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">+ Add Answer</button></div>' +
@@ -3800,16 +3852,18 @@ function showMathForm(editId) {
       status.textContent = 'Add at least 1 accepted answer.'; status.style.color = '#ff6b6b'; status.style.display = 'block';
       return;
     }
+    var subject = document.getElementById('mathSubjectInput').value.trim();
     var list = getMathProblems();
     if (editId) {
       var idx = list.findIndex(function(p) { return p.id === editId; });
       if (idx >= 0) {
         list[idx].question = question;
+        list[idx].subject = subject;
         list[idx].answers = answers;
         list[idx].updatedAt = new Date().toLocaleDateString();
       }
     } else {
-      list.push({ id: Date.now(), question: question, answers: answers, author: currentUser || 'guest', createdAt: new Date().toLocaleDateString() });
+      list.push({ id: Date.now(), question: question, subject: subject, answers: answers, author: currentUser || 'guest', createdAt: new Date().toLocaleDateString() });
     }
     saveMathProblems(list);
     selectedMathId = editId || list[list.length - 1].id;

@@ -3710,6 +3710,37 @@ body.dragging .edit-handle {
   border-color: var(--accent);
 }
 
+.math-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.math-filter-chip {
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s;
+}
+
+.math-filter-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.math-filter-chip.active {
+  background: linear-gradient(135deg, #6b3fa0, #8860ff);
+  border-color: transparent;
+  color: #fff;
+}
+
 .math-list {
   flex: 1;
   overflow-y: auto;

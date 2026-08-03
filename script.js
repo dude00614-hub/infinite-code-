@@ -5300,6 +5300,7 @@ let canvasColor = '#000000';
 let canvasWidth = 3;
 let canvasDrawing = false;
 let canvasCurrentStroke = null;
+let canvasShowAxis = false;
 const canvasBoard = document.getElementById('canvasBoard');
 const canvasCtx = canvasBoard.getContext('2d');
 
@@ -5354,25 +5355,90 @@ function resizeCanvasBoard() {
   canvasCtx.lineJoin = 'round';
 }
 
+function drawAxis() {
+  if (!canvasShowAxis) return;
+  const w = 820, h = 1060;
+  const cx = w / 2, cy = h / 2;
+  canvasCtx.save();
+  canvasCtx.globalCompositeOperation = 'source-over';
+  canvasCtx.strokeStyle = '#888888';
+  canvasCtx.fillStyle = '#888888';
+  canvasCtx.lineWidth = 1;
+  canvasCtx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  canvasCtx.textAlign = 'center';
+  canvasCtx.textBaseline = 'middle';
+
+  // Y axis (vertical through center)
+  canvasCtx.beginPath();
+  canvasCtx.moveTo(cx, 16);
+  canvasCtx.lineTo(cx, h - 16);
+  canvasCtx.stroke();
+  // X axis (horizontal through center)
+  canvasCtx.beginPath();
+  canvasCtx.moveTo(16, cy);
+  canvasCtx.lineTo(w - 16, cy);
+  canvasCtx.stroke();
+
+  // Arrowheads
+  canvasCtx.beginPath();
+  canvasCtx.moveTo(cx, 16);
+  canvasCtx.lineTo(cx - 5, 28);
+  canvasCtx.lineTo(cx + 5, 28);
+  canvasCtx.closePath();
+  canvasCtx.fill();
+  canvasCtx.beginPath();
+  canvasCtx.moveTo(w - 16, cy);
+  canvasCtx.lineTo(w - 28, cy - 5);
+  canvasCtx.lineTo(w - 28, cy + 5);
+  canvasCtx.closePath();
+  canvasCtx.fill();
+
+  // Labels
+  canvasCtx.fillText('Y', cx, 10);
+  canvasCtx.fillText('X', w - 8, cy);
+
+  // Tick marks every 100px
+  for (let i = 100; i < w; i += 100) {
+    if (Math.abs(i - cx) < 30) continue;
+    canvasCtx.beginPath();
+    canvasCtx.moveTo(i, cy - 5);
+    canvasCtx.lineTo(i, cy + 5);
+    canvasCtx.stroke();
+    canvasCtx.fillText(String(i - cx), i, cy + 16);
+  }
+  for (let j = 100; j < h; j += 100) {
+    if (Math.abs(j - cy) < 30) continue;
+    canvasCtx.beginPath();
+    canvasCtx.moveTo(cx - 5, j);
+    canvasCtx.lineTo(cx + 5, j);
+    canvasCtx.stroke();
+    canvasCtx.fillText(String(cx - j), cx + 14, j);
+  }
+  canvasCtx.fillText('0', cx + 14, cy + 16);
+  canvasCtx.restore();
+}
+
 function redrawCanvas() {
   resizeCanvasBoard();
   canvasCtx.fillStyle = '#ffffff';
   canvasCtx.fillRect(0, 0, 820, 1060);
   const drawing = currentDrawing();
-  if (!drawing) return;
-  (drawing.elements || []).forEach(function(el) {
-    if (el.type !== 'stroke') return;
-    canvasCtx.globalCompositeOperation = el.eraser ? 'destination-out' : 'source-over';
-    canvasCtx.strokeStyle = el.color;
-    canvasCtx.lineWidth = el.width;
-    canvasCtx.beginPath();
-    el.points.forEach(function(p, i) {
-      if (i === 0) canvasCtx.moveTo(p[0], p[1]);
-      else canvasCtx.lineTo(p[0], p[1]);
+  if (drawing) {
+    (drawing.elements || []).forEach(function(el) {
+      if (el.type !== 'stroke') return;
+      canvasCtx.globalCompositeOperation = el.eraser ? 'destination-out' : 'source-over';
+      canvasCtx.strokeStyle = el.color;
+      canvasCtx.lineWidth = el.width;
+      canvasCtx.beginPath();
+      el.points.forEach(function(p, i) {
+        if (i === 0) canvasCtx.moveTo(p[0], p[1]);
+        else canvasCtx.lineTo(p[0], p[1]);
+      });
+      canvasCtx.stroke();
     });
-    canvasCtx.stroke();
-  });
-  canvasCtx.globalCompositeOperation = 'source-over';
+    canvasCtx.globalCompositeOperation = 'source-over';
+  }
+  drawAxis();
 }
 
 function canvasPos(e) {
@@ -5425,9 +5491,29 @@ function openDrawing(id) {
   canvasCurrentId = id;
   const drawing = currentDrawing();
   document.getElementById('canvasTitle').value = drawing ? drawing.name : '';
+  canvasShowAxis = drawing ? !!drawing.axis : false;
+  updateCanvasAxisBtn();
   renderCanvasList();
   redrawCanvas();
   setCanvasStatus('');
+}
+
+function updateCanvasAxisBtn() {
+  const btn = document.getElementById('canvasAxisBtn');
+  if (btn) btn.classList.toggle('active', canvasShowAxis);
+}
+
+function toggleCanvasAxis() {
+  canvasShowAxis = !canvasShowAxis;
+  const drawing = currentDrawing();
+  if (drawing) {
+    drawing.axis = canvasShowAxis;
+    drawing.updatedAt = Date.now();
+    saveDrawings(drawings);
+  }
+  updateCanvasAxisBtn();
+  redrawCanvas();
+  setCanvasStatus(canvasShowAxis ? 'X/Y axis on' : 'X/Y axis off');
 }
 
 function newDrawing() {
@@ -5493,6 +5579,7 @@ document.querySelectorAll('.canvas-tool').forEach(function(btn) {
 });
 document.getElementById('canvasColor').addEventListener('input', function() { canvasColor = this.value; });
 document.getElementById('canvasWidth').addEventListener('input', function() { canvasWidth = parseInt(this.value, 10) || 3; });
+document.getElementById('canvasAxisBtn').addEventListener('click', toggleCanvasAxis);
 document.getElementById('canvasSaveBtn').addEventListener('click', canvasSave);
 document.getElementById('canvasClearBtn').addEventListener('click', canvasClear);
 document.getElementById('canvasNewBtn').addEventListener('click', newDrawing);

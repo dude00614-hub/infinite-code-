@@ -2768,6 +2768,12 @@ body.dragging .edit-handle {
   touch-action: none;
 }
 
+#canvasAxisBtn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
 /* ===== SEARCH NAVIGATION BAR ===== */
 .topbar-search-wrap {
   position: relative;

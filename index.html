@@ -63,11 +63,10 @@
         <span class="topbar-brand">Infinite Code</span>
         <div class="topbar-tabs">
           <button class="topbar-tab active" data-tab="code">&lt;/&gt; Code</button>
-          <button class="topbar-tab" data-tab="database">&#128451; Database</button>
+          <button class="topbar-tab owner-only" data-tab="database">&#128451; Database</button>
           <button class="topbar-tab owner-only" data-tab="run">&#9654; /run</button>
           <button class="topbar-tab owner-only" data-tab="edit">&#9998; Edit</button>
           <button class="topbar-tab" data-tab="courses">&#128218; Courses</button>
-          <button class="topbar-tab" data-tab="notes">&#128221; Notes</button>
           <button class="topbar-tab owner-only" data-tab="ire">&#127917; IRE</button>
           <button class="topbar-tab" data-tab="settings">&#9881; Settings</button>
         </div>
@@ -341,34 +340,31 @@
               </div>
             </div>
           </div>
-          <div class="tab-content" id="tab-notes">
-            <div class="notes-layout">
-              <div class="notes-sidebar">
-                <div class="notes-sidebar-header">
-                  <span>NOTES</span>
-                  <button id="notesNewBtn" title="New Note">+</button>
+          <div class="tab-content" id="tab-canvas">
+            <div class="canvas-layout">
+              <div class="canvas-sidebar">
+                <div class="canvas-sidebar-header">
+                  <span>DRAWINGS</span>
+                  <button id="canvasNewBtn" title="New Drawing">+</button>
                 </div>
-                <div class="notes-list" id="notesList"></div>
+                <div class="canvas-list" id="canvasList"></div>
               </div>
-              <div class="notes-main">
-                <div class="notes-toolbar">
-                  <input type="text" id="notesTitle" class="notes-title-input" placeholder="Untitled Note" spellcheck="false">
-                  <div class="notes-tools">
-                    <button class="notes-tool active" data-tool="pen" title="Draw">&#9999;&#65039;</button>
-                    <button class="notes-tool" data-tool="eraser" title="Eraser">&#10022;</button>
-                    <button class="notes-tool" data-tool="text" title="Text">&#128221;</button>
-                    <button class="notes-tool" data-tool="table" title="Table">&#128207;</button>
+              <div class="canvas-main">
+                <div class="canvas-toolbar">
+                  <input type="text" id="canvasTitle" class="canvas-title-input" placeholder="Untitled Drawing" spellcheck="false">
+                  <div class="canvas-tools">
+                    <button class="canvas-tool active" data-tool="pen" title="Draw">&#9999;&#65039;</button>
+                    <button class="canvas-tool" data-tool="eraser" title="Eraser">&#10022;</button>
                   </div>
-                  <input type="color" id="notesColor" value="#1a1a2e" title="Color">
-                  <input type="range" id="notesWidth" min="1" max="20" value="3" title="Stroke width">
-                  <span class="notes-status" id="notesStatus"></span>
-                  <button id="notesSaveBtn" class="notes-save-btn">&#128190; Save</button>
-                  <button id="notesClearBtn" class="notes-clear-btn" title="Clear page">&#128465;</button>
+                  <input type="color" id="canvasColor" value="#000000" title="Color">
+                  <input type="range" id="canvasWidth" min="1" max="20" value="3" title="Brush width">
+                  <span class="canvas-status" id="canvasStatus"></span>
+                  <button id="canvasSaveBtn" class="canvas-save-btn">&#128190; Save</button>
+                  <button id="canvasClearBtn" class="canvas-clear-btn" title="Clear canvas">&#128465;</button>
                 </div>
-                <div class="notes-page-wrap" id="notesPageWrap">
-                  <div class="notes-page" id="notesPage">
-                    <canvas id="notesCanvas"></canvas>
-                    <div class="notes-items" id="notesItems"></div>
+                <div class="canvas-page-wrap" id="canvasPageWrap">
+                  <div class="canvas-page" id="canvasPage">
+                    <canvas id="canvasBoard"></canvas>
                   </div>
                 </div>
               </div>

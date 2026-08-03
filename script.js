@@ -2736,6 +2736,9 @@ function switchTab(tabId) {
   if (tabId === 'math') {
     renderMath();
   }
+  if (tabId === 'math-practice') {
+    renderMathPractice();
+  }
 }
 
 // ===== SEARCH NAVIGATION BAR =====
@@ -2745,6 +2748,7 @@ var SEARCH_NAV_ITEMS = [
   { tab: 'courses', label: 'Courses', icon: '&#128218;' },
   { tab: 'canvas', label: 'Canvas', icon: '&#127912;' },
   { tab: 'math', label: 'Math', icon: '&#128220;' },
+  { tab: 'math-practice', label: 'Math Practice', icon: '&#127891;' },
   { tab: 'settings', label: 'Settings', icon: '&#9881;' },
   { tab: 'run', label: '/run', icon: '&#9654;', ownerOnly: true },
   { tab: 'edit', label: 'Edit', icon: '&#9998;', ownerOnly: true },
@@ -5591,6 +5595,384 @@ document.getElementById('canvasTitle').addEventListener('change', function() {
     saveDrawings(drawings);
     renderCanvasList();
   }
+});
+
+// ===== MATH PRACTICE (spaced repetition) =====
+const MP_TOPICS = ['arithmetic', 'algebra', 'trigonometry', 'calculus', 'number_theory'];
+const MP_TOPIC_NAMES = {
+  arithmetic: 'Arithmetic',
+  algebra: 'Algebra',
+  trigonometry: 'Trigonometry',
+  calculus: 'Calculus',
+  number_theory: 'Number Theory'
+};
+const MP_BANK = {
+  arithmetic: [
+    { q: '12 × 8', a: '96', accept: ['96'] },
+    { q: '3 + 4 × 2 (order of operations)', a: '11', accept: ['11'] },
+    { q: '144 ÷ 12', a: '12', accept: ['12'] },
+    { q: '7² + 5', a: '54', accept: ['54'] },
+    { q: '(8 − 3) × (6 + 2)', a: '40', accept: ['40'] },
+    { q: '17 + 19', a: '36', accept: ['36'] },
+    { q: '2⁵', a: '32', accept: ['32'] },
+    { q: '1/4 + 1/2', a: '0.75', accept: ['0.75', '3/4', '0.75'] },
+    { q: '15% of 200', a: '30', accept: ['30'] },
+    { q: '9² − 4 × 5', a: '61', accept: ['61'] },
+    { q: '100 − 25 × 3', a: '25', accept: ['25'] },
+    { q: '6 × 7 + 8', a: '50', accept: ['50'] }
+  ],
+  algebra: [
+    { q: 'Solve for x: 2x + 6 = 14', a: 'x = 4', accept: ['4'] },
+    { q: 'Solve for x: 3(x − 2) = 15', a: 'x = 7', accept: ['7'] },
+    { q: 'Solve for x: 5x − 3 = 2x + 12', a: 'x = 5', accept: ['5'] },
+    { q: 'Solve for x: x² = 81', a: 'x = 9 (or −9)', accept: ['9', '-9', '9, -9', '±9'] },
+    { q: 'Factor: x² − 9', a: '(x − 3)(x + 3)', accept: [] },
+    { q: 'Solve for x: x/4 = 3', a: 'x = 12', accept: ['12'] },
+    { q: 'What is the slope of y = 3x + 2?', a: '3', accept: ['3'] },
+    { q: 'Simplify: (x²)(x³)', a: 'x⁵', accept: ['x5', 'x^5'] },
+    { q: 'Solve for x: 2x = 10', a: 'x = 5', accept: ['5'] },
+    { q: 'If y = 2x + 1 and x = 3, what is y?', a: '7', accept: ['7'] }
+  ],
+  trigonometry: [
+    { q: 'sin(30°)', a: '0.5', accept: ['0.5', '1/2'] },
+    { q: 'cos(60°)', a: '0.5', accept: ['0.5', '1/2'] },
+    { q: 'tan(45°)', a: '1', accept: ['1'] },
+    { q: 'sin(90°)', a: '1', accept: ['1'] },
+    { q: 'cos(0°)', a: '1', accept: ['1'] },
+    { q: 'sin²(θ) + cos²(θ)', a: '1', accept: ['1'] },
+    { q: 'cos(180°)', a: '−1', accept: ['-1'] },
+    { q: 'sin(0°)', a: '0', accept: ['0'] },
+    { q: 'tan(0°)', a: '0', accept: ['0'] },
+    { q: 'Which is larger: sin(30°) or sin(60°)?', a: 'sin(60°)', accept: ['sin(60)', 'sin60'] }
+  ],
+  calculus: [
+    { q: 'd/dx (x²)', a: '2x', accept: ['2x', '2*x'] },
+    { q: 'd/dx (x³)', a: '3x²', accept: ['3x2', '3x^2'] },
+    { q: 'd/dx (sin x)', a: 'cos x', accept: ['cos x', 'cosx'] },
+    { q: 'd/dx (eˣ)', a: 'eˣ', accept: ['e^x', 'ex'] },
+    { q: '∫ 2x dx', a: 'x² + C', accept: ['x2', 'x^2', 'x^2 + C'] },
+    { q: 'd/dx (x⁵)', a: '5x⁴', accept: ['5x4', '5x^4'] },
+    { q: '∫ x dx', a: 'x²/2 + C', accept: ['x2/2', 'x^2/2'] },
+    { q: 'd/dx (cos x)', a: '−sin x', accept: ['-sin x', '-sinx'] },
+    { q: '∫ 1 dx', a: 'x + C', accept: ['x', 'x + C'] },
+    { q: 'd/dx (ln x)', a: '1/x', accept: ['1/x', '1/x'] }
+  ],
+  number_theory: [
+    { q: 'Is 17 prime? (yes/no)', a: 'yes', accept: ['yes', 'y'] },
+    { q: 'Is 21 prime? (yes/no)', a: 'no', accept: ['no', 'n'] },
+    { q: 'gcd(24, 36)', a: '12', accept: ['12'] },
+    { q: 'lcm(4, 6)', a: '12', accept: ['12'] },
+    { q: '13 mod 5', a: '3', accept: ['3'] },
+    { q: '100 mod 7', a: '2', accept: ['2'] },
+    { q: 'Is 1 prime? (yes/no)', a: 'no', accept: ['no', 'n'] },
+    { q: 'How many divisors does 12 have?', a: '6', accept: ['6'] },
+    { q: 'gcd(48, 18)', a: '6', accept: ['6'] },
+    { q: '2⁵ mod 7', a: '4', accept: ['4'] }
+  ]
+};
+
+let mpProgress = null;
+let mpSession = [];
+let mpSessionIdx = 0;
+let mpCurrentProblem = null;
+let mpView = 'quiz';
+
+function getMPKey() {
+  return 'ic_math_practice_' + (currentUser || 'guest');
+}
+
+function getMPProgress() {
+  try { return JSON.parse(localStorage.getItem(getMPKey())) || { cards: {}, stats: { again: 0, hard: 0, good: 0, easy: 0, seen: 0 } }; } catch(e) { return { cards: {}, stats: { again: 0, hard: 0, good: 0, easy: 0, seen: 0 } }; }
+}
+
+function saveMPProgress() {
+  localStorage.setItem(getMPKey(), JSON.stringify(mpProgress));
+}
+
+function mpProblemId(topic, idx) {
+  return topic + ':' + idx;
+}
+
+function mpAllProblems() {
+  var out = [];
+  MP_TOPICS.forEach(function(topic) {
+    MP_BANK[topic].forEach(function(p, idx) {
+      out.push({ topic: topic, idx: idx, q: p.q, a: p.a, accept: p.accept });
+    });
+  });
+  return out;
+}
+
+function mpDueProblems() {
+  var now = Date.now();
+  return mpAllProblems().filter(function(p) {
+    var card = mpProgress.cards[mpProblemId(p.topic, p.idx)];
+    if (!card) return true;
+    return card.due <= now;
+  });
+}
+
+function mpUpdateCard(problem, rating) {
+  var key = mpProblemId(problem.topic, problem.idx);
+  var card = mpProgress.cards[key] || { ease: 2.5, interval: 0, reps: 0, due: 0, last: null };
+  var ease = card.ease;
+  var interval = card.interval || 0;
+  var reps = card.reps || 0;
+  if (rating === 'again') {
+    reps = 0;
+    interval = 0; // due now: resurfaces again in this same session
+    ease = Math.max(1.3, ease - 0.2);
+  } else if (rating === 'hard') {
+    reps += 1;
+    if (reps === 1) interval = 1 * 24 * 60 * 60 * 1000;
+    else interval = Math.max(interval * 1.2, 1 * 24 * 60 * 60 * 1000);
+    ease = Math.max(1.3, ease - 0.15);
+  } else if (rating === 'good') {
+    reps += 1;
+    if (reps === 1) interval = 1 * 24 * 60 * 60 * 1000;
+    else if (reps === 2) interval = 6 * 24 * 60 * 60 * 1000;
+    else interval = Math.round(interval * ease);
+    // nothing: ease stays
+  } else if (rating === 'easy') {
+    reps += 1;
+    if (reps === 1) interval = 4 * 24 * 60 * 60 * 1000;
+    else if (reps === 2) interval = 2 * 7 * 24 * 60 * 60 * 1000;
+    else interval = Math.round(interval * ease * 1.3);
+    ease = Math.min(3.0, ease + 0.15);
+  }
+  card.ease = Math.round(ease * 100) / 100;
+  card.interval = interval;
+  card.reps = reps;
+  card.due = Date.now() + interval;
+  card.last = rating;
+  mpProgress.cards[key] = card;
+  if (!mpProgress.stats) mpProgress.stats = { again: 0, hard: 0, good: 0, easy: 0, seen: 0 };
+  mpProgress.stats[rating] = (mpProgress.stats[rating] || 0) + 1;
+  mpProgress.stats.seen = (mpProgress.stats.seen || 0) + 1;
+  saveMPProgress();
+}
+
+function mpTopicStats(topic) {
+  var probs = MP_BANK[topic] || [];
+  var mastered = 0, due = 0, newc = 0, total = probs.length;
+  var easeSum = 0, easeCount = 0;
+  probs.forEach(function(p, idx) {
+    var card = mpProgress.cards[mpProblemId(topic, idx)];
+    if (!card) { newc++; due++; return; }
+    easeSum += card.ease; easeCount++;
+    if (card.interval >= 7 * 24 * 60 * 60 * 1000) mastered++;
+    if (card.due <= Date.now()) due++;
+  });
+  var masteredPct = total ? Math.round(mastered / total * 100) : 0;
+  var avgEase = easeCount ? Math.round(easeSum / easeCount * 100) / 100 : 0;
+  return { total: total, newc: newc, due: due, mastered: mastered, masteredPct: masteredPct, avgEase: avgEase };
+}
+
+function mpWeakestTopic() {
+  var worst = null, worstScore = Infinity;
+  MP_TOPICS.forEach(function(topic) {
+    var s = mpTopicStats(topic);
+    var score = s.masteredPct - s.due * 5; // low mastery + high due = weak
+    if (score < worstScore) { worstScore = score; worst = topic; }
+  });
+  return worst;
+}
+
+function mpRenderStatsRow() {
+  var row = document.getElementById('mpStatsRow');
+  if (!row) return;
+  var due = mpDueProblems().length;
+  var all = mpAllProblems();
+  var seen = mpProgress.stats ? mpProgress.stats.seen || 0 : 0;
+  var mastered = 0;
+  MP_TOPICS.forEach(function(t) { mastered += mpTopicStats(t).mastered; });
+  var weak = mpWeakestTopic();
+  row.innerHTML =
+    '<div class="mp-stat"><div class="mp-stat-num">' + due + '</div><div class="mp-stat-label">Due now</div></div>' +
+    '<div class="mp-stat"><div class="mp-stat-num">' + seen + '/' + all.length + '</div><div class="mp-stat-label">Seen</div></div>' +
+    '<div class="mp-stat"><div class="mp-stat-num">' + mastered + '</div><div class="mp-stat-label">Mastered</div></div>' +
+    '<div class="mp-stat"><div class="mp-stat-num">' + (weak ? MP_TOPIC_NAMES[weak] : '—') + '</div><div class="mp-stat-label">Weakest</div></div>';
+}
+
+function mpRenderDashboard() {
+  document.getElementById('mpDashSummary').innerHTML =
+    '<div class="mp-dash-banner">Your weakest topic is <b>' + (mpWeakestTopic() ? MP_TOPIC_NAMES[mpWeakestTopic()] : '—') + '</b>. Keep practicing daily to improve.</div>';
+  var html = '';
+  MP_TOPICS.forEach(function(topic) {
+    var s = mpTopicStats(topic);
+    html += '<div class="mp-topic-card">' +
+      '<div class="mp-topic-head"><span class="mp-topic-name">' + MP_TOPIC_NAMES[topic] + '</span>' +
+      '<span class="mp-topic-ease">ease ' + s.avgEase.toFixed(2) + '</span></div>' +
+      '<div class="mp-topic-bar"><div class="mp-topic-bar-fill" style="width:' + s.masteredPct + '%"></div></div>' +
+      '<div class="mp-topic-meta">' + s.mastered + '/' + s.total + ' mastered &middot; ' + s.due + ' due &middot; ' + s.newc + ' new</div>' +
+      '</div>';
+  });
+  document.getElementById('mpDashTopics').innerHTML = html;
+}
+
+function mpShowAnswer() {
+  var card = document.getElementById('mpQuizCard');
+  var answerEl = document.getElementById('mpAnswerReveal');
+  if (answerEl) {
+    answerEl.innerHTML = 'Answer: <b>' + escapeIRE(mpCurrentProblem.a) + '</b>';
+    answerEl.style.display = 'block';
+  }
+  document.getElementById('mpRateRow').classList.remove('hidden');
+  document.getElementById('mpAnswerInput').disabled = true;
+  document.getElementById('mpCheckBtn').disabled = true;
+  document.getElementById('mpShowAnswerBtn').style.display = 'none';
+}
+
+function mpRate(rating) {
+  mpUpdateCard(mpCurrentProblem, rating);
+  setMpStatus('Rated "' + rating + '" &mdash; next due ' + mpNextDueLabel(mpCurrentProblem));
+  mpNext();
+}
+
+function mpNextDueLabel(problem) {
+  var card = mpProgress.cards[mpProblemId(problem.topic, problem.idx)];
+  if (!card) return 'soon';
+  var days = card.interval / (24 * 60 * 60 * 1000);
+  if (days < 1) return 'minutes';
+  if (days < 2) return '1 day';
+  if (days < 30) return Math.round(days) + ' days';
+  return Math.round(days / 30) + ' months';
+}
+
+function mpNext() {
+  mpSessionIdx++;
+  if (mpSessionIdx >= mpSession.length) {
+    mpSession = mpDueProblems();
+    mpSessionIdx = 0;
+    if (!mpSession.length) {
+      document.getElementById('mpQuizCard').innerHTML =
+        '<div class="mp-placeholder">All caught up! No problems due right now. Check back later or review your dashboard.</div>';
+      mpRenderStatsRow();
+      return;
+    }
+  }
+  mpShowProblem(mpSession[mpSessionIdx]);
+}
+
+function mpAnswerCheck() {
+  var input = document.getElementById('mpAnswerInput');
+  var val = (input.value || '').trim().toLowerCase();
+  if (!val) return;
+  var accepted = (mpCurrentProblem.accept || []).map(function(a) { return String(a).toLowerCase(); });
+  var correct = accepted.indexOf(val) >= 0;
+  var result = document.getElementById('mpCheckResult');
+  if (correct) {
+    result.innerHTML = '<span style="color:#50e3c2;font-weight:600;">Correct!</span>';
+  } else {
+    result.innerHTML = '<span style="color:#ff6b6b;font-weight:600;">Incorrect. </span><span style="color:var(--text-muted);">Answer: ' + escapeIRE(mpCurrentProblem.a) + '</span>';
+  }
+  document.getElementById('mpRateRow').classList.remove('hidden');
+  input.disabled = true;
+  document.getElementById('mpCheckBtn').disabled = true;
+  document.getElementById('mpShowAnswerBtn').style.display = 'none';
+}
+
+function mpShowProblem(problem) {
+  mpCurrentProblem = problem;
+  var card = document.getElementById('mpQuizCard');
+  card.innerHTML =
+    '<div class="mp-problem-topic" style="color:var(--accent);font-weight:600;font-size:11px;letter-spacing:1.5px;">' + MP_TOPIC_NAMES[problem.topic].toUpperCase() + '</div>' +
+    '<div class="mp-problem-q">' + escapeIRE(problem.q) + '</div>' +
+    '<div class="mp-answer-area">' +
+      '<input type="text" id="mpAnswerInput" class="mp-answer-input" placeholder="Type your answer..." autocomplete="off">' +
+      '<button id="mpCheckBtn" class="mp-btn mp-btn-check">Check</button>' +
+      '<button id="mpShowAnswerBtn" class="mp-btn mp-btn-ghost">Show Answer</button>' +
+    '</div>' +
+    '<div id="mpCheckResult" class="mp-check-result"></div>' +
+    '<div id="mpAnswerReveal" class="mp-answer-reveal" style="display:none;"></div>' +
+    '<div id="mpRateRow" class="mp-rate-row hidden">' +
+      '<span class="mp-rate-label">How well did you know it?</span>' +
+      '<button class="mp-btn mp-rate mp-rate-again" data-rating="again">Again</button>' +
+      '<button class="mp-btn mp-rate mp-rate-hard" data-rating="hard">Hard</button>' +
+      '<button class="mp-btn mp-rate mp-rate-good" data-rating="good">Good</button>' +
+      '<button class="mp-btn mp-rate mp-rate-easy" data-rating="easy">Easy</button>' +
+    '</div>';
+  document.getElementById('mpAnswerInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); mpAnswerCheck(); }
+  });
+  document.getElementById('mpCheckBtn').addEventListener('click', mpAnswerCheck);
+  document.getElementById('mpShowAnswerBtn').addEventListener('click', mpShowAnswer);
+  document.querySelectorAll('#mpRateRow .mp-rate').forEach(function(btn) {
+    btn.addEventListener('click', function() { mpRate(this.dataset.rating); });
+  });
+  document.getElementById('mpAnswerInput').focus();
+  mpRenderStatsRow();
+}
+
+function mpStartSession() {
+  mpSession = mpDueProblems();
+  mpSessionIdx = 0;
+  if (!mpSession.length) {
+    document.getElementById('mpQuizCard').innerHTML =
+      '<div class="mp-placeholder">No problems due right now. Everything is scheduled! Check back later.</div>';
+    mpRenderStatsRow();
+    return;
+  }
+  mpShowProblem(mpSession[0]);
+}
+
+function renderMathPractice() {
+  mpProgress = getMPProgress();
+  mpSession = mpDueProblems();
+  mpSessionIdx = 0;
+  mpView = 'quiz';
+  var qv = document.getElementById('mpQuizView');
+  var dv = document.getElementById('mpDashView');
+  qv.classList.remove('hidden');
+  dv.classList.add('hidden');
+  document.querySelectorAll('.mp-btn-view').forEach(function(b) {
+    b.classList.toggle('active', b.id === 'mpViewQuiz');
+  });
+  setMpStatus('');
+  if (!mpSession.length) {
+    document.getElementById('mpQuizCard').innerHTML =
+      '<div class="mp-placeholder">Welcome to Math Practice! You have <b>no due problems</b>. Start fresh — answer a few and rate them.</div>';
+    mpRenderStatsRow();
+  } else {
+    mpShowProblem(mpSession[0]);
+  }
+}
+
+function setMpStatus(msg) {
+  var el = document.getElementById('mpStatus');
+  if (el) el.innerHTML = msg;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('mpViewQuiz').addEventListener('click', function() {
+    mpView = 'quiz';
+    var qv = document.getElementById('mpQuizView');
+    var dv = document.getElementById('mpDashView');
+    qv.classList.remove('hidden');
+    dv.classList.add('hidden');
+    document.querySelectorAll('.mp-btn-view').forEach(function(b) { b.classList.toggle('active', b.id === 'mpViewQuiz'); });
+    setMpStatus('');
+    if (mpSession.length === 0) {
+      mpSession = mpDueProblems();
+      mpSessionIdx = 0;
+    }
+    if (mpSession.length) mpShowProblem(mpSession[mpSessionIdx]);
+    else {
+      document.getElementById('mpQuizCard').innerHTML =
+        '<div class="mp-placeholder">No due problems. Start a fresh set or check back later.</div>';
+      mpRenderStatsRow();
+    }
+  });
+  document.getElementById('mpViewDash').addEventListener('click', function() {
+    mpView = 'dash';
+    var qv = document.getElementById('mpQuizView');
+    var dv = document.getElementById('mpDashView');
+    qv.classList.add('hidden');
+    dv.classList.remove('hidden');
+    document.querySelectorAll('.mp-btn-view').forEach(function(b) { b.classList.toggle('active', b.id === 'mpViewDash'); });
+    mpRenderStatsRow();
+    mpRenderDashboard();
+  });
 });
 
 // ===== EXPORT / IMPORT DATA =====

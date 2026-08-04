@@ -330,6 +330,46 @@
               </div>
               <p id="dataStatus" class="data-status"></p>
 
+              <hr class="settings-divider">
+              <h2 class="settings-title">Keybindings</h2>
+              <p class="settings-subtitle">Click a shortcut and press a new key combination to remap it. Escape cancels.</p>
+              <div id="keybindingsList" class="keybindings-list"></div>
+              <div class="settings-actions">
+                <button class="data-btn" id="keybindingsResetBtn">&#128260; Reset to Defaults</button>
+              </div>
+              <p id="keybindingsStatus" class="data-status"></p>
+
+              <hr class="settings-divider">
+              <h2 class="settings-title">Editor Preferences</h2>
+              <p class="settings-subtitle">Apply instantly to the Code and IRE editors.</p>
+              <div class="editor-prefs">
+                <div class="pref-row">
+                  <span class="pref-label">Font size</span>
+                  <input type="range" id="prefFontSize" class="pref-range" min="10" max="24" step="1">
+                  <span class="pref-value" id="prefFontSizeVal">14px</span>
+                </div>
+                <div class="pref-row">
+                  <span class="pref-label">Tab width</span>
+                  <select id="prefTabWidth" class="pref-select">
+                    <option value="2">2 spaces</option>
+                    <option value="4">4 spaces</option>
+                  </select>
+                </div>
+                <div class="pref-row">
+                  <span class="pref-label">Line numbers</span>
+                  <label class="pref-check"><input type="checkbox" id="prefLineNumbers"> <span>Show line numbers</span></label>
+                </div>
+                <div class="pref-row">
+                  <span class="pref-label">Auto-close brackets</span>
+                  <label class="pref-check"><input type="checkbox" id="prefAutoClose"> <span>Auto-close () [] {}</span></label>
+                </div>
+                <div class="pref-row">
+                  <span class="pref-label">Word wrap</span>
+                  <label class="pref-check"><input type="checkbox" id="prefWordWrap"> <span>Wrap long lines</span></label>
+                </div>
+              </div>
+              <p id="editorPrefsStatus" class="data-status"></p>
+
             </div>
           </div>
           <div class="tab-content" id="tab-courses">

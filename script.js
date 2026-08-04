@@ -91,6 +91,429 @@ document.querySelectorAll('.theme-card').forEach(card => {
   });
 });
 
+// ===== KEYBINDINGS & EDITOR PREFERENCES =====
+const KB_ACTIONS = {
+  run:              { label: 'Run', group: 'Code', keys: 'Ctrl+Enter' },
+  save:             { label: 'Save Project', group: 'Code', keys: 'Ctrl+S' },
+  'new-project':    { label: 'New Project', group: 'Code', keys: 'Ctrl+N' },
+  'toggle-preview': { label: 'Toggle Preview', group: 'Code', keys: 'Ctrl+Shift+P' },
+  'quick-code':     { label: 'Open Quick Code', group: 'Code', keys: 'Ctrl+Shift+K' },
+  'focus-search':   { label: 'Focus Tab Search', group: 'Global', keys: 'Ctrl+K' },
+  'tab-code':       { label: 'Go to Code', group: 'Navigation', keys: 'Ctrl+1' },
+  'tab-database':   { label: 'Go to Database', group: 'Navigation', keys: 'Ctrl+2' },
+  'tab-courses':    { label: 'Go to Courses', group: 'Navigation', keys: 'Ctrl+3' },
+  'tab-settings':   { label: 'Go to Settings', group: 'Navigation', keys: 'Ctrl+4' },
+  'tab-ire':        { label: 'Go to IRE', group: 'Navigation', keys: 'Ctrl+5' },
+  'next-tab':       { label: 'Next Tab', group: 'Navigation', keys: 'Ctrl+Tab' },
+  'prev-tab':       { label: 'Previous Tab', group: 'Navigation', keys: 'Ctrl+Shift+Tab' },
+  'ire-fullscreen': { label: 'Toggle IRE Fullscreen', group: 'IRE', keys: 'Ctrl+Shift+F' },
+  'ire-export':     { label: 'Export IRE Video', group: 'IRE', keys: 'Ctrl+Shift+E' },
+  'exit-fullscreen':{ label: 'Exit Fullscreen', group: 'IRE', keys: 'Escape', always: true }
+};
+
+function kbUserSuffix() { return currentUser || 'guest'; }
+function getKeybindingsKey() { return 'ic_keybindings_' + kbUserSuffix(); }
+function getEditorPrefsKey() { return 'ic_editor_prefs_' + kbUserSuffix(); }
+
+function getKeybindings() {
+  var map = {};
+  try { map = JSON.parse(localStorage.getItem(getKeybindingsKey()) || '{}'); } catch(e) { map = {}; }
+  for (var id in KB_ACTIONS) {
+    if (typeof map[id] !== 'string') map[id] = KB_ACTIONS[id].keys;
+  }
+  return map;
+}
+
+function saveKeybindings(map) {
+  localStorage.setItem(getKeybindingsKey(), JSON.stringify(map));
+  kbSyncServer();
+}
+
+const EDITOR_PREF_DEFAULTS = { fontSize: 14, tabWidth: 2, lineNumbers: true, autoCloseBrackets: true, wordWrap: true };
+
+function getEditorPrefs() {
+  var p = Object.assign({}, EDITOR_PREF_DEFAULTS);
+  try {
+    var raw = localStorage.getItem(getEditorPrefsKey());
+    if (raw) Object.assign(p, JSON.parse(raw));
+  } catch(e) {}
+  return p;
+}
+
+function saveEditorPrefs(p) {
+  localStorage.setItem(getEditorPrefsKey(), JSON.stringify(p));
+}
+
+function kbSyncServer() {
+  if (!currentUser) return;
+  sb('settings').upsert({ username: currentUser, keybindings: getKeybindings(), editor_prefs: getEditorPrefs() }, 'username');
+}
+
+var kbComboMap = {};
+function kbRebuildMap() {
+  kbComboMap = {};
+  var map = getKeybindings();
+  for (var id in KB_ACTIONS) {
+    kbComboMap[map[id]] = id;
+  }
+}
+
+function kbNormalizeKey(e) {
+  var k = e.key;
+  if (k === ' ') return 'Space';
+  if (/^[a-z]$/i.test(k)) return k.toUpperCase();
+  var shifted = { '!':'1','@':'2','#':'3','$':'4','%':'5','^':'6','&':'7','*':'8','(':'9',')':'0','_':'-','+':'=' };
+  if (shifted[k]) return shifted[k];
+  return k;
+}
+
+function kbComboString(e) {
+  var parts = [];
+  if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
+  if (e.altKey) parts.push('Alt');
+  if (e.shiftKey) parts.push('Shift');
+  var k = kbNormalizeKey(e);
+  if (k === 'Control' || k === 'Meta' || k === 'Alt' || k === 'Shift') return '';
+  parts.push(k);
+  return parts.join('+');
+}
+
+function kbHasModifier(combo) {
+  return combo.indexOf('Ctrl') === 0 || combo.indexOf('Alt') === 0;
+}
+
+function kbIsTextKey(combo) {
+  var k = combo.split('+').pop();
+  return k.length === 1 || k === 'Space';
+}
+
+let kbRecording = null;
+
+function kbGlobalKeydown(e) {
+  if (kbRecording) {
+    kbCaptureKey(e);
+    return;
+  }
+  var ide = document.getElementById('ide');
+  if (ide && ide.classList.contains('hidden')) return;
+  var combo = kbComboString(e);
+  if (!combo) return;
+  var actionId = kbComboMap[combo];
+  if (!actionId) return;
+  var action = KB_ACTIONS[actionId];
+  if (!action) return;
+  var hasMod = kbHasModifier(combo);
+  var editable = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable);
+  if (!hasMod && kbIsTextKey(combo) && editable) return;
+  if (hasMod) {
+    e.preventDefault();
+    e.stopPropagation();
+  } else if (!kbIsTextKey(combo)) {
+    e.preventDefault();
+  }
+  kbDispatch(actionId);
+}
+
+function kbDispatch(actionId) {
+  switch (actionId) {
+    case 'run': {
+      var active = document.querySelector('.topbar-tab.active');
+      var tabId = active ? active.dataset.tab : 'code';
+      if (tabId === 'ire') {
+        runIRE();
+      } else {
+        var runBtn = document.getElementById('runCodeBtn');
+        if (runBtn) runBtn.click();
+      }
+      break;
+    }
+    case 'save': {
+      var ta = document.getElementById('codeTextarea');
+      if (currentProject && ta) {
+        currentProject.code = ta.value;
+        saveProjects(getProjects().map(function(p) { return p.name === currentProject.name ? currentProject : p; }));
+        kbToast('Saved "' + currentProject.name + '"');
+      } else if (ta) {
+        kbToast('No project open');
+      }
+      break;
+    }
+    case 'new-project': { var b = document.getElementById('newProjectBtn'); if (b) b.click(); break; }
+    case 'toggle-preview': { var b = document.getElementById('previewToggle'); if (b) b.click(); break; }
+    case 'quick-code': { var b = document.getElementById('quickCodeBtn'); if (b) b.click(); break; }
+    case 'focus-search': { var inp = document.getElementById('navSearchInput'); if (inp) { inp.focus(); inp.select(); } break; }
+    case 'tab-code': switchTab('code'); break;
+    case 'tab-database': switchTab('database'); break;
+    case 'tab-courses': switchTab('courses'); break;
+    case 'tab-settings': switchTab('settings'); break;
+    case 'tab-ire': switchTab('ire'); break;
+    case 'next-tab': kbCycleTab(1); break;
+    case 'prev-tab': kbCycleTab(-1); break;
+    case 'ire-fullscreen': toggleIREFullscreen(); break;
+    case 'ire-export': exportIREVideo(); break;
+    case 'exit-fullscreen': {
+      var panel = document.getElementById('irePreviewPanel');
+      if (panel && panel.classList.contains('ire-fullscreen')) toggleIREFullscreen();
+      break;
+    }
+  }
+}
+
+function kbCycleTab(dir) {
+  var btns = Array.prototype.slice.call(document.querySelectorAll('.topbar-tab'));
+  var visible = btns.filter(function(b) { return b.style.display !== 'none'; });
+  if (!visible.length) return;
+  var idx = visible.findIndex(function(b) { return b.classList.contains('active'); });
+  if (idx < 0) idx = 0;
+  var next = visible[(idx + dir + visible.length) % visible.length];
+  if (next) switchTab(next.dataset.tab);
+}
+
+function kbToast(msg) {
+  var t = document.getElementById('kbToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'kbToast';
+    t.className = 'kb-toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(function() { t.classList.remove('show'); }, 1800);
+}
+
+function kbStartRecording(actionId) {
+  kbRecording = actionId;
+  document.querySelectorAll('.kb-key').forEach(function(b) {
+    b.classList.toggle('recording', b.dataset.action === actionId);
+    if (b.dataset.action === actionId) b.innerHTML = 'Press keys...';
+  });
+  setKbStatus('Press a new key combination for "' + KB_ACTIONS[actionId].label + '". Escape cancels.');
+}
+
+function kbStopRecording() {
+  kbRecording = null;
+  renderKeybindings();
+  setKbStatus('');
+}
+
+function kbCaptureKey(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  var actionId = kbRecording;
+  if (!actionId) return;
+  if (e.key === 'Escape') { kbStopRecording(); return; }
+  var combo = kbComboString(e);
+  if (!combo) return;
+  if (!kbHasModifier(combo) && !/^F\d{1,2}$/.test(combo.split('+').pop())) {
+    setKbStatus('Use a modifier key (Ctrl/Alt) plus a key, or a function key. Escape cancels.', true);
+    return;
+  }
+  var conflict = kbConflict(combo, actionId);
+  if (conflict) {
+    setKbStatus('Conflict: ' + combo + ' is already assigned to "' + KB_ACTIONS[conflict].label + '". Choose another combination.', true);
+    return;
+  }
+  var map = getKeybindings();
+  map[actionId] = combo;
+  saveKeybindings(map);
+  kbRebuildMap();
+  kbRecording = null;
+  renderKeybindings();
+  setKbStatus('"' + KB_ACTIONS[actionId].label + '" is now bound to ' + combo + '.');
+}
+
+function kbConflict(combo, exceptId) {
+  var map = getKeybindings();
+  for (var id in KB_ACTIONS) {
+    if (id !== exceptId && map[id] === combo) return id;
+  }
+  return null;
+}
+
+function kbFormatKeys(keys) {
+  return String(keys).split('+').map(function(k) { return '<kbd>' + k + '</kbd>'; }).join('<span class="kb-plus">+</span>');
+}
+
+function renderKeybindings() {
+  var listEl = document.getElementById('keybindingsList');
+  if (!listEl) return;
+  var map = getKeybindings();
+  var groups = ['Code', 'Global', 'Navigation', 'IRE'];
+  var html = '';
+  groups.forEach(function(g) {
+    var items = Object.keys(KB_ACTIONS).filter(function(id) { return KB_ACTIONS[id].group === g; });
+    if (!items.length) return;
+    html += '<div class="kb-group">' + g + '</div>';
+    items.forEach(function(id) {
+      html += '<div class="keybinding-row"><span class="kb-action-label">' + KB_ACTIONS[id].label + '</span>' +
+              '<button class="kb-key" data-action="' + id + '" title="Click to change shortcut">' + kbFormatKeys(map[id]) + '</button></div>';
+    });
+  });
+  listEl.innerHTML = html;
+  listEl.querySelectorAll('.kb-key').forEach(function(btn) {
+    btn.addEventListener('click', function() { kbStartRecording(this.dataset.action); });
+  });
+}
+
+function setKbStatus(msg, isError) {
+  var el = document.getElementById('keybindingsStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'data-status' + (msg ? (isError ? ' error' : ' success') : '');
+}
+
+function applyEditorPrefs() {
+  var p = getEditorPrefs();
+  var fs = p.fontSize + 'px';
+  ['editorHighlight', 'highlightCode', 'codeTextarea', 'lineNumbers', 'ireHighlight', 'ireHighlightCode', 'ireEditor'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.fontSize = fs;
+  });
+  ['editorHighlight', 'codeTextarea', 'ireHighlight', 'ireEditor'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.tabSize = p.tabWidth;
+  });
+  var ln = document.getElementById('lineNumbers');
+  if (ln) ln.style.display = p.lineNumbers ? '' : 'none';
+  var wrapWs = p.wordWrap ? 'pre-wrap' : 'pre';
+  var wrapOx = p.wordWrap ? 'hidden' : 'auto';
+  var ct = document.getElementById('codeTextarea');
+  var ch = document.getElementById('editorHighlight');
+  var ie = document.getElementById('ireEditor');
+  var ih = document.getElementById('ireHighlight');
+  if (ct) { ct.style.whiteSpace = wrapWs; ct.style.overflowX = wrapOx; }
+  if (ch) ch.style.whiteSpace = wrapWs;
+  if (ie) { ie.style.whiteSpace = wrapWs; ie.style.overflowX = wrapOx; }
+  if (ih) ih.style.whiteSpace = wrapWs;
+}
+
+function handleAutoCloseBrackets(e, ta) {
+  if (!getEditorPrefs().autoCloseBrackets) return false;
+  var openClose = { '(': ')', '[': ']', '{': '}' };
+  var closeOpen = { ')': '(', ']': '[', '}': '{' };
+  var start = ta.selectionStart;
+  var end = ta.selectionEnd;
+  if (e.key in openClose) {
+    e.preventDefault();
+    var open = e.key;
+    var close = openClose[open];
+    if (start !== end) {
+      var sel = ta.value.substring(start, end);
+      ta.setRangeText(open + sel + close, start, end, 'end');
+    } else {
+      ta.setRangeText(open + close, start, end, 'end');
+      ta.selectionStart = ta.selectionEnd = start + 1;
+    }
+    ta.dispatchEvent(new Event('input'));
+    return true;
+  }
+  if (e.key in closeOpen) {
+    if (start === end && ta.value.charAt(start) === e.key) {
+      e.preventDefault();
+      ta.selectionStart = ta.selectionEnd = start + 1;
+      return true;
+    }
+  }
+  return false;
+}
+
+function refreshSettingsControls() {
+  var p = getEditorPrefs();
+  var fsInput = document.getElementById('prefFontSize');
+  var fsVal = document.getElementById('prefFontSizeVal');
+  var tw = document.getElementById('prefTabWidth');
+  var lnChk = document.getElementById('prefLineNumbers');
+  var acChk = document.getElementById('prefAutoClose');
+  var wwChk = document.getElementById('prefWordWrap');
+  if (fsInput) fsInput.value = p.fontSize;
+  if (fsVal) fsVal.textContent = p.fontSize + 'px';
+  if (tw) tw.value = String(p.tabWidth);
+  if (lnChk) lnChk.checked = !!p.lineNumbers;
+  if (acChk) acChk.checked = !!p.autoCloseBrackets;
+  if (wwChk) wwChk.checked = !!p.wordWrap;
+  renderKeybindings();
+}
+
+function wireSettingsControls() {
+  var fsInput = document.getElementById('prefFontSize');
+  var fsVal = document.getElementById('prefFontSizeVal');
+  var tw = document.getElementById('prefTabWidth');
+  var lnChk = document.getElementById('prefLineNumbers');
+  var acChk = document.getElementById('prefAutoClose');
+  var wwChk = document.getElementById('prefWordWrap');
+
+  function setPrefStatus(msg) {
+    var el = document.getElementById('editorPrefsStatus');
+    if (el) { el.textContent = msg; el.className = 'data-status' + (msg ? ' success' : ''); }
+  }
+
+  fsInput.addEventListener('input', function() {
+    var p2 = getEditorPrefs();
+    p2.fontSize = parseInt(this.value, 10) || 14;
+    saveEditorPrefs(p2);
+    applyEditorPrefs();
+    fsVal.textContent = this.value + 'px';
+    setPrefStatus('Font size: ' + this.value + 'px');
+  });
+  fsInput.addEventListener('change', kbSyncServer);
+  tw.addEventListener('change', function() {
+    var p2 = getEditorPrefs();
+    p2.tabWidth = parseInt(this.value, 10) || 2;
+    saveEditorPrefs(p2);
+    applyEditorPrefs();
+    kbSyncServer();
+    setPrefStatus('Tab width: ' + p2.tabWidth + ' spaces');
+  });
+  lnChk.addEventListener('change', function() {
+    var p2 = getEditorPrefs();
+    p2.lineNumbers = this.checked;
+    saveEditorPrefs(p2);
+    applyEditorPrefs();
+    kbSyncServer();
+    setPrefStatus('Line numbers ' + (p2.lineNumbers ? 'shown' : 'hidden'));
+  });
+  acChk.addEventListener('change', function() {
+    var p2 = getEditorPrefs();
+    p2.autoCloseBrackets = this.checked;
+    saveEditorPrefs(p2);
+    applyEditorPrefs();
+    kbSyncServer();
+    setPrefStatus('Auto-close brackets ' + (p2.autoCloseBrackets ? 'on' : 'off'));
+  });
+  wwChk.addEventListener('change', function() {
+    var p2 = getEditorPrefs();
+    p2.wordWrap = this.checked;
+    saveEditorPrefs(p2);
+    applyEditorPrefs();
+    kbSyncServer();
+    setPrefStatus('Word wrap ' + (p2.wordWrap ? 'on' : 'off'));
+  });
+  document.getElementById('keybindingsResetBtn').addEventListener('click', function() {
+    var map = {};
+    for (var id in KB_ACTIONS) map[id] = KB_ACTIONS[id].keys;
+    saveKeybindings(map);
+    kbRebuildMap();
+    renderKeybindings();
+    setKbStatus('All keybindings restored to defaults.');
+  });
+  document.addEventListener('click', function(e) {
+    if (kbRecording && !e.target.closest('.kb-key')) kbStopRecording();
+  });
+  refreshSettingsControls();
+}
+
+function kbLoad() {
+  kbRebuildMap();
+  refreshSettingsControls();
+  applyEditorPrefs();
+}
+
+kbLoad();
+wireSettingsControls();
+document.addEventListener('keydown', kbGlobalKeydown, true);
+
 // ===== AUTH TOGGLE =====
 document.getElementById('showSignup').addEventListener('click', function(e) {
   e.preventDefault();
@@ -738,6 +1161,7 @@ document.getElementById('codeTextarea').addEventListener('keydown', function(e) 
     }
     return;
   }
+  if (handleAutoCloseBrackets(e, this)) return;
   // Auto-indent on Enter
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
@@ -2243,6 +2667,16 @@ enterIDE = function(username) {
     }
   });
   mpSyncCustom();
+  // Load per-user keybindings + editor preferences (local first, then Supabase)
+  kbLoad();
+  sb('settings').select({username}).then(r => {
+    if (r.ok && r.data && r.data.length && r.data[0]) {
+      const s = r.data[0];
+      if (s.keybindings) localStorage.setItem('ic_keybindings_' + username, JSON.stringify(s.keybindings));
+      if (s.editor_prefs) localStorage.setItem('ic_editor_prefs_' + username, JSON.stringify(s.editor_prefs));
+      kbLoad();
+    }
+  });
 };
 
 function showSiteCode(output) {
@@ -5012,13 +5446,6 @@ function toggleIREFullscreen() {
 
 document.getElementById('ireFullscreenBtn').addEventListener('click', toggleIREFullscreen);
 
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    const panel = document.getElementById('irePreviewPanel');
-    if (panel.classList.contains('ire-fullscreen')) toggleIREFullscreen();
-  }
-});
-
 if ('ResizeObserver' in window) {
   const previewBox = document.getElementById('irePreview');
   new ResizeObserver(resizeIRECanvas).observe(previewBox);
@@ -5057,31 +5484,7 @@ document.getElementById('ireEditor').addEventListener('keydown', function(e) {
       return;
     }
   }
-  const openClose = { '(': ')', '[': ']', '{': '}' };
-  const closeOpen = { ')': '(', ']': '[', '}': '{' };
-  const start = this.selectionStart;
-  const end = this.selectionEnd;
-  if (e.key in openClose) {
-    e.preventDefault();
-    const open = e.key;
-    const close = openClose[open];
-    if (start !== end) {
-      const sel = this.value.substring(start, end);
-      this.setRangeText(open + sel + close, start, end, 'end');
-    } else {
-      this.setRangeText(open + close, start, end, 'end');
-      this.selectionStart = this.selectionEnd = start + 1;
-    }
-    this.dispatchEvent(new Event('input'));
-    return;
-  }
-  if (e.key in closeOpen) {
-    if (start === end && this.value.charAt(start) === e.key) {
-      e.preventDefault();
-      this.selectionStart = this.selectionEnd = start + 1;
-      return;
-    }
-  }
+  if (handleAutoCloseBrackets(e, this)) return;
 });
 
 document.getElementById('ireEditor').addEventListener('blur', function() {

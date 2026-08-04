@@ -70,6 +70,13 @@ CREATE TABLE IF NOT EXISTS commands (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS settings (
+  username TEXT PRIMARY KEY,
+  keybindings JSONB DEFAULT '{}',
+  editor_prefs JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Insert default edit layout row
 INSERT INTO edit_layouts (id, layout) VALUES (1, '{}') ON CONFLICT (id) DO NOTHING;
 
@@ -83,6 +90,7 @@ ALTER TABLE friend_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE commands ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow all" ON users;
 DROP POLICY IF EXISTS "Allow all" ON projects;
@@ -93,6 +101,7 @@ DROP POLICY IF EXISTS "Allow all" ON friend_requests;
 DROP POLICY IF EXISTS "Allow all" ON chat_messages;
 DROP POLICY IF EXISTS "Allow all" ON courses;
 DROP POLICY IF EXISTS "Allow all" ON commands;
+DROP POLICY IF EXISTS "Allow all" ON settings;
 
 CREATE POLICY "Allow all" ON users FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON projects FOR ALL USING (true) WITH CHECK (true);
@@ -103,3 +112,4 @@ CREATE POLICY "Allow all" ON friend_requests FOR ALL USING (true) WITH CHECK (tr
 CREATE POLICY "Allow all" ON chat_messages FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON courses FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON commands FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON settings FOR ALL USING (true) WITH CHECK (true);

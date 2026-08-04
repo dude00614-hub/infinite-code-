@@ -430,6 +430,7 @@
               <div class="mp-header">
                 <span class="mp-title">&#127891; Math Practice</span>
                 <div class="mp-header-actions">
+                  <button class="mp-btn owner-only" id="mpAddProblemBtn" title="Add custom problem">+ Add</button>
                   <button class="mp-btn mp-btn-view active" id="mpViewQuiz">Quiz</button>
                   <button class="mp-btn mp-btn-view" id="mpViewDash">Dashboard</button>
                 </div>
@@ -445,6 +446,18 @@
                 <div id="mpDashView" class="hidden">
                   <div class="mp-dash-summary" id="mpDashSummary"></div>
                   <div class="mp-dash-topics" id="mpDashTopics"></div>
+                </div>
+                <div id="mpFormView" class="hidden">
+                  <div class="mp-form" id="mpFormCard"></div>
+                </div>
+              </div>
+              <div id="mpRefModal" class="mp-ref-modal hidden">
+                <div class="mp-ref-dialog">
+                  <div class="mp-ref-head">
+                    <span class="mp-ref-title" id="mpRefTitle"></span>
+                    <button id="mpRefClose" class="mp-ref-close" title="Close">&#10005;</button>
+                  </div>
+                  <div class="mp-ref-body" id="mpRefBody"></div>
                 </div>
               </div>
             </div>

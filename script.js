@@ -2242,6 +2242,7 @@ enterIDE = function(username) {
       renderCustomCmdList();
     }
   });
+  mpSyncCustom();
 };
 
 function showSiteCode(output) {
@@ -5666,67 +5667,187 @@ const MP_TOPIC_NAMES = {
 };
 const MP_BANK = {
   arithmetic: [
-    { q: '12 × 8', a: '96', accept: ['96'] },
-    { q: '3 + 4 × 2 (order of operations)', a: '11', accept: ['11'] },
-    { q: '144 ÷ 12', a: '12', accept: ['12'] },
-    { q: '7² + 5', a: '54', accept: ['54'] },
-    { q: '(8 − 3) × (6 + 2)', a: '40', accept: ['40'] },
-    { q: '17 + 19', a: '36', accept: ['36'] },
-    { q: '2⁵', a: '32', accept: ['32'] },
-    { q: '1/4 + 1/2', a: '0.75', accept: ['0.75', '3/4', '0.75'] },
-    { q: '15% of 200', a: '30', accept: ['30'] },
-    { q: '9² − 4 × 5', a: '61', accept: ['61'] },
-    { q: '100 − 25 × 3', a: '25', accept: ['25'] },
-    { q: '6 × 7 + 8', a: '50', accept: ['50'] }
+    { q: '12 × 8', a: '96', accept: ['96'], hint: 'Split 12 into 10 + 2.', explanation: 'Step 1: Break 12 into 10 and 2.\nStep 2: 10 × 8 = 80.\nStep 3: 2 × 8 = 16.\nStep 4: Add 80 + 16 = 96.' },
+    { q: '3 + 4 × 2 (order of operations)', a: '11', accept: ['11'], hint: 'Order of operations: multiply before you add.', explanation: 'Step 1: Do the multiplication first: 4 × 2 = 8.\nStep 2: Now add: 3 + 8 = 11.' },
+    { q: '144 ÷ 12', a: '12', accept: ['12'], hint: 'Think: what times 12 gives 144?', explanation: 'Step 1: 12 × 10 = 120, leaving 24.\nStep 2: 12 × 2 = 24.\nStep 3: So 144 ÷ 12 = 10 + 2 = 12.' },
+    { q: '7² + 5', a: '54', accept: ['54'], hint: 'Work out 7² first.', explanation: 'Step 1: 7² = 7 × 7 = 49.\nStep 2: Add 5: 49 + 5 = 54.' },
+    { q: '(8 − 3) × (6 + 2)', a: '40', accept: ['40'], hint: 'Do the brackets first.', explanation: 'Step 1: Inside the first bracket: 8 − 3 = 5.\nStep 2: Inside the second: 6 + 2 = 8.\nStep 3: Multiply: 5 × 8 = 40.' },
+    { q: '17 + 19', a: '36', accept: ['36'], hint: 'Round 19 up to 20, then adjust.', explanation: 'Step 1: Round 19 up to 20: 17 + 20 = 37.\nStep 2: Subtract the extra 1: 37 − 1 = 36.' },
+    { q: '2⁵', a: '32', accept: ['32'], hint: '2 × 2 × 2 × 2 × 2.', explanation: 'Step 1: 2⁵ means five 2s multiplied together: 2 × 2 = 4.\nStep 2: 4 × 2 = 8.\nStep 3: 8 × 2 = 16.\nStep 4: 16 × 2 = 32.' },
+    { q: '1/4 + 1/2', a: '0.75', accept: ['0.75', '3/4', '0.75'], hint: 'Give both fractions the same denominator (quarters).', explanation: 'Step 1: Rewrite 1/2 as quarters: 1/2 = 2/4.\nStep 2: Add: 1/4 + 2/4 = 3/4.\nStep 3: As a decimal, 3/4 = 0.75.' },
+    { q: '15% of 200', a: '30', accept: ['30'], hint: 'Find 10% first, then 5%.', explanation: 'Step 1: 10% of 200 = 20.\nStep 2: 5% of 200 = 10 (half of 10%).\nStep 3: 15% = 20 + 10 = 30.' },
+    { q: '9² − 4 × 5', a: '61', accept: ['61'], hint: 'Exponents and multiplication come before subtraction.', explanation: 'Step 1: 9² = 81.\nStep 2: 4 × 5 = 20.\nStep 3: Subtract: 81 − 20 = 61.' },
+    { q: '100 − 25 × 3', a: '25', accept: ['25'], hint: 'Multiply before subtracting.', explanation: 'Step 1: 25 × 3 = 75.\nStep 2: 100 − 75 = 25.' },
+    { q: '6 × 7 + 8', a: '50', accept: ['50'], hint: 'Multiply first, then add.', explanation: 'Step 1: 6 × 7 = 42.\nStep 2: 42 + 8 = 50.' }
   ],
   algebra: [
-    { q: 'Solve for x: 2x + 6 = 14', a: 'x = 4', accept: ['4'] },
-    { q: 'Solve for x: 3(x − 2) = 15', a: 'x = 7', accept: ['7'] },
-    { q: 'Solve for x: 5x − 3 = 2x + 12', a: 'x = 5', accept: ['5'] },
-    { q: 'Solve for x: x² = 81', a: 'x = 9 (or −9)', accept: ['9', '-9', '9, -9', '±9'] },
-    { q: 'Factor: x² − 9', a: '(x − 3)(x + 3)', accept: [] },
-    { q: 'Solve for x: x/4 = 3', a: 'x = 12', accept: ['12'] },
-    { q: 'What is the slope of y = 3x + 2?', a: '3', accept: ['3'] },
-    { q: 'Simplify: (x²)(x³)', a: 'x⁵', accept: ['x5', 'x^5'] },
-    { q: 'Solve for x: 2x = 10', a: 'x = 5', accept: ['5'] },
-    { q: 'If y = 2x + 1 and x = 3, what is y?', a: '7', accept: ['7'] }
+    { q: 'Solve for x: 2x + 6 = 14', a: 'x = 4', accept: ['4'], hint: 'Get the x term alone by subtracting 6.', explanation: 'Step 1: Subtract 6 from both sides: 2x = 8.\nStep 2: Divide both sides by 2: x = 4.' },
+    { q: 'Solve for x: 3(x − 2) = 15', a: 'x = 7', accept: ['7'], hint: 'Divide both sides by 3 first.', explanation: 'Step 1: Divide both sides by 3: x − 2 = 5.\nStep 2: Add 2: x = 7.' },
+    { q: 'Solve for x: 5x − 3 = 2x + 12', a: 'x = 5', accept: ['5'], hint: 'Move the x terms to one side.', explanation: 'Step 1: Subtract 2x from both sides: 3x − 3 = 12.\nStep 2: Add 3: 3x = 15.\nStep 3: Divide by 3: x = 5.' },
+    { q: 'Solve for x: x² = 81', a: 'x = 9 (or −9)', accept: ['9', '-9', '9, -9', '±9'], hint: 'Take the square root — remember there are two answers.', explanation: 'Step 1: Square root both sides: x = ±√81.\nStep 2: √81 = 9, so x = 9 or x = −9.' },
+    { q: 'Factor: x² − 9', a: '(x − 3)(x + 3)', accept: [], hint: 'Difference of two squares.', explanation: 'Step 1: Recognize the a² − b² form with a = x and b = 3.\nStep 2: Use a² − b² = (a − b)(a + b).\nStep 3: So x² − 9 = (x − 3)(x + 3).' },
+    { q: 'Solve for x: x/4 = 3', a: 'x = 12', accept: ['12'], hint: 'Multiply both sides by 4.', explanation: 'Step 1: Multiply both sides by 4: x = 12.' },
+    { q: 'What is the slope of y = 3x + 2?', a: '3', accept: ['3'], hint: 'Slope-intercept form: y = mx + b.', explanation: 'Step 1: Slope-intercept form is y = mx + b, where m is the slope.\nStep 2: y = 3x + 2 → m = 3.' },
+    { q: 'Simplify: (x²)(x³)', a: 'x⁵', accept: ['x5', 'x^5'], hint: 'Add the exponents when multiplying same bases.', explanation: 'Step 1: When multiplying powers of the same base, add the exponents.\nStep 2: x² · x³ = x^(2+3) = x⁵.' },
+    { q: 'Solve for x: 2x = 10', a: 'x = 5', accept: ['5'], hint: 'Divide both sides by 2.', explanation: 'Step 1: Divide both sides by 2: x = 5.' },
+    { q: 'If y = 2x + 1 and x = 3, what is y?', a: '7', accept: ['7'], hint: 'Substitute 3 in place of x.', explanation: 'Step 1: Substitute x = 3: y = 2(3) + 1.\nStep 2: y = 6 + 1 = 7.' }
   ],
   trigonometry: [
-    { q: 'sin(30°)', a: '0.5', accept: ['0.5', '1/2'] },
-    { q: 'cos(60°)', a: '0.5', accept: ['0.5', '1/2'] },
-    { q: 'tan(45°)', a: '1', accept: ['1'] },
-    { q: 'sin(90°)', a: '1', accept: ['1'] },
-    { q: 'cos(0°)', a: '1', accept: ['1'] },
-    { q: 'sin²(θ) + cos²(θ)', a: '1', accept: ['1'] },
-    { q: 'cos(180°)', a: '−1', accept: ['-1'] },
-    { q: 'sin(0°)', a: '0', accept: ['0'] },
-    { q: 'tan(0°)', a: '0', accept: ['0'] },
-    { q: 'Which is larger: sin(30°) or sin(60°)?', a: 'sin(60°)', accept: ['sin(60)', 'sin60'] }
+    { q: 'sin(30°)', a: '0.5', accept: ['0.5', '1/2'], hint: '30° is a key unit-circle angle.', explanation: 'Step 1: On the unit circle, sine is the y-coordinate.\nStep 2: At 30°, y = 1/2.\nStep 3: So sin(30°) = 1/2 = 0.5.' },
+    { q: 'cos(60°)', a: '0.5', accept: ['0.5', '1/2'], hint: 'cos(60°) equals sin(30°) — the co-function identity.', explanation: 'Step 1: On the unit circle, cosine is the x-coordinate.\nStep 2: At 60°, x = 1/2.\nStep 3: So cos(60°) = 0.5.' },
+    { q: 'tan(45°)', a: '1', accept: ['1'], hint: 'tan = sin ÷ cos, and at 45° they are equal.', explanation: 'Step 1: tan(θ) = sin(θ) ÷ cos(θ).\nStep 2: At 45°, sin(45°) = cos(45°) = √2/2.\nStep 3: (√2/2) ÷ (√2/2) = 1.' },
+    { q: 'sin(90°)', a: '1', accept: ['1'], hint: 'The top of the unit circle.', explanation: 'Step 1: At 90° the point on the unit circle is (0, 1).\nStep 2: Sine is the y-coordinate, so sin(90°) = 1.' },
+    { q: 'cos(0°)', a: '1', accept: ['1'], hint: 'Start of the unit circle, at (1, 0).', explanation: 'Step 1: At 0° the point on the unit circle is (1, 0).\nStep 2: Cosine is the x-coordinate, so cos(0°) = 1.' },
+    { q: 'sin²(θ) + cos²(θ)', a: '1', accept: ['1'], hint: 'This is the Pythagorean identity.', explanation: 'Step 1: This is the Pythagorean identity: sin²θ + cos²θ = 1.\nStep 2: It holds for every angle θ, so the answer is 1.' },
+    { q: 'cos(180°)', a: '−1', accept: ['-1'], hint: 'Halfway around the circle, at (−1, 0).', explanation: 'Step 1: At 180° the point is (−1, 0).\nStep 2: Cosine is the x-coordinate, so cos(180°) = −1.' },
+    { q: 'sin(0°)', a: '0', accept: ['0'], hint: 'Sine is 0 wherever the point is on the x-axis.', explanation: 'Step 1: At 0° the point is (1, 0).\nStep 2: Sine is the y-coordinate, so sin(0°) = 0.' },
+    { q: 'tan(0°)', a: '0', accept: ['0'], hint: 'tan = sin ÷ cos, and sin(0°) = 0.', explanation: 'Step 1: tan(0°) = sin(0°) ÷ cos(0°).\nStep 2: sin(0°) = 0 and cos(0°) = 1.\nStep 3: 0 ÷ 1 = 0.' },
+    { q: 'Which is larger: sin(30°) or sin(60°)?', a: 'sin(60°)', accept: ['sin(60)', 'sin60'], hint: 'Sine increases from 0° to 90°.', explanation: 'Step 1: sin(30°) = 0.5 and sin(60°) ≈ 0.866.\nStep 2: Since 0.866 > 0.5, sin(60°) is larger.' }
   ],
   calculus: [
-    { q: 'd/dx (x²)', a: '2x', accept: ['2x', '2*x'] },
-    { q: 'd/dx (x³)', a: '3x²', accept: ['3x2', '3x^2'] },
-    { q: 'd/dx (sin x)', a: 'cos x', accept: ['cos x', 'cosx'] },
-    { q: 'd/dx (eˣ)', a: 'eˣ', accept: ['e^x', 'ex'] },
-    { q: '∫ 2x dx', a: 'x² + C', accept: ['x2', 'x^2', 'x^2 + C'] },
-    { q: 'd/dx (x⁵)', a: '5x⁴', accept: ['5x4', '5x^4'] },
-    { q: '∫ x dx', a: 'x²/2 + C', accept: ['x2/2', 'x^2/2'] },
-    { q: 'd/dx (cos x)', a: '−sin x', accept: ['-sin x', '-sinx'] },
-    { q: '∫ 1 dx', a: 'x + C', accept: ['x', 'x + C'] },
-    { q: 'd/dx (ln x)', a: '1/x', accept: ['1/x', '1/x'] }
+    { q: 'd/dx (x²)', a: '2x', accept: ['2x', '2*x'], hint: 'Use the power rule.', explanation: 'Step 1: Power rule: d/dx(xⁿ) = n·xⁿ⁻¹.\nStep 2: With n = 2: 2·x¹ = 2x.' },
+    { q: 'd/dx (x³)', a: '3x²', accept: ['3x2', '3x^2'], hint: 'Power rule: bring the 3 down.', explanation: 'Step 1: Power rule: d/dx(xⁿ) = n·xⁿ⁻¹.\nStep 2: With n = 3: 3·x² = 3x².' },
+    { q: 'd/dx (sin x)', a: 'cos x', accept: ['cos x', 'cosx'], hint: 'A standard derivative to memorize.', explanation: 'Step 1: d/dx(sin x) = cos x. This is a standard rule.' },
+    { q: 'd/dx (eˣ)', a: 'eˣ', accept: ['e^x', 'ex'], hint: 'eˣ is its own derivative.', explanation: 'Step 1: d/dx(eˣ) = eˣ. The exponential function is its own derivative.' },
+    { q: '∫ 2x dx', a: 'x² + C', accept: ['x2', 'x^2', 'x^2 + C'], hint: 'Reverse the power rule.', explanation: 'Step 1: ∫xⁿ dx = xⁿ⁺¹/(n+1) + C.\nStep 2: ∫2x dx = 2·(x²/2) + C = x² + C.\nStep 3: Always add the constant of integration C.' },
+    { q: 'd/dx (x⁵)', a: '5x⁴', accept: ['5x4', '5x^4'], hint: 'Power rule: multiply by 5, then reduce the exponent.', explanation: 'Step 1: Power rule: d/dx(xⁿ) = n·xⁿ⁻¹.\nStep 2: With n = 5: 5·x⁴ = 5x⁴.' },
+    { q: '∫ x dx', a: 'x²/2 + C', accept: ['x2/2', 'x^2/2'], hint: 'Add 1 to the exponent, then divide.', explanation: 'Step 1: ∫x dx = x^(1+1)/(1+1) + C.\nStep 2: = x²/2 + C.' },
+    { q: 'd/dx (cos x)', a: '−sin x', accept: ['-sin x', '-sinx'], hint: 'A standard derivative — mind the sign.', explanation: 'Step 1: d/dx(cos x) = −sin x. Note the minus sign.' },
+    { q: '∫ 1 dx', a: 'x + C', accept: ['x', 'x + C'], hint: 'The integral of a constant is that constant times x.', explanation: 'Step 1: ∫1 dx = x + C, since d/dx(x) = 1.' },
+    { q: 'd/dx (ln x)', a: '1/x', accept: ['1/x', '1/x'], hint: 'The derivative of the natural log.', explanation: 'Step 1: d/dx(ln x) = 1/x. This is a standard rule.' }
   ],
   number_theory: [
-    { q: 'Is 17 prime? (yes/no)', a: 'yes', accept: ['yes', 'y'] },
-    { q: 'Is 21 prime? (yes/no)', a: 'no', accept: ['no', 'n'] },
-    { q: 'gcd(24, 36)', a: '12', accept: ['12'] },
-    { q: 'lcm(4, 6)', a: '12', accept: ['12'] },
-    { q: '13 mod 5', a: '3', accept: ['3'] },
-    { q: '100 mod 7', a: '2', accept: ['2'] },
-    { q: 'Is 1 prime? (yes/no)', a: 'no', accept: ['no', 'n'] },
-    { q: 'How many divisors does 12 have?', a: '6', accept: ['6'] },
-    { q: 'gcd(48, 18)', a: '6', accept: ['6'] },
-    { q: '2⁵ mod 7', a: '4', accept: ['4'] }
+    { q: 'Is 17 prime? (yes/no)', a: 'yes', accept: ['yes', 'y'], hint: 'Check divisibility by primes up to √17 ≈ 4.', explanation: 'Step 1: A prime has exactly two divisors: 1 and itself.\nStep 2: Check 2 (no) and 3 (no). √17 ≈ 4.1, so we can stop.\nStep 3: 17 is prime → yes.' },
+    { q: 'Is 21 prime? (yes/no)', a: 'no', accept: ['no', 'n'], hint: 'Try dividing by 3.', explanation: 'Step 1: 21 = 3 × 7.\nStep 2: Since it has divisors other than 1 and itself, 21 is composite → no.' },
+    { q: 'gcd(24, 36)', a: '12', accept: ['12'], hint: 'Use the Euclidean algorithm: 36 − 24 = 12.', explanation: 'Step 1: 36 ÷ 24 = 1 remainder 12.\nStep 2: 24 ÷ 12 = 2 remainder 0.\nStep 3: The last non-zero remainder is 12, so gcd(24, 36) = 12.' },
+    { q: 'lcm(4, 6)', a: '12', accept: ['12'], hint: 'The first multiple of 6 that 4 also divides.', explanation: 'Step 1: Multiples of 6: 6, 12, 18...\nStep 2: 12 is divisible by 4, so lcm(4, 6) = 12.\nStep 3: Alternative: lcm = a×b ÷ gcd = 24 ÷ 2 = 12.' },
+    { q: '13 mod 5', a: '3', accept: ['3'], hint: '13 divided by 5 leaves what remainder?', explanation: 'Step 1: 5 × 2 = 10, and 13 − 10 = 3.\nStep 2: The remainder is 3, so 13 mod 5 = 3.' },
+    { q: '100 mod 7', a: '2', accept: ['2'], hint: '7 × 14 = 98.', explanation: 'Step 1: 7 × 14 = 98 is the largest multiple of 7 ≤ 100.\nStep 2: 100 − 98 = 2, so 100 mod 7 = 2.' },
+    { q: 'Is 1 prime? (yes/no)', a: 'no', accept: ['no', 'n'], hint: 'Primes have exactly two factors; 1 has only one.', explanation: 'Step 1: By definition, a prime has exactly two distinct positive divisors.\nStep 2: 1 has only one divisor (1 itself).\nStep 3: So 1 is not prime → no.' },
+    { q: 'How many divisors does 12 have?', a: '6', accept: ['6'], hint: 'List the factor pairs.', explanation: 'Step 1: Factor pairs of 12: (1, 12), (2, 6), (3, 4).\nStep 2: That gives divisors 1, 2, 3, 4, 6, 12.\nStep 3: Count: 6 divisors.' },
+    { q: 'gcd(48, 18)', a: '6', accept: ['6'], hint: 'Euclidean algorithm: keep subtracting/remaindering.', explanation: 'Step 1: 48 ÷ 18 = 2 remainder 12.\nStep 2: 18 ÷ 12 = 1 remainder 6.\nStep 3: 12 ÷ 6 = 2 remainder 0.\nStep 4: gcd(48, 18) = 6.' },
+    { q: '2⁵ mod 7', a: '4', accept: ['4'], hint: 'Compute 2⁵ = 32, then find the remainder mod 7.', explanation: 'Step 1: 2⁵ = 32.\nStep 2: 7 × 4 = 28, and 32 − 28 = 4.\nStep 3: So 2⁵ mod 7 = 4.' }
   ]
+};
+
+const MP_CUSTOM_KEY = 'ic_math_practice_custom';
+
+function getMPCustomProblems() {
+  try { return JSON.parse(localStorage.getItem(MP_CUSTOM_KEY)) || []; } catch(e) { return []; }
+}
+
+function saveMPCustomProblems(list) {
+  localStorage.setItem(MP_CUSTOM_KEY, JSON.stringify(list));
+  if (currentUser) {
+    list.forEach(function(p) {
+      sb('math_practice_problems').upsert({ id: p.id, topic: p.topic, q: p.q, a: p.a, accept: p.accept || [], hint: p.hint || '', explanation: p.explanation || '', author: p.author }, 'id');
+    });
+  }
+}
+
+function mpSyncCustom() {
+  if (!currentUser) return;
+  sb('math_practice_problems').select({}).then(function(r) {
+    if (r.ok && r.data && r.data.length) {
+      var server = r.data.map(function(c) {
+        return { id: c.id, topic: c.topic, q: c.q, a: c.a, accept: c.accept || [], hint: c.hint || '', explanation: c.explanation || '', author: c.author || 'owner' };
+      });
+      var local = getMPCustomProblems();
+      var merged = server.concat(local.filter(function(l) { return !server.some(function(s) { return s.id === l.id; }); }));
+      localStorage.setItem(MP_CUSTOM_KEY, JSON.stringify(merged));
+    }
+  });
+}
+
+const MP_REFERENCE = {
+  arithmetic: {
+    title: 'Arithmetic Reference Sheet',
+    html: '<h4>Order of Operations</h4><ul>' +
+      '<li>Parentheses (brackets) first</li>' +
+      '<li>Exponents (powers, squares)</li>' +
+      '<li>Multiplication &amp; Division — left to right</li>' +
+      '<li>Addition &amp; Subtraction — left to right</li>' +
+      '<li>Memory aid: PEMDAS</li></ul>' +
+      '<h4>Common Conversions</h4><ul>' +
+      '<li>1/2 = 0.5 = 50%</li>' +
+      '<li>1/4 = 0.25 = 25% &middot; 3/4 = 0.75 = 75%</li>' +
+      '<li>1/5 = 0.2 = 20% &middot; 1/10 = 0.1 = 10%</li>' +
+      '<li>1/8 = 0.125 = 12.5%</li>' +
+      '<li>To convert a fraction to a decimal: divide top by bottom</li>' +
+      '<li>To get a percent: multiply the decimal by 100</li></ul>' +
+      '<h4>Percent Tricks</h4><ul>' +
+      '<li>p% of N = (p ÷ 100) × N</li>' +
+      '<li>10% = move the decimal one place left</li></ul>'
+  },
+  algebra: {
+    title: 'Algebra Reference Sheet',
+    html: '<h4>Factoring Patterns</h4><ul>' +
+      '<li>Difference of squares: a² − b² = (a − b)(a + b)</li>' +
+      '<li>Perfect square: a² + 2ab + b² = (a + b)²</li>' +
+      '<li>Perfect square: a² − 2ab + b² = (a − b)²</li>' +
+      '<li>Always check for a common factor first</li></ul>' +
+      '<h4>Quadratic Formula</h4><ul>' +
+      '<li>For ax² + bx + c = 0:</li>' +
+      '<li>x = (−b ± √(b² − 4ac)) / 2a</li></ul>' +
+      '<h4>Exponent Rules</h4><ul>' +
+      '<li>aᵐ · aⁿ = aᵐ⁺ⁿ (multiply → add exponents)</li>' +
+      '<li>aᵐ ÷ aⁿ = aᵐ⁻ⁿ (divide → subtract exponents)</li>' +
+      '<li>(aᵐ)ⁿ = aᵐⁿ</li>' +
+      '<li>a⁰ = 1 &middot; a⁻ⁿ = 1/aⁿ</li></ul>' +
+      '<h4>Slope-Intercept Form</h4><ul>' +
+      '<li>y = mx + b, where m is the slope and b is the y-intercept</li></ul>'
+  },
+  trigonometry: {
+    title: 'Trigonometry Reference Sheet',
+    html: '<h4>Unit Circle Values</h4><table class="mp-ref-table"><tr><th>Angle</th><th>sin</th><th>cos</th><th>tan</th></tr>' +
+      '<tr><td>0°</td><td>0</td><td>1</td><td>0</td></tr>' +
+      '<tr><td>30°</td><td>1/2</td><td>√3/2</td><td>√3/3</td></tr>' +
+      '<tr><td>45°</td><td>√2/2</td><td>√2/2</td><td>1</td></tr>' +
+      '<tr><td>60°</td><td>√3/2</td><td>1/2</td><td>√3</td></tr>' +
+      '<tr><td>90°</td><td>1</td><td>0</td><td>undef.</td></tr>' +
+      '<tr><td>180°</td><td>0</td><td>−1</td><td>0</td></tr></table>' +
+      '<h4>Basic Identities</h4><ul>' +
+      '<li>tan θ = sin θ / cos θ</li>' +
+      '<li>Pythagorean identity: sin²θ + cos²θ = 1</li>' +
+      '<li>csc θ = 1/sin θ &middot; sec θ = 1/cos θ &middot; cot θ = 1/tan θ</li></ul>'
+  },
+  calculus: {
+    title: 'Calculus Reference Sheet',
+    html: '<h4>Basic Derivative Rules</h4><ul>' +
+      '<li>Power rule: d/dx(xⁿ) = n·xⁿ⁻¹</li>' +
+      '<li>Constant: d/dx(c) = 0</li>' +
+      '<li>Constant multiple: d/dx(c·f) = c·d/dx(f)</li>' +
+      '<li>Sum rule: d/dx(f + g) = f\' + g\'</li>' +
+      '<li>d/dx(sin x) = cos x &middot; d/dx(cos x) = −sin x</li>' +
+      '<li>d/dx(eˣ) = eˣ &middot; d/dx(ln x) = 1/x</li></ul>' +
+      '<h4>Basic Integral Rules</h4><ul>' +
+      '<li>∫xⁿ dx = xⁿ⁺¹/(n+1) + C (n ≠ −1)</li>' +
+      '<li>∫1 dx = x + C</li>' +
+      '<li>∫sin x dx = −cos x + C &middot; ∫cos x dx = sin x + C</li>' +
+      '<li>∫eˣ dx = eˣ + C &middot; ∫1/x dx = ln|x| + C</li>' +
+      '<li>Always add the constant of integration C</li></ul>'
+  },
+  number_theory: {
+    title: 'Number Theory Reference Sheet',
+    html: '<h4>Divisibility Rules</h4><ul>' +
+      '<li>2: last digit is even</li>' +
+      '<li>3: sum of digits is divisible by 3</li>' +
+      '<li>4: last two digits form a multiple of 4</li>' +
+      '<li>5: ends in 0 or 5</li>' +
+      '<li>6: divisible by both 2 and 3</li>' +
+      '<li>9: sum of digits is divisible by 9</li>' +
+      '<li>10: ends in 0</li></ul>' +
+      '<h4>Primes &amp; Factorization</h4><ul>' +
+      '<li>A prime has exactly two divisors: 1 and itself</li>' +
+      '<li>1 is not prime</li>' +
+      '<li>Every number has a unique prime factorization (Fundamental Theorem of Arithmetic)</li>' +
+      '<li>gcd: greatest common divisor &middot; lcm: least common multiple</li>' +
+      '<li>lcm(a, b) = a × b ÷ gcd(a, b)</li></ul>' +
+      '<h4>Modular Arithmetic</h4><ul>' +
+      '<li>a mod n = the remainder when a is divided by n</li>' +
+      '<li>a ≡ b (mod n) if a − b is divisible by n</li>' +
+      '<li>You can reduce exponents using the modulus: e.g. 2⁵ mod 7 = (32) mod 7 = 4</li></ul>'
+  }
 };
 
 let mpProgress = null;
@@ -5751,12 +5872,21 @@ function mpProblemId(topic, idx) {
   return topic + ':' + idx;
 }
 
+function mpProblemsForTopic(topic) {
+  var out = [];
+  MP_BANK[topic].forEach(function(p, idx) {
+    out.push({ topic: topic, idx: idx, q: p.q, a: p.a, accept: p.accept, hint: p.hint || '', explanation: p.explanation || '', builtin: true });
+  });
+  getMPCustomProblems().forEach(function(p) {
+    if (p.topic === topic) out.push({ topic: topic, idx: p.id, q: p.q, a: p.a, accept: p.accept || [], hint: p.hint || '', explanation: p.explanation || '', builtin: false, id: p.id });
+  });
+  return out;
+}
+
 function mpAllProblems() {
   var out = [];
   MP_TOPICS.forEach(function(topic) {
-    MP_BANK[topic].forEach(function(p, idx) {
-      out.push({ topic: topic, idx: idx, q: p.q, a: p.a, accept: p.accept });
-    });
+    out = out.concat(mpProblemsForTopic(topic));
   });
   return out;
 }
@@ -5811,7 +5941,7 @@ function mpUpdateCard(problem, rating) {
 }
 
 function mpTopicStats(topic) {
-  var probs = MP_BANK[topic] || [];
+  var probs = mpProblemsForTopic(topic);
   var mastered = 0, due = 0, newc = 0, total = probs.length;
   var easeSum = 0, easeCount = 0;
   probs.forEach(function(p, idx) {
@@ -5866,19 +5996,51 @@ function mpRenderDashboard() {
       '</div>';
   });
   document.getElementById('mpDashTopics').innerHTML = html;
+  if (OWNERS.includes(currentUser)) {
+    var customs = getMPCustomProblems();
+    var listHtml = customs.length ? customs.map(function(p) {
+      return '<div class="mp-custom-row">' +
+        '<div class="mp-custom-info"><span class="mp-custom-topic">' + (MP_TOPIC_NAMES[p.topic] || p.topic) + '</span>' +
+        '<span class="mp-custom-q">' + escapeIRE(p.q) + '</span></div>' +
+        '<div class="mp-custom-actions">' +
+        '<button class="mp-btn mp-custom-edit" data-id="' + p.id + '">Edit</button>' +
+        '<button class="mp-btn mp-rate-again mp-custom-del" data-id="' + p.id + '">Delete</button>' +
+        '</div></div>';
+    }).join('') : '<div class="mp-dash-banner" style="color:var(--text-muted);">No custom problems yet. Use the + Add button in the header to create one.</div>';
+    var wrap = document.createElement('div');
+    wrap.className = 'mp-dash-custom';
+    wrap.innerHTML = '<div class="mp-dash-custom-head">Custom Problems <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(owners only)</span></div><div class="mp-dash-custom-list">' + listHtml + '</div>';
+    document.getElementById('mpDashTopics').appendChild(wrap);
+    wrap.querySelectorAll('.mp-custom-edit').forEach(function(btn) {
+      btn.addEventListener('click', function() { mpShowProblemForm(this.dataset.id); });
+    });
+    wrap.querySelectorAll('.mp-custom-del').forEach(function(btn) {
+      btn.addEventListener('click', function() { mpDeleteProblemForm(this.dataset.id); });
+    });
+  }
+}
+
+function mpRevealAnswer() {
+  document.getElementById('mpRateRow').classList.remove('hidden');
+  var input = document.getElementById('mpAnswerInput');
+  if (input) input.disabled = true;
+  var check = document.getElementById('mpCheckBtn');
+  if (check) check.disabled = true;
+  var show = document.getElementById('mpShowAnswerBtn');
+  if (show) show.style.display = 'none';
+  var hint = document.getElementById('mpHintBtn');
+  if (hint) hint.style.display = 'none';
+  var wrap = document.getElementById('mpExplainWrap');
+  if (wrap) wrap.style.display = 'block';
 }
 
 function mpShowAnswer() {
-  var card = document.getElementById('mpQuizCard');
   var answerEl = document.getElementById('mpAnswerReveal');
   if (answerEl) {
     answerEl.innerHTML = 'Answer: <b>' + escapeIRE(mpCurrentProblem.a) + '</b>';
     answerEl.style.display = 'block';
   }
-  document.getElementById('mpRateRow').classList.remove('hidden');
-  document.getElementById('mpAnswerInput').disabled = true;
-  document.getElementById('mpCheckBtn').disabled = true;
-  document.getElementById('mpShowAnswerBtn').style.display = 'none';
+  mpRevealAnswer();
 }
 
 function mpRate(rating) {
@@ -5924,25 +6086,27 @@ function mpAnswerCheck() {
   } else {
     result.innerHTML = '<span style="color:#ff6b6b;font-weight:600;">Incorrect. </span><span style="color:var(--text-muted);">Answer: ' + escapeIRE(mpCurrentProblem.a) + '</span>';
   }
-  document.getElementById('mpRateRow').classList.remove('hidden');
-  input.disabled = true;
-  document.getElementById('mpCheckBtn').disabled = true;
-  document.getElementById('mpShowAnswerBtn').style.display = 'none';
+  mpRevealAnswer();
 }
 
 function mpShowProblem(problem) {
   mpCurrentProblem = problem;
   var card = document.getElementById('mpQuizCard');
   card.innerHTML =
-    '<div class="mp-problem-topic" style="color:var(--accent);font-weight:600;font-size:11px;letter-spacing:1.5px;">' + MP_TOPIC_NAMES[problem.topic].toUpperCase() + '</div>' +
+    '<div class="mp-card-top">' +
+      '<div class="mp-problem-topic" style="color:var(--accent);font-weight:600;font-size:11px;letter-spacing:1.5px;">' + MP_TOPIC_NAMES[problem.topic].toUpperCase() + '</div>' +
+      '<button id="mpRefBtn" class="mp-btn mp-btn-ghost mp-btn-ref" title="Open reference sheet for this topic">&#128218; Reference</button>' +
+    '</div>' +
     '<div class="mp-problem-q">' + escapeIRE(problem.q) + '</div>' +
     '<div class="mp-answer-area">' +
       '<input type="text" id="mpAnswerInput" class="mp-answer-input" placeholder="Type your answer..." autocomplete="off">' +
       '<button id="mpCheckBtn" class="mp-btn mp-btn-check">Check</button>' +
       '<button id="mpShowAnswerBtn" class="mp-btn mp-btn-ghost">Show Answer</button>' +
     '</div>' +
+    (problem.hint ? '<div class="mp-hint-area"><button id="mpHintBtn" class="mp-btn mp-btn-hint">&#128161; Hint</button><div id="mpHintBox" class="mp-hint-box" style="display:none;"></div></div>' : '') +
     '<div id="mpCheckResult" class="mp-check-result"></div>' +
     '<div id="mpAnswerReveal" class="mp-answer-reveal" style="display:none;"></div>' +
+    (problem.explanation ? '<div id="mpExplainWrap" class="mp-explain" style="display:none;"><button id="mpExplainToggle" class="mp-explain-toggle">&#128218; Step-by-step explanation</button><div id="mpExplainBody" class="mp-explain-body" style="display:none;">' + escapeIRE(problem.explanation).replace(/\n/g, '<br>') + '</div></div>' : '') +
     '<div id="mpRateRow" class="mp-rate-row hidden">' +
       '<span class="mp-rate-label">How well did you know it?</span>' +
       '<button class="mp-btn mp-rate mp-rate-again" data-rating="again">Again</button>' +
@@ -5955,6 +6119,22 @@ function mpShowProblem(problem) {
   });
   document.getElementById('mpCheckBtn').addEventListener('click', mpAnswerCheck);
   document.getElementById('mpShowAnswerBtn').addEventListener('click', mpShowAnswer);
+  document.getElementById('mpRefBtn').addEventListener('click', mpOpenReference);
+  var hintBtn = document.getElementById('mpHintBtn');
+  if (hintBtn) {
+    hintBtn.addEventListener('click', function() {
+      var box = document.getElementById('mpHintBox');
+      box.innerHTML = escapeIRE(problem.hint);
+      box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    });
+  }
+  var explainToggle = document.getElementById('mpExplainToggle');
+  if (explainToggle) {
+    explainToggle.addEventListener('click', function() {
+      var body = document.getElementById('mpExplainBody');
+      body.style.display = body.style.display === 'none' ? 'block' : 'none';
+    });
+  }
   document.querySelectorAll('#mpRateRow .mp-rate').forEach(function(btn) {
     btn.addEventListener('click', function() { mpRate(this.dataset.rating); });
   });
@@ -5972,6 +6152,141 @@ function mpStartSession() {
     return;
   }
   mpShowProblem(mpSession[0]);
+}
+
+function mpOpenReference() {
+  var topic = mpCurrentProblem ? mpCurrentProblem.topic : 'arithmetic';
+  var ref = MP_REFERENCE[topic] || MP_REFERENCE.arithmetic;
+  document.getElementById('mpRefTitle').innerHTML = '&#128218; ' + ref.title;
+  document.getElementById('mpRefBody').innerHTML = ref.html;
+  document.getElementById('mpRefModal').classList.remove('hidden');
+}
+
+function mpCloseReference() {
+  var modal = document.getElementById('mpRefModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+let mpFormEditId = null;
+
+function mpShowProblemForm(editId) {
+  if (!OWNERS.includes(currentUser)) return;
+  mpFormEditId = editId || null;
+  var p = null;
+  if (editId) p = getMPCustomProblems().find(function(x) { return x.id === editId; });
+  var topicOptions = MP_TOPICS.map(function(t) {
+    return '<option value="' + t + '"' + ((p && p.topic === t) ? ' selected' : '') + '>' + MP_TOPIC_NAMES[t] + '</option>';
+  }).join('');
+  var html =
+    '<div class="mp-form-head">' + (editId ? 'Edit Problem' : 'New Custom Problem') + '</div>' +
+    '<label class="mp-form-label">Topic</label>' +
+    '<select id="mpFormTopic" class="mp-form-input">' + topicOptions + '</select>' +
+    '<label class="mp-form-label">Question</label>' +
+    '<input id="mpFormQ" class="mp-form-input" type="text" value="' + (p ? String(p.q).replace(/"/g,'&quot;') : '') + '" placeholder="e.g. Solve for x: 2x + 6 = 14">' +
+    '<label class="mp-form-label">Answer</label>' +
+    '<input id="mpFormA" class="mp-form-input" type="text" value="' + (p ? String(p.a).replace(/"/g,'&quot;') : '') + '" placeholder="e.g. x = 4">' +
+    '<label class="mp-form-label">Accepted answers (comma separated)</label>' +
+    '<input id="mpFormAccept" class="mp-form-input" type="text" value="' + (p ? String((p.accept || []).join(', ')).replace(/"/g,'&quot;') : '') + '" placeholder="e.g. 4, x = 4">' +
+    '<label class="mp-form-label">Hint (optional)</label>' +
+    '<textarea id="mpFormHint" class="mp-form-input mp-form-textarea" placeholder="A single helpful nudge without giving away the solution...">' + (p ? String(p.hint || '').replace(/"/g,'&quot;') : '') + '</textarea>' +
+    '<label class="mp-form-label">Explanation (optional, one step per line)</label>' +
+    '<textarea id="mpFormExplanation" class="mp-form-input mp-form-textarea" placeholder="Step 1: ...\nStep 2: ...">' + (p ? String(p.explanation || '').replace(/"/g,'&quot;') : '') + '</textarea>' +
+    '<div id="mpFormStatus" class="mp-form-status"></div>' +
+    '<div class="mp-form-actions">' +
+      '<button id="mpFormSave" class="mp-btn mp-btn-check">' + (editId ? 'Update' : 'Publish') + ' Problem</button>' +
+      (editId ? '<button id="mpFormDel" class="mp-btn mp-rate-again">Delete</button>' : '') +
+      '<button id="mpFormCancel" class="mp-btn">Cancel</button>' +
+    '</div>';
+  document.getElementById('mpFormCard').innerHTML = html;
+  document.getElementById('mpQuizView').classList.add('hidden');
+  document.getElementById('mpDashView').classList.add('hidden');
+  document.getElementById('mpFormView').classList.remove('hidden');
+  document.getElementById('mpFormSave').addEventListener('click', mpSaveProblemForm);
+  document.getElementById('mpFormCancel').addEventListener('click', mpCancelProblemForm);
+  var del = document.getElementById('mpFormDel');
+  if (del) del.addEventListener('click', function() { mpDeleteProblemForm(editId); });
+  document.getElementById('mpFormQ').focus();
+}
+
+function mpSaveProblemForm() {
+  var topic = document.getElementById('mpFormTopic').value;
+  var q = document.getElementById('mpFormQ').value.trim();
+  var a = document.getElementById('mpFormA').value.trim();
+  var acceptRaw = document.getElementById('mpFormAccept').value.trim();
+  var hint = document.getElementById('mpFormHint').value.trim();
+  var explanation = document.getElementById('mpFormExplanation').value.trim();
+  var status = document.getElementById('mpFormStatus');
+  if (!q) { status.textContent = 'Question is required.'; status.className = 'mp-form-status error'; return; }
+  if (!a) { status.textContent = 'Answer is required.'; status.className = 'mp-form-status error'; return; }
+  var accept = acceptRaw ? acceptRaw.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [];
+  if (!accept.length) accept = [a];
+  var list = getMPCustomProblems();
+  if (mpFormEditId) {
+    var idx = list.findIndex(function(p) { return p.id === mpFormEditId; });
+    if (idx >= 0) {
+      list[idx].topic = topic;
+      list[idx].q = q;
+      list[idx].a = a;
+      list[idx].accept = accept;
+      list[idx].hint = hint;
+      list[idx].explanation = explanation;
+      list[idx].author = currentUser;
+      list[idx].updatedAt = Date.now();
+    }
+  } else {
+    list.push({ id: 'c' + Date.now() + Math.random().toString(36).slice(2, 6), topic: topic, q: q, a: a, accept: accept, hint: hint, explanation: explanation, author: currentUser || 'owner', createdAt: new Date().toLocaleDateString() });
+  }
+  saveMPCustomProblems(list);
+  var wasEdit = !!mpFormEditId;
+  setMpStatus('Problem ' + (wasEdit ? 'updated' : 'published') + ' — it will appear in your next due set.');
+  mpCancelProblemForm();
+  if (mpView === 'dash') return;
+  mpSession = mpDueProblems();
+  mpSessionIdx = 0;
+  if (mpSession.length) mpShowProblem(mpSession[0]);
+  else {
+    document.getElementById('mpQuizCard').innerHTML = '<div class="mp-placeholder">All caught up! No problems due right now.</div>';
+    mpRenderStatsRow();
+  }
+}
+
+function mpDeleteProblemForm(id) {
+  if (!confirm('Delete this custom problem?')) return;
+  var list = getMPCustomProblems();
+  saveMPCustomProblems(list.filter(function(p) { return p.id !== id; }));
+  if (currentUser) sb('math_practice_problems').delete({ id: id });
+  setMpStatus('Problem deleted.');
+  var fv = document.getElementById('mpFormView');
+  if (fv) fv.classList.add('hidden');
+  if (mpView === 'dash') {
+    document.getElementById('mpQuizView').classList.add('hidden');
+    document.getElementById('mpDashView').classList.remove('hidden');
+    mpRenderStatsRow();
+    mpRenderDashboard();
+  } else {
+    document.getElementById('mpQuizView').classList.remove('hidden');
+    mpSession = mpDueProblems();
+    mpSessionIdx = 0;
+    if (mpSession.length) mpShowProblem(mpSession[0]);
+    else {
+      document.getElementById('mpQuizCard').innerHTML = '<div class="mp-placeholder">All caught up! No problems due right now.</div>';
+      mpRenderStatsRow();
+    }
+  }
+}
+
+function mpCancelProblemForm() {
+  var fv = document.getElementById('mpFormView');
+  if (fv) fv.classList.add('hidden');
+  if (mpView === 'dash') {
+    document.getElementById('mpQuizView').classList.add('hidden');
+    document.getElementById('mpDashView').classList.remove('hidden');
+    mpRenderStatsRow();
+    mpRenderDashboard();
+  } else {
+    document.getElementById('mpQuizView').classList.remove('hidden');
+    document.querySelectorAll('.mp-btn-view').forEach(function(b) { b.classList.toggle('active', b.id === 'mpViewQuiz'); });
+  }
 }
 
 function renderMathPractice() {
@@ -6031,6 +6346,16 @@ document.addEventListener('DOMContentLoaded', function() {
     mpRenderStatsRow();
     mpRenderDashboard();
   });
+  var mpAddBtn = document.getElementById('mpAddProblemBtn');
+  if (mpAddBtn) mpAddBtn.addEventListener('click', function() { mpShowProblemForm(null); });
+  var refClose = document.getElementById('mpRefClose');
+  if (refClose) refClose.addEventListener('click', mpCloseReference);
+  var refModal = document.getElementById('mpRefModal');
+  if (refModal) {
+    refModal.addEventListener('click', function(e) {
+      if (e.target === refModal) mpCloseReference();
+    });
+  }
 });
 
 // ===== NOTES TAB (search-only, typed notes saved as projects) =====

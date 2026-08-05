@@ -1,0 +1,4 @@
+@start("IRE")
+@circle [pos(-150,80)] [radius(70)] [color("cyan")] [fill-yes] [fill-color("blue")] [id=("c1")]
+@rectangle [pos(150,-80)] [width(160)] [height(100)] [color("lime")] [fill-yes] [fill-color("green")] [id=("r1")]
+@morph("c1", "r1") [duration(1.5)]

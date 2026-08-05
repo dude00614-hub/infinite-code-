@@ -894,7 +894,7 @@ function highlightCode(code) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
   html = html.replace(
-    /(@project\s+(?:\[open\]|tic\s+tac\s+toe(?:\s+\/\d+)?|\[close\]))|(@\w+)|(\[#?[0-9a-fA-F]{3,8}\])/g,
+    /(@project\s+(?:\[open\]|tic\s+tac\s+toe(?:\s+\/\d+)?|\[close\]|\[name\(\s*"[^"]*"\s*\)\]))|(@\w+)|(\[#?[0-9a-fA-F]{3,8}\])/g,
     function(match, proj, cmd, val) {
       if (proj) {
         return '<span class="token-keyword">' + proj + '</span>';
@@ -1023,6 +1023,23 @@ const suggestionList = [
   { label: '@generate [QR] (link:...)', desc: 'generate a QR code from a link' },
   { label: '@canvas [draw]', desc: 'open an interactive drawing canvas' },
   { label: '@switch tab [name]', desc: 'switch to a tab (code, database, run, edit, courses, settings)' },
+  { label: '@project [name("projectName")]', desc: 'set the current project name' },
+  { label: '@provider [description("text")]', desc: 'set a project description shown in listings' },
+  { label: '@player [id=("name")]', desc: 'declare a controllable player entity' },
+  { label: '@opponent [op="type"] [id=("name")]', desc: 'declare an NPC/opponent entity (grunt, boss, ...)' },
+  { label: '@enemy [shoot] [Pid=("player")] [Eid=("enemy")]', desc: 'make enemy Eid shoot at player Pid' },
+  { label: '@position [set] [id=("entity")] (x, y, z)', desc: 'set an entity position' },
+  { label: '@position [set] [spawnpoint] [id=("entity")] (x, y, z)', desc: 'set a spawn point for an entity' },
+  { label: '@transition [animation] [id=("entity")] [position(x, y, z)]', desc: 'smoothly animate an entity to a position' },
+  { label: '@frame [type("floor")] [position(x, y, z)] [width(n)] [height(n)] [color("name")] [set-true]', desc: 'declare a structural frame/platform' },
+  { label: '@add [structure] [id=("name")]', desc: 'add a structure entity to configure via @frame' },
+  { label: '@transportation [type("walk")] (WASD)', desc: 'bind movement keys for the player (WASD or arrow keys)' },
+  { label: '@recharge [set] <weapon> (mouse right click)', desc: 'bind a weapon reload to right mouse button' },
+  { label: '@shoot [set] <weapon> (mouse left click)', desc: 'bind a weapon shoot to left mouse button' },
+  { label: '@view [set] (bird\'s eye view)', desc: 'set the camera view mode' },
+  { label: '@color [fill] (id=("entity")) (Head) [color("red")]', desc: 'set a body part color (Head/Body/Legs/Boots/Arms/Full)' },
+  { label: '@emote [set] (id=("entity")) ("wave") [duration(2)]', desc: 'play a named emote animation for a duration' },
+  { label: '@open [web] [settrue]', desc: 'allow the project to open external web content' },
 ];
 
 let suggestionIndex = -1;
@@ -1270,6 +1287,7 @@ function openCodeInTab() {
 
 function executeCode(code, outputEl) {
   console.log('executeCode called, first 30 chars:', JSON.stringify(code.substring(0, 30)));
+  gameDisposeWorld();
   outputEl.innerHTML = '';
   const previewPanel = document.getElementById('previewPanel');
   previewPanel.style.background = '';
@@ -1289,6 +1307,18 @@ function executeCode(code, outputEl) {
   }
   if (!/^@inf\b/.test(code)) {
     outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; Error: Code must start with @inf (starts with: ' + JSON.stringify(code.substring(0, 20)) + ')</div>';
+    return;
+  }
+  const gameParsed = parseGameProject(code);
+  if (gameParsed.hasGame) {
+    if (gameParsed.errors.length) {
+      gameParsed.errors.forEach(function(e) {
+        outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; ' + e + '</div>';
+      });
+      outputEl.innerHTML += '<div class="output-line" style="color:#888">Game project rejected — fix the errors above.</div>';
+      return;
+    }
+    runGameWorld(gameParsed, outputEl, previewPanel);
     return;
   }
   const lines = code.split('\n');
@@ -4328,7 +4358,7 @@ const IRE_SUGGESTIONS = [
   { label: '@sphere [pos(x,y,z)] [radius(number)] [color("colorname")] [fill-color("colorname")] [animation] [id=("name")]', desc: '3D sphere element template' },
   { label: '@cube [pos(x,y,z)] [width(number)] [height(number)] [depth(number)] [rotation(x,y,z)] [color("colorname")] [fill-color("colorname")] [animation] [id=("name")]', desc: '3D cube element template' },
   { label: '@spin [id=("name")] [spin-axis(x,y,z)] [spin-speed(number)]', desc: 'continuously rotate a sphere or cube by id' },
-  { label: '@morph("idOne", "idTwo") [duration(seconds)]', desc: 'morph one shape into another' }
+  { label: '@morph("idOne", "idTwo") [duration(seconds)]', desc: 'morph shapes into another — 2D Circle/ Rectangle or 3D Sphere/ Cube (same dimension only)' }
 ];
 let ireSelIndex = 0;
 
@@ -4475,6 +4505,12 @@ function parseIREModifiers(el, rest, idx, errors) {
   });
 }
 
+function ireShapeDim(type) {
+  if (type === 'circle' || type === 'rectangle') return 2;
+  if (type === 'sphere' || type === 'cube') return 3;
+  return 0;
+}
+
 function parseIRE(script) {
   const elements = [];
   const morphs = [];
@@ -4617,13 +4653,16 @@ function parseIRE(script) {
     const to = idMap[m.idTo];
     if (!from) {
       errors.push('Line ' + m.line + ': @morph references unknown id "' + m.idFrom + '"');
-    } else if (from.type !== 'circle' && from.type !== 'rectangle') {
-      errors.push('Line ' + m.line + ': @morph idOne "' + m.idFrom + '" must be a circle or rectangle');
+    } else if (!ireShapeDim(from.type)) {
+      errors.push('Line ' + m.line + ': @morph idOne "' + m.idFrom + '" must be a circle, rectangle, sphere, or cube');
     }
     if (!to) {
       errors.push('Line ' + m.line + ': @morph references unknown id "' + m.idTo + '"');
-    } else if (to.type !== 'circle' && to.type !== 'rectangle') {
-      errors.push('Line ' + m.line + ': @morph idTwo "' + m.idTo + '" must be a circle or rectangle');
+    } else if (!ireShapeDim(to.type)) {
+      errors.push('Line ' + m.line + ': @morph idTwo "' + m.idTo + '" must be a circle, rectangle, sphere, or cube');
+    }
+    if (from && to && ireShapeDim(from.type) && ireShapeDim(to.type) && ireShapeDim(from.type) !== ireShapeDim(to.type)) {
+      errors.push('Line ' + m.line + ': @morph cannot morph "' + m.idFrom + '" (' + from.type + ') into "' + m.idTo + '" (' + to.type + ') — morphing is only supported within the same dimension (2D shape to 2D shape, or 3D shape to 3D shape) for now');
     }
   });
   spins.forEach(function(s) {
@@ -4714,8 +4753,22 @@ function ire3dBuild() {
   ire3d.meshes = [];
   ire3d.hasObjects = false;
   ire3dHas = false;
+  const morphConsumed = new Set();
+  ireMorphs.forEach(function(m) {
+    morphConsumed.add(m.from);
+    morphConsumed.add(m.to);
+  });
+  ireMorphs.forEach(function(m) {
+    if (ireShapeDim(m.from.type) !== 3) return;
+    const entry = ireMorph3dCreateMesh(m);
+    ire3d.scene.add(entry.mesh);
+    ire3d.meshes.push(entry);
+    ire3d.hasObjects = true;
+    ire3dHas = true;
+  });
   ireElements.forEach(function(el) {
     if (el.type !== 'sphere' && el.type !== 'cube') return;
+    if (morphConsumed.has(el)) return;
     const geometry = el.type === 'sphere'
       ? new THREE.SphereGeometry(1, 32, 24)
       : new THREE.BoxGeometry(1, 1, 1);
@@ -4756,6 +4809,124 @@ function ire3dBuild() {
   });
 }
 
+const IRE3D_MORPH_LAT = 24;
+const IRE3D_MORPH_LON = 32;
+
+// Build a morph mesh whose geometry interpolates, per vertex, between the
+// surface of the source (idOne) and target (idTwo) 3D shape. Both sphere and
+// cube surfaces are sampled with identical topology: a lat/lon UV grid, where
+// the cube surface is the "box mapping" (radial projection of each unit-sphere
+// direction onto the unit cube). Vertex i is then lerped from the sphere point
+// (scaled by the element's radius) to the cube point (scaled by the element's
+// width/height/depth) using the shared easing curve, and normals are rebuilt.
+function ireMorph3dCreateMesh(m) {
+  const from = m.from;
+  const to = m.to;
+  const lat = IRE3D_MORPH_LAT;
+  const lon = IRE3D_MORPH_LON;
+  const cols = lon + 1;
+  const count = (lat + 1) * cols;
+  const sphereUnit = new Float32Array(count * 3);
+  const cubeUnit = new Float32Array(count * 3);
+  const indices = [];
+  let vi = 0;
+  for (let iLat = 0; iLat <= lat; iLat++) {
+    const theta = (iLat / lat) * Math.PI;
+    const vy = Math.cos(theta);
+    const sr = Math.sin(theta);
+    for (let iLon = 0; iLon <= lon; iLon++) {
+      const phi = (iLon / lon) * Math.PI * 2;
+      const x = sr * Math.cos(phi);
+      const z = sr * Math.sin(phi);
+      sphereUnit[vi] = x;
+      sphereUnit[vi + 1] = vy;
+      sphereUnit[vi + 2] = z;
+      const mMax = Math.max(Math.abs(x), Math.abs(vy), Math.abs(z));
+      cubeUnit[vi] = x / mMax;
+      cubeUnit[vi + 1] = vy / mMax;
+      cubeUnit[vi + 2] = z / mMax;
+      vi += 3;
+    }
+  }
+  for (let iLat = 0; iLat < lat; iLat++) {
+    for (let iLon = 0; iLon < lon; iLon++) {
+      const a = iLat * cols + iLon;
+      const b = a + 1;
+      const c = a + cols;
+      const d = c + 1;
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setIndex(indices);
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+  const surfaceFrom = from.fillColor || from.color || '#ffffff';
+  const surfaceTo = to.fillColor || to.color || '#ffffff';
+  const material = new THREE.MeshStandardMaterial({ color: surfaceFrom, roughness: 0.6, metalness: 0.1 });
+  const mesh = new THREE.Mesh(geometry, material);
+  const entry = {
+    morph: true,
+    el: null,
+    mesh: mesh,
+    geometry: geometry,
+    data: { sphereUnit: sphereUnit, cubeUnit: cubeUnit },
+    from: from,
+    to: to,
+    duration: m.duration,
+    material: material,
+    colorFrom: new THREE.Color(surfaceFrom),
+    colorTo: new THREE.Color(surfaceTo),
+    scratchQuat: new THREE.Quaternion(),
+    spin: null
+  };
+  mesh.position.set(from.pos.x, from.pos.y, from.pos.z);
+  const r1 = from.rotation || { x: 0, y: 0, z: 0 };
+  mesh.rotation.set(r1.x * Math.PI / 180, r1.y * Math.PI / 180, r1.z * Math.PI / 180);
+  const spinEl = from.spin ? from : (to.spin ? to : null);
+  if (spinEl) {
+    const a = spinEl.spin.axis;
+    entry.spin = {
+      axis: new THREE.Vector3(a.x, a.y, a.z).normalize(),
+      speed: spinEl.spin.speed
+    };
+  }
+  ireMorph3dSetPositions(entry, 0);
+  return entry;
+}
+
+// Sample vertex i of an element's own shape (sphere surface or cube surface)
+// in the element's real local units.
+function ireMorph3dSample(el, i, sphereUnit, cubeUnit) {
+  const sx = sphereUnit[i], sy = sphereUnit[i + 1], sz = sphereUnit[i + 2];
+  const cx = cubeUnit[i], cy = cubeUnit[i + 1], cz = cubeUnit[i + 2];
+  if (el.type === 'sphere') {
+    const r = Math.max(0.001, el.radius);
+    return { x: sx * r, y: sy * r, z: sz * r };
+  }
+  const wx = Math.max(0.001, el.width) / 2;
+  const wy = Math.max(0.001, el.height) / 2;
+  const wz = Math.max(0.001, el.depth) / 2;
+  return { x: cx * wx, y: cy * wy, z: cz * wz };
+}
+
+function ireMorph3dSetPositions(entry, eased) {
+  const attr = entry.geometry.attributes.position;
+  const arr = attr.array;
+  const su = entry.data.sphereUnit;
+  const cu = entry.data.cubeUnit;
+  const from = entry.from;
+  const to = entry.to;
+  for (let i = 0; i < arr.length; i += 3) {
+    const f = ireMorph3dSample(from, i, su, cu);
+    const t = ireMorph3dSample(to, i, su, cu);
+    arr[i] = f.x + (t.x - f.x) * eased;
+    arr[i + 1] = f.y + (t.y - f.y) * eased;
+    arr[i + 2] = f.z + (t.z - f.z) * eased;
+  }
+  attr.needsUpdate = true;
+  entry.geometry.computeVertexNormals();
+}
+
 // Update per-frame 3D animation state. Returns { finite, spinning }:
 // - finite: true while a time-limited animation (scalein) is still running
 // - spinning: true if any mesh has a continuous spin (never ends)
@@ -4764,8 +4935,37 @@ function ire3dUpdate(elapsed) {
   let finite = false;
   let spinning = false;
   ire3d.meshes.forEach(function(entry) {
-    const el = entry.el;
     const mesh = entry.mesh;
+    if (entry.morph) {
+      const from = entry.from;
+      const to = entry.to;
+      const t = Math.max(0, Math.min(1, elapsed / (entry.duration * 1000)));
+      const eased = ireMorphEase(t);
+      ireMorph3dSetPositions(entry, eased);
+      mesh.position.set(
+        ireMorphLerp(from.pos.x, to.pos.x, eased),
+        ireMorphLerp(from.pos.y, to.pos.y, eased),
+        ireMorphLerp(from.pos.z, to.pos.z, eased)
+      );
+      const r1 = from.rotation || { x: 0, y: 0, z: 0 };
+      const r2 = to.rotation || { x: 0, y: 0, z: 0 };
+      mesh.rotation.set(
+        ireMorphLerp(r1.x, r2.x, eased) * Math.PI / 180,
+        ireMorphLerp(r1.y, r2.y, eased) * Math.PI / 180,
+        ireMorphLerp(r1.z, r2.z, eased) * Math.PI / 180
+      );
+      mesh.scale.set(1, 1, 1);
+      entry.material.color.copy(entry.colorFrom).lerp(entry.colorTo, eased);
+      if (entry.spin) {
+        const angle = entry.spin.speed * Math.PI * 2 * (elapsed / 1000);
+        const spinQuat = new THREE.Quaternion().setFromAxisAngle(entry.spin.axis, angle);
+        mesh.quaternion.copy(entry.scratchQuat.setFromEuler(mesh.rotation)).premultiply(spinQuat);
+        spinning = true;
+      }
+      if (t < 1) finite = true;
+      return;
+    }
+    const el = entry.el;
     mesh.position.set(el.pos.x, el.pos.y, el.pos.z);
     if (entry.spin) {
       const angle = entry.spin.speed * Math.PI * 2 * (elapsed / 1000);
@@ -5050,6 +5250,7 @@ function drawIREElements(elapsed) {
     }
   });
   ireMorphs.forEach(function(m) {
+    if (ireShapeDim(m.from.type) === 3) return;
     if (drawIREMorph(m, elapsed, cx, cy)) animating = true;
   });
   return animating;
@@ -5513,6 +5714,901 @@ document.getElementById('ireExportBtn').addEventListener('click', function() {
   exportIREVideo();
 });
 
+// ===== GAME PROJECT SYNTAX (Code tab) =====
+// Builds interactive 3D game worlds inside @project [open] ... @project [close]
+// blocks. Follows the same modifier conventions as IRE ([mod(value)],
+// [id=("name")] references, [set-true] flags, optional vs required arguments).
+
+const GAME_BODY_PARTS = ['head', 'body', 'legs', 'boots', 'arms', 'full'];
+
+function gameExtractModifiers(rest) {
+  const out = [];
+  const re = /\[[^\]]*\]/g;
+  let m;
+  while ((m = re.exec(rest))) out.push(m[0].slice(1, -1));
+  return out;
+}
+
+function gameExtractGroups(rest) {
+  const groups = [];
+  let depth = 0, inQuote = false, inBracket = false, cur = '';
+  for (let i = 0; i < rest.length; i++) {
+    const ch = rest[i];
+    if (inBracket) { if (ch === ']') inBracket = false; continue; }
+    if (inQuote) { cur += ch; if (ch === '"') inQuote = false; continue; }
+    if (ch === '"') { inQuote = true; cur += ch; continue; }
+    if (ch === '[') { inBracket = true; continue; }
+    if (ch === '(') { if (depth === 0) { depth = 1; cur = ''; } else { depth++; cur += ch; } continue; }
+    if (ch === ')') {
+      if (depth === 1) { groups.push(cur.trim()); cur = ''; depth = 0; }
+      else if (depth > 1) { depth--; cur += ch; }
+      continue;
+    }
+    if (depth === 1) cur += ch;
+  }
+  return groups;
+}
+
+function gameParseModifier(mod) {
+  const s = String(mod).trim();
+  if (!s) return null;
+  if (/^[a-zA-Z][a-zA-Z0-9-]*$/.test(s)) return { key: s, flag: true };
+  const eq = s.indexOf('=');
+  if (eq > 0) {
+    const key = s.substring(0, eq).trim();
+    let val = s.substring(eq + 1).trim();
+    const pm = val.match(/^\((.*)\)$/s);
+    if (pm) val = pm[1];
+    val = val.replace(/^"|"$/g, '');
+    return { key: key, value: val.trim() };
+  }
+  const fnM = s.match(/^([a-zA-Z][a-zA-Z0-9]*)\s*\(\s*([^()]*)\s*\)$/);
+  if (fnM) {
+    let val = fnM[2].trim();
+    val = val.replace(/^"|"$/g, '');
+    return { key: fnM[1], value: val };
+  }
+  return null;
+}
+
+function gameMod(mods, key) {
+  const k = key.toLowerCase();
+  for (let i = 0; i < mods.length; i++) {
+    if (!mods[i].flag && mods[i].key.toLowerCase() === k) return mods[i];
+  }
+  return null;
+}
+
+function gameFlag(mods, key) {
+  const k = key.toLowerCase();
+  return mods.some(function(m) { return m.flag && m.key.toLowerCase() === k; });
+}
+
+function gameParseTuple(s) {
+  const parts = String(s).split(',').map(function(p) { return p.trim(); });
+  if (parts.length >= 3) {
+    const x = parseFloat(parts[0]), y = parseFloat(parts[1]), z = parseFloat(parts[2]);
+    if (!isNaN(x) && !isNaN(y) && !isNaN(z)) return { x: x, y: y, z: z };
+  }
+  return null;
+}
+
+function gameParseNum(s) {
+  const v = parseFloat(s);
+  return isNaN(v) ? null : v;
+}
+
+function gameModTuple(mods, key) {
+  const m = gameMod(mods, key);
+  return m ? gameParseTuple(m.value) : null;
+}
+
+function gameNormalizeView(raw) {
+  const s = String(raw).toLowerCase().trim();
+  if (s === 'bird' || s === "bird's eye" || s === "bird's eye view" || s === 'birds eye' || s === 'birds-eye' || s === 'birdseye' || s === 'top-down' || s === 'top down' || s === 'topdown' || s === 'top view') return 'birdsEye';
+  return s.replace(/[^a-z0-9]/g, '');
+}
+
+function gameNormalizePart(p) {
+  const s = String(p).toLowerCase();
+  return GAME_BODY_PARTS.indexOf(s) !== -1 ? s : null;
+}
+
+// Parse a @project [open] ... @project [close] game block into structured data.
+// Follows IRE conventions: bracket modifiers, [id=("name")] references, color
+// names resolved through the shared color table. All commands must parse
+// without error; unknown/unexpected input produces a clear error message.
+function parseGameProject(script) {
+  const result = {
+    hasGame: false,
+    name: null,
+    provider: null,
+    webOpen: false,
+    players: [],
+    opponents: [],
+    structures: [],
+    positions: [],
+    transitions: [],
+    controls: [],
+    weaponBinds: [],
+    colors: [],
+    emotes: [],
+    enemies: [],
+    view: null,
+    errors: [],
+    logs: []
+  };
+  const lines = String(script).split('\n');
+  let inProject = false;
+
+  function structureById(id) {
+    for (let i = 0; i < result.structures.length; i++) {
+      if (result.structures[i].id === id) return result.structures[i];
+    }
+    return null;
+  }
+
+  lines.forEach(function(line, idx) {
+    const t = line.trim();
+    if (!t) return;
+    if (t.indexOf('--') === 0) return;
+    if (/^@project\s+\[open\]\s*$/i.test(t)) { inProject = true; return; }
+    if (/^@project\s+\[close\]\s*$/i.test(t)) { inProject = false; return; }
+    const cm = t.match(/^@([a-zA-Z][a-zA-Z0-9]*)\b/);
+    if (!cm) return;
+    const cmd = cm[1].toLowerCase();
+    const rest = t.slice(cm[0].length);
+    const gameCmds = ['project', 'provider', 'player', 'opponent', 'enemy', 'position', 'transition', 'frame', 'add', 'transportation', 'recharge', 'shoot', 'view', 'color', 'emote', 'open'];
+    if (gameCmds.indexOf(cmd) === -1) return;
+    if (cmd === 'project' && /tic\s+tac\s+toe/i.test(rest)) return;
+    if (!inProject) {
+      result.errors.push('Line ' + (idx + 1) + ': @' + cmd + ' must be inside a @project [open] ... @project [close] block');
+      return;
+    }
+    result.hasGame = true;
+    const LN = 'Line ' + (idx + 1);
+    const mods = gameExtractModifiers(rest).map(gameParseModifier).filter(function(x) { return !!x; });
+    const groups = gameExtractGroups(rest);
+
+    switch (cmd) {
+      case 'project': {
+        const nameMod = gameMod(mods, 'name');
+        if (nameMod) result.name = nameMod.value;
+        break;
+      }
+      case 'provider': {
+        const descMod = gameMod(mods, 'description');
+        if (descMod) result.provider = descMod.value;
+        else result.errors.push(LN + ': @provider requires a [description("text")] modifier');
+        break;
+      }
+      case 'player': {
+        const idMod = gameMod(mods, 'id');
+        if (!idMod || !idMod.value) {
+          result.errors.push(LN + ': @player requires an [id=("name")] modifier');
+          break;
+        }
+        result.players.push({ id: idMod.value, line: idx + 1 });
+        break;
+      }
+      case 'opponent': {
+        const opMod = gameMod(mods, 'op');
+        const idMod = gameMod(mods, 'id');
+        if (!opMod) {
+          result.errors.push(LN + ': @opponent requires an [op="opponent type"] modifier');
+          break;
+        }
+        const id = idMod ? idMod.value : 'opponent' + (result.opponents.length + 1);
+        result.opponents.push({ id: id, op: opMod.value, line: idx + 1 });
+        break;
+      }
+      case 'enemy': {
+        const pid = gameMod(mods, 'pid');
+        const eid = gameMod(mods, 'eid');
+        result.enemies.push({
+          shoot: gameFlag(mods, 'shoot'),
+          Pid: pid ? pid.value : null,
+          Eid: eid ? eid.value : null,
+          line: idx + 1
+        });
+        break;
+      }
+      case 'position': {
+        const idMod = gameMod(mods, 'id');
+        const groupTuple = groups.map(gameParseTuple).filter(function(x) { return !!x; })[0];
+        const tuple = groupTuple || gameModTuple(mods, 'position');
+        if (!idMod) {
+          result.errors.push(LN + ': @position requires an [id=("entityId")] modifier');
+          break;
+        }
+        if (!tuple) {
+          result.errors.push(LN + ': @position requires a position tuple (x, y, z)');
+          break;
+        }
+        result.positions.push({
+          id: idMod.value,
+          pos: tuple,
+          spawnpoint: gameFlag(mods, 'spawnpoint'),
+          line: idx + 1
+        });
+        break;
+      }
+      case 'transition': {
+        const idMod = gameMod(mods, 'id');
+        const tuple = gameModTuple(mods, 'position');
+        if (!idMod) {
+          result.errors.push(LN + ': @transition requires an [id=("entityId")] modifier');
+          break;
+        }
+        if (!tuple) {
+          result.errors.push(LN + ': @transition requires a [position(x, y, z)] modifier');
+          break;
+        }
+        result.transitions.push({ id: idMod.value, pos: tuple, line: idx + 1 });
+        break;
+      }
+      case 'frame': {
+        const typeMod = gameMod(mods, 'type');
+        const idMod = gameMod(mods, 'id');
+        const tuple = gameModTuple(mods, 'position');
+        const width = gameMod(mods, 'width');
+        const height = gameMod(mods, 'height');
+        const descMod = gameMod(mods, 'description');
+        const colorMod = gameMod(mods, 'color');
+        const solid = gameFlag(mods, 'set-true') || gameFlag(mods, 'settrue') || gameFlag(mods, 'set');
+        const id = idMod ? idMod.value : null;
+        if (id) {
+          const existing = structureById(id);
+          if (existing) {
+            if (typeMod) existing.type = typeMod.value.toLowerCase();
+            if (tuple) existing.pos = tuple;
+            if (width) existing.width = gameParseNum(width.value);
+            if (height) existing.height = gameParseNum(height.value);
+            if (descMod) existing.description = descMod.value;
+            if (colorMod) {
+              const c = resolveIREColor(colorMod.value);
+              if (c) existing.color = c;
+              else result.errors.push(LN + ': Unknown color "' + colorMod.value + '"');
+            }
+            existing.solid = solid;
+            existing.placeholder = false;
+            break;
+          }
+        }
+        const color = colorMod ? resolveIREColor(colorMod.value) : null;
+        if (colorMod && !color) result.errors.push(LN + ': Unknown color "' + colorMod.value + '"');
+        result.structures.push({
+          id: id || ('frame' + (result.structures.length + 1)),
+          type: typeMod ? typeMod.value.toLowerCase() : 'platform',
+          pos: tuple || { x: 0, y: 0, z: 0 },
+          width: width ? gameParseNum(width.value) : 200,
+          height: height ? gameParseNum(height.value) : 10,
+          description: descMod ? descMod.value : null,
+          color: color,
+          solid: solid,
+          placeholder: false,
+          line: idx + 1
+        });
+        break;
+      }
+      case 'add': {
+        if (!gameFlag(mods, 'structure')) {
+          result.errors.push(LN + ': @add requires a [structure] modifier');
+          break;
+        }
+        const idMod = gameMod(mods, 'id');
+        if (!idMod) {
+          result.errors.push(LN + ': @add [structure] requires an [id=("name")] modifier');
+          break;
+        }
+        if (structureById(idMod.value)) {
+          result.errors.push(LN + ': Duplicate structure id "' + idMod.value + '" — ids must be unique');
+          break;
+        }
+        result.structures.push({
+          id: idMod.value,
+          placeholder: true,
+          type: 'platform',
+          pos: { x: 0, y: 0, z: 0 },
+          width: 200,
+          height: 10,
+          description: null,
+          color: null,
+          solid: false,
+          line: idx + 1
+        });
+        break;
+      }
+      case 'transportation': {
+        const typeMod = gameMod(mods, 'type');
+        const idMod = gameMod(mods, 'id');
+        const keysGroup = groups[0] || '';
+        if (!typeMod) {
+          result.errors.push(LN + ': @transportation requires a [type("walk"/"run"/"fly")] modifier');
+          break;
+        }
+        if (!keysGroup) {
+          result.errors.push(LN + ': @transportation requires a key list in parentheses, e.g. (WASD) or (arrow keys)');
+          break;
+        }
+        result.controls.push({
+          id: idMod ? idMod.value : null,
+          type: typeMod.value.toLowerCase(),
+          keys: keysGroup,
+          line: idx + 1
+        });
+        break;
+      }
+      case 'recharge':
+      case 'shoot': {
+        const weaponMatch = rest.match(/<([^>]+)>/);
+        const weapon = weaponMatch ? weaponMatch[1].trim() : null;
+        const mouseGroup = groups[groups.length - 1] || '';
+        if (!weapon) {
+          result.errors.push(LN + ': @' + cmd + ' requires a weapon name in <angle brackets>');
+          break;
+        }
+        result.weaponBinds.push({
+          action: cmd === 'shoot' ? 'shoot' : 'recharge',
+          weapon: weapon,
+          mouse: mouseGroup || (cmd === 'shoot' ? 'mouse left click' : 'mouse right click'),
+          line: idx + 1
+        });
+        break;
+      }
+      case 'view': {
+        const mode = groups[0] || '';
+        if (!mode) {
+          result.errors.push(LN + ': @view requires a mode in parentheses, e.g. (bird\'s eye view)');
+          break;
+        }
+        result.view = { raw: mode, mode: gameNormalizeView(mode), line: idx + 1 };
+        break;
+      }
+      case 'color': {
+        const colorMod = gameMod(mods, 'color');
+        let id = null, part = null;
+        groups.forEach(function(g) {
+          const idM = g.match(/^id\s*=\s*\(\s*"([^"]*)"\s*\)\s*$/i);
+          if (idM) { id = idM[1].trim(); return; }
+          const p = gameNormalizePart(g.replace(/^"|"$/g, ''));
+          if (p) part = g.replace(/^"|"$/g, '');
+        });
+        if (!id) {
+          result.errors.push(LN + ': @color requires (id=("entityId"))');
+          break;
+        }
+        if (!part) {
+          result.errors.push(LN + ': @color requires a body part (Head, Body, Legs, Boots, Arms, or Full)');
+          break;
+        }
+        const color = colorMod ? resolveIREColor(colorMod.value) : '#ffd700';
+        if (colorMod && !color) result.errors.push(LN + ': Unknown color "' + colorMod.value + '"');
+        result.colors.push({ id: id, part: part, color: color, line: idx + 1 });
+        break;
+      }
+      case 'emote': {
+        const durationMod = gameMod(mods, 'duration');
+        let id = null, name = null;
+        groups.forEach(function(g) {
+          const idM = g.match(/^id\s*=\s*\(\s*"([^"]*)"\s*\)\s*$/i);
+          if (idM) { id = idM[1].trim(); return; }
+          const nm = g.match(/^"([^"]*)"$/);
+          if (nm) { name = nm[1].trim(); return; }
+          if (g && !name) name = g.replace(/^"|"$/g, '').trim();
+        });
+        if (!id) {
+          result.errors.push(LN + ': @emote requires (id=("entityId"))');
+          break;
+        }
+        if (!name) {
+          result.errors.push(LN + ': @emote requires an emote name in quotes, e.g. ("wave")');
+          break;
+        }
+        let duration = 2;
+        if (durationMod) {
+          const d = gameParseNum(durationMod.value);
+          if (d === null || d <= 0) {
+            result.errors.push(LN + ': @emote duration must be a positive number (got "' + durationMod.value + '")');
+          } else {
+            duration = d;
+          }
+        }
+        result.emotes.push({ id: id, name: name, duration: duration, line: idx + 1 });
+        break;
+      }
+      case 'open': {
+        if (gameFlag(mods, 'web')) result.webOpen = true;
+        break;
+      }
+    }
+  });
+
+  // ---- post-validation (id references must resolve) ----
+  const ids = {};
+  result.players.concat(result.opponents).forEach(function(e) {
+    if (ids[e.id]) {
+      result.errors.push('Line ' + ids[e.id] + ': Duplicate entity id "' + e.id + '" — ids must be unique');
+    } else {
+      ids[e.id] = e.line;
+    }
+  });
+  function entityExists(id) { return ids[id] !== undefined; }
+
+  result.enemies.forEach(function(en) {
+    if (!en.Pid) {
+      result.errors.push('Line ' + en.line + ': @enemy [shoot] requires a [Pid=("targetPlayerId")] modifier');
+    } else if (!result.players.some(function(p) { return p.id === en.Pid; })) {
+      result.errors.push('Line ' + en.line + ': @enemy references unknown player id "' + en.Pid + '"');
+    }
+    if (!en.Eid) {
+      result.errors.push('Line ' + en.line + ': @enemy [shoot] requires an [Eid=("enemyId")] modifier');
+    } else if (!result.opponents.some(function(o) { return o.id === en.Eid; })) {
+      result.errors.push('Line ' + en.line + ': @enemy references unknown enemy id "' + en.Eid + '"');
+    }
+  });
+
+  result.positions.forEach(function(p) {
+    if (!entityExists(p.id)) result.errors.push('Line ' + p.line + ': @position references unknown entity id "' + p.id + '"');
+  });
+  result.transitions.forEach(function(tr) {
+    if (!entityExists(tr.id)) result.errors.push('Line ' + tr.line + ': @transition references unknown entity id "' + tr.id + '"');
+  });
+  result.colors.forEach(function(c) {
+    if (!entityExists(c.id)) result.errors.push('Line ' + c.line + ': @color references unknown entity id "' + c.id + '"');
+  });
+  result.emotes.forEach(function(em) {
+    if (!entityExists(em.id)) result.errors.push('Line ' + em.line + ': @emote references unknown entity id "' + em.id + '"');
+  });
+  result.controls.forEach(function(c) {
+    if (c.id && !entityExists(c.id)) result.errors.push('Line ' + c.line + ': @transportation references unknown entity id "' + c.id + '"');
+  });
+
+  const structIds = {};
+  result.structures.forEach(function(s) {
+    if (s.placeholder) return;
+    if (structIds[s.id]) {
+      result.errors.push('Line ' + s.line + ': Duplicate structure id "' + s.id + '" — ids must be unique');
+    } else {
+      structIds[s.id] = true;
+    }
+  });
+  if (result.hasGame && !result.view) result.view = { raw: 'bird\'s eye view', mode: 'birdsEye', line: null };
+  return result;
+}
+
+// ===== GAME WORLD RENDERER (Code tab preview) =====
+let gameWorld = null;
+
+function gameDisposeWorld() {
+  if (gameWorld) {
+    if (gameWorld.raf) cancelAnimationFrame(gameWorld.raf);
+    if (gameWorld.ro) gameWorld.ro.disconnect();
+    if (gameWorld.onResize) window.removeEventListener('resize', gameWorld.onResize);
+    if (gameWorld.keydown) document.removeEventListener('keydown', gameWorld.keydown);
+    if (gameWorld.keyup) document.removeEventListener('keyup', gameWorld.keyup);
+    if (gameWorld.mousedown) gameWorld.canvas.removeEventListener('mousedown', gameWorld.mousedown);
+    if (gameWorld.contextmenu) gameWorld.canvas.removeEventListener('contextmenu', gameWorld.contextmenu);
+    if (gameWorld.canvas) { try { gameWorld.canvas.remove(); } catch (e) {} }
+    if (gameWorld.wrap) { try { gameWorld.wrap.remove(); } catch (e) {} }
+    try { gameWorld.renderer.dispose(); } catch (e) {}
+    gameWorld = null;
+  }
+}
+
+function gameBuildHumanoid(kind) {
+  const group = new THREE.Group();
+  const rig = new THREE.Group();
+  group.add(rig);
+  const player = kind === 'player';
+  const skin = player ? 0xffcc88 : 0xcc9966;
+  const outfit = player ? 0x55aaff : 0xff5555;
+  const mk = function(c) { return new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, metalness: 0.1 }); };
+  const mats = { Head: mk(skin), Body: mk(outfit), Arms: mk(outfit), Legs: mk(outfit), Boots: mk(0x333344) };
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(30, 38, 20), mats.Body);
+  rig.add(body);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(14, 16, 12), mats.Head);
+  head.position.y = 34;
+  rig.add(head);
+
+  const armGeo = new THREE.BoxGeometry(9, 26, 10);
+  const armL = new THREE.Mesh(armGeo, mats.Arms);
+  armL.position.y = 2;
+  const armR = new THREE.Mesh(armGeo, mats.Arms);
+  armR.position.y = 2;
+  const armGroupL = new THREE.Group();
+  armGroupL.position.set(-20, 0, 0);
+  armGroupL.add(armL);
+  const armGroupR = new THREE.Group();
+  armGroupR.position.set(20, 0, 0);
+  armGroupR.add(armR);
+  rig.add(armGroupL, armGroupR);
+
+  const legGeo = new THREE.BoxGeometry(12, 24, 12);
+  const legL = new THREE.Mesh(legGeo, mats.Legs);
+  legL.position.set(-8, -31, 0);
+  const legR = new THREE.Mesh(legGeo, mats.Legs);
+  legR.position.set(8, -31, 0);
+  const legsGroup = new THREE.Group();
+  legsGroup.add(legL, legR);
+  rig.add(legsGroup);
+
+  const bootGeo = new THREE.BoxGeometry(13, 9, 20);
+  const bootL = new THREE.Mesh(bootGeo, mats.Boots);
+  bootL.position.set(-8, -47, 4);
+  const bootR = new THREE.Mesh(bootGeo, mats.Boots);
+  bootR.position.set(8, -47, 4);
+  rig.add(bootL, bootR);
+
+  group.userData = {
+    rig: rig,
+    parts: { Head: head, Body: body, Arms: [armL, armR], Legs: [legL, legR], Boots: [bootL, bootR], Mats: mats },
+    rigArms: { L: armGroupL, R: armGroupR, legs: legsGroup }
+  };
+  return group;
+}
+
+function gameApplyPartColor(entity, part, colorHex) {
+  const mats = entity.group.userData.parts.Mats;
+  const c = new THREE.Color(colorHex);
+  const p = String(part).toLowerCase();
+  if (p === 'full') {
+    Object.keys(mats).forEach(function(k) { mats[k].color.copy(c); });
+  } else if (mats[p] === undefined) {
+    const key = p.charAt(0).toUpperCase() + p.slice(1);
+    if (mats[key]) mats[key].color.copy(c);
+  } else {
+    mats[p].color.copy(c);
+  }
+}
+
+function gameBuildFrame(frame) {
+  const type = frame.type || 'platform';
+  const w = frame.width || 200;
+  const h = frame.height || 10;
+  let depth = 20;
+  if (type === 'floor') depth = w;
+  const color = frame.color || (type === 'floor' ? '#445566' : '#887744');
+  const mat = new THREE.MeshStandardMaterial({
+    color: color,
+    roughness: 0.8,
+    metalness: 0.1,
+    transparent: !frame.solid,
+    opacity: frame.solid ? 1 : 0.55
+  });
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, depth), mat);
+  mesh.position.set(frame.pos.x, frame.pos.y, frame.pos.z);
+  if (type === 'floor' && frame.pos.y === 0) mesh.position.y = -h / 2;
+  mesh.userData.description = frame.description;
+  return mesh;
+}
+
+function gameMakeLabelSprite(text, color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.font = 'bold 60px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.85)';
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = color || '#ffd700';
+  ctx.fillText(text, 256, 64);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(240, 60, 1);
+  return sprite;
+}
+
+function gameCtrlKeys(keysStr) {
+  const s = String(keysStr).toLowerCase();
+  const set = new Set();
+  if (s.indexOf('w') !== -1) set.add('w');
+  if (s.indexOf('a') !== -1) set.add('a');
+  if (s.indexOf('s') !== -1) set.add('s');
+  if (s.indexOf('d') !== -1) set.add('d');
+  if (s.indexOf('arrow') !== -1) {
+    set.add('arrowup');
+    set.add('arrowdown');
+    set.add('arrowleft');
+    set.add('arrowright');
+  }
+  return set;
+}
+
+const GAME_EMOTE_ANIMS = {
+  wave: function(g, p) { g.userData.rigArms.R.rotation.z = -Math.abs(Math.sin(p * Math.PI * 2)) * 1.1; },
+  squat: function(g, p) {
+    const s = 1 - 0.3 * Math.sin(p * Math.PI);
+    g.userData.rig.scale.y = s;
+    g.userData.rig.scale.x = 2 - s;
+    g.userData.rig.scale.z = 2 - s;
+  },
+  breakdancing: function(g, p) { g.userData.rig.rotation.y = p * Math.PI * 2; },
+  twerk: function(g, p) {
+    g.userData.rig.rotation.z = Math.sin(p * Math.PI * 6) * 0.15;
+    g.userData.rig.position.y = Math.abs(Math.sin(p * Math.PI * 6)) * 6;
+    g.userData.rigArms.legs.rotation.x = Math.sin(p * Math.PI * 6) * 0.2;
+  },
+  'default': function(g, p) { g.userData.rig.position.y = Math.abs(Math.sin(p * Math.PI)) * 5; }
+};
+
+const GAME_CAMERA_MODES = {
+  birdsEye: function(cam) {
+    cam.position.set(700, 1500, 700);
+    cam.up.set(0, 1, 0);
+    cam.lookAt(0, 0, 0);
+  }
+};
+
+function gameLogEvent(world, msg) {
+  if (!world.console) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'padding:2px 4px;font-size:11px;color:#8fd8ff;font-family:Consolas,monospace;white-space:pre-wrap;word-break:break-word;';
+  div.innerHTML = msg;
+  world.console.appendChild(div);
+  world.console.scrollTop = world.console.scrollHeight;
+  while (world.console.children.length > 4) world.console.removeChild(world.console.firstChild);
+}
+
+function gameSizeWorld(world) {
+  const rect = world.wrap.getBoundingClientRect();
+  const w = Math.max(1, Math.floor(rect.width));
+  const h = Math.max(1, Math.floor(rect.height));
+  world.renderer.setSize(w, h, false);
+  world.camera.aspect = w / h;
+  world.camera.updateProjectionMatrix();
+}
+
+function gameAnimate(world) {
+  world.raf = requestAnimationFrame(function(now) { gameAnimate(world); });
+  const dt = Math.min(0.05, (now - world.lastFrame) / 1000 || 0.016);
+  world.lastFrame = now;
+
+  world.entities.forEach(function(ent) {
+    if (ent.transition) {
+      const tr = ent.transition;
+      const p = Math.min(1, (now - tr.start) / tr.duration);
+      const e = ireMorphEase(p);
+      ent.group.position.x = tr.from.x + (tr.to.x - tr.from.x) * e;
+      ent.group.position.y = tr.from.y + (tr.to.y - tr.from.y) * e;
+      ent.group.position.z = tr.from.z + (tr.to.z - tr.from.z) * e;
+      if (p >= 1) ent.transition = null;
+    }
+  });
+
+  world.entities.forEach(function(ent) {
+    const em = ent.emote;
+    if (!em) return;
+    const p = Math.min(1, (now - em.start) / em.duration);
+    const rig = ent.group.userData.rig;
+    rig.rotation.set(0, 0, 0);
+    rig.scale.set(1, 1, 1);
+    rig.position.y = 0;
+    ent.group.userData.rigArms.R.rotation.z = 0;
+    ent.group.userData.rigArms.L.rotation.z = 0;
+    ent.group.userData.rigArms.legs.rotation.x = 0;
+    if (em.anim) em.anim(ent.group, p);
+    if (em.sprite) {
+      em.sprite.position.set(ent.group.position.x, ent.group.position.y + 115 + Math.sin(p * Math.PI * 3) * 8, ent.group.position.z);
+      em.sprite.material.opacity = Math.max(0, Math.min(1, p < 0.1 ? p / 0.1 : p > 0.85 ? (1 - p) / 0.15 : 1));
+    }
+    if (p >= 1) {
+      if (em.sprite) world.scene.remove(em.sprite);
+      ent.emote = null;
+    }
+  });
+
+  if (world.controls && world.player) {
+    const keys = world.keys;
+    const up = keys.has('w') || keys.has('arrowup');
+    const down = keys.has('s') || keys.has('arrowdown');
+    const left = keys.has('a') || keys.has('arrowleft');
+    const right = keys.has('d') || keys.has('arrowright');
+    let dx = 0, dz = 0;
+    if (up) dz -= 1;
+    if (down) dz += 1;
+    if (left) dx -= 1;
+    if (right) dx += 1;
+    if (dx !== 0 || dz !== 0) {
+      const len = Math.sqrt(dx * dx + dz * dz);
+      const speed = (world.controls.speed || 160) * dt;
+      world.player.group.position.x += (dx / len) * speed;
+      world.player.group.position.z += (dz / len) * speed;
+      world.player.group.rotation.y = Math.atan2(dx, dz);
+    }
+  }
+
+  world.renderer.render(world.scene, world.camera);
+}
+
+function runGameWorld(parsed, outputEl, previewPanel) {
+  gameDisposeWorld();
+  if (typeof THREE === 'undefined') {
+    outputEl.innerHTML += '<div class="output-line" style="color:#ff6b6b">&#10060; 3D engine unavailable — cannot render game world</div>';
+    return;
+  }
+
+  function out(html) { outputEl.innerHTML += '<div class="output-line">' + html + '</div>'; }
+  function ok(html) { outputEl.innerHTML += '<div class="output-line" style="color:#50e3c2">' + html + '</div>'; }
+
+  ok('&#127918; Game project' + (parsed.name ? ' "' + parsed.name + '"' : '') + ' loaded.');
+  if (parsed.provider) out('<span style="color:#8a8a8a">&#128172; ' + parsed.provider + '</span>');
+  out('&#129482; ' + parsed.players.length + ' player(s), ' + parsed.opponents.length + ' opponent(s), ' + parsed.structures.length + ' structure(s).');
+  if (parsed.view) out('&#128247; Camera: "' + parsed.view.raw + '"');
+  if (parsed.webOpen) out('&#128279; Web content permission: enabled (flag stored).');
+
+  parsed.controls.forEach(function(c) {
+    ok('&#127909; Controls: [' + c.type + '] bound to (' + c.keys + ') for ' + (c.id || 'player') + '.');
+  });
+  parsed.weaponBinds.forEach(function(b) {
+    ok('&#127919; Weapon bind (stub): "' + b.weapon + '" ' + b.action + ' on ' + b.mouse + ' — would fire/reload in a full implementation.');
+  });
+  parsed.enemies.forEach(function(en) {
+    ok('&#128127; Enemy AI (stub): ' + (en.Eid || '?') + ' ' + (en.shoot ? 'shoots at ' + (en.Pid || '?') : 'patrols') + ' — behavior logged, no live AI yet.');
+  });
+  parsed.transitions.forEach(function(tr) {
+    ok('&#127919; Transition: ' + tr.id + ' animating to (' + tr.pos.x + ', ' + tr.pos.y + ', ' + tr.pos.z + ').');
+  });
+  parsed.emotes.forEach(function(em) {
+    ok('&#129303; Emote: "' + em.name + '" playing on ' + em.id + ' for ' + em.duration + 's.');
+  });
+  parsed.colors.forEach(function(c) {
+    out('&#127912; ' + c.id + ' ' + c.part + ' colored ' + c.color + '.');
+  });
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'width:100%;height:420px;position:relative;background:#0b1020;border-radius:8px;overflow:hidden;margin:8px 0;border:1px solid var(--border);display:flex;flex-direction:column;';
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'flex:1;display:block;width:100%;';
+  const consoleEl = document.createElement('div');
+  consoleEl.style.cssText = 'height:60px;overflow-y:auto;background:rgba(0,0,0,0.45);border-top:1px solid rgba(255,255,255,0.08);padding:2px 4px;';
+  wrap.appendChild(canvas);
+  wrap.appendChild(consoleEl);
+  outputEl.appendChild(wrap);
+
+  const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer.setClearColor(0x0b1020, 1);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(55, 1, 1, 20000);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+  dir.position.set(300, 800, 500);
+  scene.add(dir);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x334466, 0.5));
+
+  const grid = new THREE.GridHelper(3000, 30, 0x2a3a5a, 0x1b2740);
+  grid.position.y = 0.5;
+  scene.add(grid);
+
+  const world = {
+    renderer: renderer, scene: scene, camera: camera, wrap: wrap, canvas: canvas,
+    console: consoleEl, keys: new Set(), entities: [], frames: [], emotes: [],
+    transitions: [], controls: null, player: null, weaponBinds: parsed.weaponBinds,
+    raf: null, ro: null, onResize: null, keydown: null, keyup: null, mousedown: null,
+    contextmenu: null, lastFrame: performance.now(), start: performance.now()
+  };
+
+  parsed.structures.forEach(function(f) {
+    const mesh = gameBuildFrame(f);
+    scene.add(mesh);
+    world.frames.push({ frame: f, mesh: mesh });
+  });
+
+  const entityDefs = [];
+  parsed.players.forEach(function(p) { entityDefs.push({ id: p.id, kind: 'player' }); });
+  parsed.opponents.forEach(function(o) { entityDefs.push({ id: o.id, kind: 'opponent', op: o.op }); });
+
+  const entities = {};
+  entityDefs.forEach(function(def) {
+    const group = gameBuildHumanoid(def.kind);
+    scene.add(group);
+    const ent = { def: def, group: group, emote: null, spawn: null, transition: null, hasSetPos: false };
+    entities[def.id] = ent;
+    world.entities.push(ent);
+  });
+
+  parsed.positions.forEach(function(p) {
+    const ent = entities[p.id];
+    if (!ent) return;
+    if (p.spawnpoint) {
+      ent.spawn = p.pos;
+    } else {
+      ent.group.position.set(p.pos.x, p.pos.y, p.pos.z);
+      ent.hasSetPos = true;
+    }
+  });
+  world.entities.forEach(function(ent) {
+    if (!ent.hasSetPos && ent.spawn) ent.group.position.set(ent.spawn.x, ent.spawn.y, ent.spawn.z);
+  });
+
+  parsed.colors.forEach(function(c) {
+    const ent = entities[c.id];
+    if (!ent) return;
+    gameApplyPartColor(ent, c.part, c.color);
+  });
+
+  parsed.transitions.forEach(function(tr) {
+    const ent = entities[tr.id];
+    if (!ent) return;
+    ent.transition = {
+      from: { x: ent.group.position.x, y: ent.group.position.y, z: ent.group.position.z },
+      to: tr.pos,
+      start: performance.now(),
+      duration: 1000
+    };
+  });
+
+  parsed.emotes.forEach(function(em) {
+    const ent = entities[em.id];
+    if (!ent) return;
+    const dur = Math.max(0.2, em.duration || 2) * 1000;
+    ent.emote = {
+      name: em.name,
+      start: performance.now(),
+      duration: dur,
+      sprite: gameMakeLabelSprite(em.name, '#ffd700'),
+      anim: GAME_EMOTE_ANIMS[em.name.toLowerCase()] || GAME_EMOTE_ANIMS['default']
+    };
+    scene.add(ent.emote.sprite);
+  });
+
+  parsed.controls.forEach(function(ctrl) {
+    const target = ctrl.id ? entities[ctrl.id] : (parsed.players.length ? entities[parsed.players[0].id] : null);
+    if (target && target.def.kind === 'player' && !world.controls) {
+      world.player = target;
+      world.controls = {
+        keys: gameCtrlKeys(ctrl.keys),
+        speed: ctrl.type === 'run' ? 240 : ctrl.type === 'fly' ? 300 : 160
+      };
+    }
+  });
+
+  const viewMode = (parsed.view && GAME_CAMERA_MODES[parsed.view.mode]) ? parsed.view.mode : 'birdsEye';
+  (GAME_CAMERA_MODES[viewMode] || GAME_CAMERA_MODES.birdsEye)(camera);
+
+  world.keydown = function(e) {
+    if (gameWorld !== world) return;
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    world.keys.add(e.key.toLowerCase());
+    if (e.key.indexOf('Arrow') === 0) e.preventDefault();
+  };
+  world.keyup = function(e) {
+    if (gameWorld !== world) return;
+    world.keys.delete(e.key.toLowerCase());
+  };
+  world.mousedown = function(e) {
+    if (gameWorld !== world) return;
+    const isLeft = e.button === 0;
+    const isRight = e.button === 2;
+    if (isRight) e.preventDefault();
+    world.weaponBinds.forEach(function(b) {
+      if (b.action === 'shoot' && isLeft) gameLogEvent(world, '&#127919; [' + b.weapon + '] shoot fired (stub)');
+      if (b.action === 'recharge' && isRight) gameLogEvent(world, '&#8635; [' + b.weapon + '] recharge (stub)');
+    });
+  };
+  world.contextmenu = function(e) { e.preventDefault(); };
+  document.addEventListener('keydown', world.keydown);
+  document.addEventListener('keyup', world.keyup);
+  canvas.addEventListener('mousedown', world.mousedown);
+  canvas.addEventListener('contextmenu', world.contextmenu);
+
+  gameWorld = world;
+  gameSizeWorld(world);
+  if (typeof ResizeObserver !== 'undefined') {
+    world.ro = new ResizeObserver(function() { gameSizeWorld(world); });
+    world.ro.observe(world.wrap);
+  }
+  world.onResize = function() { gameSizeWorld(world); };
+  window.addEventListener('resize', world.onResize);
+  gameAnimate(world);
+}
+
 // ===== DATABASE =====
 const DB_KEY = 'ic_database';
 let dbFilterTag = null;
@@ -5560,6 +6656,22 @@ function getDefaultDB() {
     { id: 38, command: '@pathology [learn] (subject)', description: 'Shows a pathology overview card in the preview.', tags: ['pathology', 'preview'], addedBy: 'system' },
     { id: 39, command: '@generate [QR] (link:...)', description: 'Generates a QR code from a link in the preview.', tags: ['generate', 'preview'], addedBy: 'system' },
     { id: 40, command: '@canvas [draw]', description: 'Opens an interactive drawing canvas in the preview. Draw with mouse or touch.', tags: ['canvas', 'preview'], addedBy: 'system' },
+    { id: 41, command: '@project [name("projectName")]', description: 'Sets the name of the current project. Works inside a @project [open] block.', tags: ['project', 'game'], addedBy: 'system' },
+    { id: 42, command: '@provider [description("text")]', description: 'Sets a description for the project, shown wherever project metadata is displayed.', tags: ['project', 'game'], addedBy: 'system' },
+    { id: 43, command: '@player [id=("name")]', description: 'Declares a controllable player entity with the given id.', tags: ['project', 'game', 'entity'], addedBy: 'system' },
+    { id: 44, command: '@opponent [op="type"] [id=("name")]', description: 'Declares an NPC/opponent entity (e.g. grunt, boss). Id optional; auto-assigned when omitted.', tags: ['project', 'game', 'entity'], addedBy: 'system' },
+    { id: 45, command: '@enemy [shoot] [Pid=("player")] [Eid=("enemy")]', description: 'Makes the enemy with id Eid shoot at the player with id Pid. Both ids must already exist.', tags: ['project', 'game', 'enemy'], addedBy: 'system' },
+    { id: 46, command: '@position [set] [id=("entity")] (x, y, z)', description: 'Sets the position of any entity by id. Add [spawnpoint] to set a respawn location instead.', tags: ['project', 'game', 'position'], addedBy: 'system' },
+    { id: 47, command: '@transition [animation] [id=("entity")] [position(x, y, z)]', description: 'Smoothly animates an entity from its current position to the given position.', tags: ['project', 'game', 'position'], addedBy: 'system' },
+    { id: 48, command: '@frame [type("floor")] [position(x, y, z)] [width(n)] [height(n)] [color("name")] [set-true]', description: 'Declares a structural frame/platform (floor, wall, platform). [set-true] marks it solid.', tags: ['project', 'game', 'structure'], addedBy: 'system' },
+    { id: 49, command: '@add [structure] [id=("name")]', description: 'Adds a structure entity with the given id, to be configured later via @frame.', tags: ['project', 'game', 'structure'], addedBy: 'system' },
+    { id: 50, command: '@transportation [type("walk")] (WASD)', description: 'Defines a movement control scheme for the player (WASD or arrow keys).', tags: ['project', 'game', 'controls'], addedBy: 'system' },
+    { id: 51, command: '@recharge [set] <weapon> (mouse right click)', description: 'Binds a weapon reload action to the right mouse button.', tags: ['project', 'game', 'weapon'], addedBy: 'system' },
+    { id: 52, command: '@shoot [set] <weapon> (mouse left click)', description: 'Binds a weapon shoot action to the left mouse button.', tags: ['project', 'game', 'weapon'], addedBy: 'system' },
+    { id: 53, command: '@view [set] (bird\'s eye view)', description: 'Sets the camera view mode. New view modes can be added without restructuring.', tags: ['project', 'game', 'camera'], addedBy: 'system' },
+    { id: 54, command: '@color [fill] (id=("entity")) (BodyPart) [color("name")]', description: 'Sets the color of a body part (Head, Body, Legs, Boots, Arms, or Full) on an entity.', tags: ['project', 'game', 'customize'], addedBy: 'system' },
+    { id: 55, command: '@emote [set] (id=("entity")) ("wave") [duration(2)]', description: 'Plays a named emote animation (wave, breakdancing, twerk, squat) for a duration in seconds.', tags: ['project', 'game', 'customize'], addedBy: 'system' },
+    { id: 56, command: '@open [web] [settrue]', description: 'Project-level permission flag allowing the project to open external web content.', tags: ['project', 'game', 'web'], addedBy: 'system' },
   ]};
 }
 

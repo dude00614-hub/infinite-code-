@@ -1,0 +1,23 @@
+@inf
+-- Example game project for the Code tab (Infinite Code)
+@project [open]
+@project [name("Arena Demo")]
+@provider [description("A small interactive 3D multiplayer arena prototype")]
+@player [id=("hero")]
+@opponent [op="grunt"] [id=("grunt1")]
+@frame [type("floor")] [position(0, 0, 0)] [width(600)] [height(10)] [color("gray")] [set-true]
+@add [structure] [id=("wall1")]
+@frame [id=("wall1")] [type("wall")] [position(0, 40, -250)] [width(400)] [height(80)] [color("brown")] [set-true]
+@position [set] [id=("hero")] (0, 0, -60)
+@position [set] [spawnpoint] [id=("hero")] (0, 0, -60)
+@position [set] [id=("grunt1")] (140, 0, 80)
+@transition [animation] [id=("grunt1")] [position(-140, 0, 80)]
+@color [fill] (id=("hero")) (Head) [color("red")]
+@emote [set] (id=("hero")) ("wave") [duration(2.5)]
+@view [set] (bird's eye view)
+@transportation [type("walk")] (WASD)
+@shoot [set] <blaster> (mouse left click)
+@recharge [set] <blaster> (mouse right click)
+@enemy [shoot] [Pid=("hero")] [Eid=("grunt1")]
+@open [web] [settrue]
+@project [close]

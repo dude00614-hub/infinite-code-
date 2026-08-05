@@ -1,0 +1,4 @@
+@start("IRE")
+@sphere [pos(-150,60,50)] [radius(90)] [fill-color("orange")] [id=("orb")]
+@cube [pos(150,-60,50)] [width(120)] [height(120)] [depth(120)] [rotation(25,40,0)] [fill-color("purple")] [id=("box")]
+@morph("orb", "box") [duration(1.5)]

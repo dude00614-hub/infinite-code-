@@ -7230,6 +7230,10 @@ function redrawCanvas() {
   canvasCtx.fillRect(0, 0, 820, 1060);
   const drawing = currentDrawing();
   if (drawing) {
+    const bgImg = canvasBgImage(drawing);
+    if (bgImg && drawing.bg) {
+      canvasCtx.drawImage(bgImg, drawing.bg.x, drawing.bg.y, drawing.bg.w, drawing.bg.h);
+    }
     (drawing.elements || []).forEach(function(el) {
       if (el.type !== 'stroke') return;
       canvasCtx.globalCompositeOperation = el.eraser ? 'destination-out' : 'source-over';
@@ -7299,6 +7303,7 @@ function openDrawing(id) {
   document.getElementById('canvasTitle').value = drawing ? drawing.name : '';
   canvasShowAxis = drawing ? !!drawing.axis : false;
   updateCanvasAxisBtn();
+  updateCanvasBgBtn();
   renderCanvasList();
   redrawCanvas();
   setCanvasStatus('');
@@ -7334,6 +7339,7 @@ function newDrawing() {
 function deleteDrawing(id) {
   if (!confirm('Delete this drawing?')) return;
   drawings = drawings.filter(function(d) { return d.id !== id; });
+  delete canvasImageCache[id];
   if (canvasCurrentId === id) canvasCurrentId = drawings.length ? drawings[0].id : null;
   saveDrawings(drawings);
   renderCanvasList();
@@ -7341,6 +7347,7 @@ function deleteDrawing(id) {
   else {
     document.getElementById('canvasTitle').value = '';
     redrawCanvas();
+    updateCanvasBgBtn();
   }
 }
 
@@ -7376,6 +7383,83 @@ function renderCanvas() {
   canvasBoard.style.cursor = 'crosshair';
   openDrawing(canvasCurrentId);
 }
+
+// ===== CANVAS IMAGE IMPORT (draw on an image) =====
+const canvasImageCache = {};
+const canvasBgBtn = document.getElementById('canvasRemoveBgBtn');
+
+function canvasBgImage(drawing) {
+  if (!drawing || !drawing.bg || !drawing.bg.data) return null;
+  const cached = canvasImageCache[drawing.id];
+  if (cached && cached.complete && cached.naturalWidth) return cached;
+  const img = new Image();
+  img.onload = function() { redrawCanvas(); };
+  img.src = drawing.bg.data;
+  canvasImageCache[drawing.id] = img;
+  return null;
+}
+
+function updateCanvasBgBtn() {
+  if (!canvasBgBtn) return;
+  const drawing = currentDrawing();
+  canvasBgBtn.style.display = drawing && drawing.bg && drawing.bg.data ? '' : 'none';
+}
+
+function importCanvasImage(file) {
+  const drawing = currentDrawing();
+  if (!drawing) { setCanvasStatus('Open a drawing first'); return; }
+  if (!file || !file.type || file.type.indexOf('image/') !== 0) {
+    setCanvasStatus('Please choose an image file (PNG, JPG, GIF, etc.)');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const img = new Image();
+    img.onload = function() {
+      const scale = Math.min(820 / img.naturalWidth, 1060 / img.naturalHeight, 1);
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const x = Math.round((820 - w) / 2);
+      const y = Math.round((1060 - h) / 2);
+      const out = document.createElement('canvas');
+      out.width = w;
+      out.height = h;
+      const octx = out.getContext('2d');
+      octx.drawImage(img, 0, 0, w, h);
+      drawing.bg = { data: out.toDataURL('image/png'), x: x, y: y, w: w, h: h };
+      drawing.updatedAt = Date.now();
+      delete canvasImageCache[drawing.id];
+      saveDrawings(drawings);
+      updateCanvasBgBtn();
+      redrawCanvas();
+      setCanvasStatus('Image imported — draw on it!');
+    };
+    img.onerror = function() { setCanvasStatus('Could not load that image'); };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeCanvasBg() {
+  const drawing = currentDrawing();
+  if (!drawing || !drawing.bg) return;
+  delete drawing.bg;
+  delete canvasImageCache[drawing.id];
+  drawing.updatedAt = Date.now();
+  saveDrawings(drawings);
+  updateCanvasBgBtn();
+  redrawCanvas();
+  setCanvasStatus('Background removed');
+}
+
+document.getElementById('canvasImportBtn').addEventListener('click', function() {
+  document.getElementById('canvasFileInput').click();
+});
+document.getElementById('canvasFileInput').addEventListener('change', function() {
+  if (this.files && this.files[0]) importCanvasImage(this.files[0]);
+  this.value = '';
+});
+if (canvasBgBtn) canvasBgBtn.addEventListener('click', removeCanvasBg);
 
 document.querySelectorAll('.canvas-tool').forEach(function(btn) {
   btn.addEventListener('click', function() {

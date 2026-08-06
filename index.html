@@ -438,6 +438,9 @@
                   <input type="color" id="canvasColor" value="#000000" title="Color">
                   <input type="range" id="canvasWidth" min="1" max="20" value="3" title="Brush width">
                   <button id="canvasAxisBtn" class="canvas-tool" title="Toggle X/Y axis" style="width:auto;padding:0 12px;font-size:12px;">&#8866;&#8867; Axis</button>
+                  <button id="canvasImportBtn" class="canvas-tool" title="Import an image to draw on" style="width:auto;padding:0 12px;font-size:12px;">&#128206; Import</button>
+                  <button id="canvasRemoveBgBtn" class="canvas-tool" title="Remove the background image" style="width:auto;padding:0 12px;font-size:12px;display:none;">&#128465; Remove BG</button>
+                  <input type="file" id="canvasFileInput" accept="image/*" style="display:none;">
                   <span class="canvas-status" id="canvasStatus"></span>
                   <button id="canvasSaveBtn" class="canvas-save-btn">&#128190; Save</button>
                   <button id="canvasClearBtn" class="canvas-clear-btn" title="Clear canvas">&#128465;</button>

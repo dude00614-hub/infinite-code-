@@ -6365,7 +6365,8 @@ function gameSizeWorld(world) {
 }
 
 function gameAnimate(world) {
-  world.raf = requestAnimationFrame(function(now) { gameAnimate(world); });
+  world.raf = requestAnimationFrame(function() { gameAnimate(world); });
+  const now = performance.now();
   const dt = Math.min(0.05, (now - world.lastFrame) / 1000 || 0.016);
   world.lastFrame = now;
 

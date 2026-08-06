@@ -77,6 +77,25 @@ CREATE TABLE IF NOT EXISTS settings (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS admins (
+  username TEXT PRIMARY KEY,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS banned (
+  username TEXT PRIMARY KEY,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id BIGSERIAL PRIMARY KEY,
+  actor TEXT NOT NULL DEFAULT '',
+  action TEXT NOT NULL DEFAULT '',
+  target TEXT DEFAULT '',
+  details TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Insert default edit layout row
 INSERT INTO edit_layouts (id, layout) VALUES (1, '{}') ON CONFLICT (id) DO NOTHING;
 
@@ -91,6 +110,9 @@ ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE commands ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE banned ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow all" ON users;
 DROP POLICY IF EXISTS "Allow all" ON projects;
@@ -102,6 +124,9 @@ DROP POLICY IF EXISTS "Allow all" ON chat_messages;
 DROP POLICY IF EXISTS "Allow all" ON courses;
 DROP POLICY IF EXISTS "Allow all" ON commands;
 DROP POLICY IF EXISTS "Allow all" ON settings;
+DROP POLICY IF EXISTS "Allow all" ON admins;
+DROP POLICY IF EXISTS "Allow all" ON banned;
+DROP POLICY IF EXISTS "Allow all" ON audit_log;
 
 CREATE POLICY "Allow all" ON users FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON projects FOR ALL USING (true) WITH CHECK (true);
@@ -113,3 +138,6 @@ CREATE POLICY "Allow all" ON chat_messages FOR ALL USING (true) WITH CHECK (true
 CREATE POLICY "Allow all" ON courses FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON commands FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON settings FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON admins FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON banned FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON audit_log FOR ALL USING (true) WITH CHECK (true);

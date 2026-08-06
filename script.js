@@ -38,6 +38,89 @@ async function migrateToSupabase() {
 
 setTimeout(migrateToSupabase, 3000);
 
+// ===== ACCOUNT ADMIN (owner/admin-only) =====
+const ADMINS_KEY = 'ic_admins';
+const BANNED_KEY = 'ic_banned';
+const AUDIT_KEY = 'ic_audit_log';
+
+function getAdmins() {
+  try {
+    const extra = JSON.parse(localStorage.getItem(ADMINS_KEY) || '[]');
+    return [...new Set([...OWNERS, ...(Array.isArray(extra) ? extra : [])])];
+  } catch(e) { return [...OWNERS]; }
+}
+function isOwnerOrAdmin(u) { return !!u && getAdmins().includes(u); }
+
+function getBanned() {
+  try {
+    const b = JSON.parse(localStorage.getItem(BANNED_KEY) || '[]');
+    return Array.isArray(b) ? b : [];
+  } catch(e) { return []; }
+}
+function isBanned(u) { return getBanned().includes(u); }
+function saveBanned(list) {
+  const prev = getBanned();
+  localStorage.setItem(BANNED_KEY, JSON.stringify(list));
+  list.forEach(u => sb('banned').upsert({username: u}, 'username'));
+  prev.forEach(u => { if (!list.includes(u)) sb('banned').delete({username: u}); });
+}
+function saveAdmins(list) {
+  const prev = getAdmins().filter(u => !OWNERS.includes(u));
+  const clean = [...new Set(list)];
+  localStorage.setItem(ADMINS_KEY, JSON.stringify(clean));
+  clean.forEach(u => sb('admins').upsert({username: u}, 'username'));
+  prev.forEach(u => { if (!clean.includes(u)) sb('admins').delete({username: u}); });
+}
+function getAuditLog() {
+  try {
+    const l = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]');
+    return Array.isArray(l) ? l : [];
+  } catch(e) { return []; }
+}
+function logAdminAction(actor, action, target, details) {
+  const entry = { at: new Date().toISOString(), actor: actor || '(unknown)', action, target: target || '', details: details || '' };
+  const log = getAuditLog();
+  log.unshift(entry);
+  localStorage.setItem(AUDIT_KEY, JSON.stringify(log.slice(0, 200)));
+  sb('audit_log').insert({ actor: entry.actor, action: entry.action, target: entry.target, details: entry.details, created_at: entry.at });
+  return entry;
+}
+async function refreshAccountState() {
+  try {
+    const r = await sb('admins').select({});
+    if (r.ok && Array.isArray(r.data)) {
+      const names = r.data.map(d => d.username).filter(Boolean);
+      if (names.length) localStorage.setItem(ADMINS_KEY, JSON.stringify(names));
+    }
+  } catch(e) {}
+  try {
+    const r = await sb('banned').select({});
+    if (r.ok && Array.isArray(r.data)) {
+      const names = r.data.map(d => d.username).filter(Boolean);
+      if (names.length) localStorage.setItem(BANNED_KEY, JSON.stringify(names));
+    }
+  } catch(e) {}
+}
+async function userExists(username) {
+  if (getUsers()[username]) return true;
+  const r = await sb('users').select({username});
+  return !!(r.ok && r.data && r.data.length);
+}
+async function isBannedRemote(username) {
+  const r = await sb('banned').select({username});
+  return !!(r.ok && r.data && r.data.length);
+}
+async function getAllAccounts() {
+  const names = new Set(Object.keys(getUsers()));
+  try {
+    const r = await sb('users').select({});
+    if (r.ok && Array.isArray(r.data)) r.data.forEach(d => { if (d.username) names.add(d.username); });
+  } catch(e) {}
+  const admins = getAdmins();
+  const banned = getBanned();
+  return Array.from(names).sort().map(u => ({ username: u, admin: admins.includes(u), banned: banned.includes(u) }));
+}
+
 // ===== CHAT STATE =====
 let chatPartner = null;
 let chatPoll = null;
@@ -634,6 +717,11 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     return;
   }
 
+  if (isBanned(username) || await isBannedRemote(username)) {
+    errorEl.textContent = 'This account has been banned and cannot log in.';
+    return;
+  }
+
   errorEl.textContent = '';
   currentUser = username;
   enterIDE(username);
@@ -644,8 +732,10 @@ function enterIDE(username) {
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('ide').classList.remove('hidden');
 
+  refreshAccountState();
 
-  const isOwner = OWNERS.includes(username);
+
+  const isOwner = isOwnerOrAdmin(username);
 
   document.querySelectorAll('.owner-only').forEach(el => {
     el.style.display = isOwner ? '' : 'none';
@@ -2894,12 +2984,16 @@ document.getElementById('runInput').addEventListener('keydown', function(e) {
     }
     output.scrollTop = output.scrollHeight;
   } else if (input === '@dev [tools]') {
-    if (!OWNERS.includes(currentUser)) {
+    if (!isOwnerOrAdmin(currentUser)) {
       output.appendChild(err('Owners only'));
     } else {
       openDevTools();
       output.appendChild(ok('Dev Tools opened'));
     }
+  } else if (input === '@help') {
+    handleHelpCommand(output);
+  } else if (input.startsWith('@account')) {
+    handleAccountCommand(input, output);
   } else {
     const msg = document.createElement('div');
     msg.className = 'run-line error';
@@ -2910,6 +3004,139 @@ document.getElementById('runInput').addEventListener('keydown', function(e) {
   this.value = '';
   output.scrollTop = output.scrollHeight;
 });
+
+// ===== HELP =====
+function handleHelpCommand(output) {
+  const seen = {};
+  const emit = function(cmd, desc, tags) {
+    const key = cmd.toLowerCase();
+    if (seen[key]) return;
+    seen[key] = true;
+    const line = document.createElement('div');
+    line.className = 'run-line';
+    line.innerHTML = '<span style="color:var(--accent)">@ ' + cmd + '</span> — ' + desc +
+      (tags && tags.length ? ' <span style="color:var(--text-muted)">[' + tags.join(', ') + ']</span>' : '');
+    output.appendChild(line);
+  };
+  output.appendChild(ok('Available commands:'));
+  const db = getDB();
+  db.entries.forEach(e => emit(e.command, e.description, e.tags || []));
+  emit('@account [ban] (user "username")', 'Bans a user account. They can no longer log in. Add [force] after [ban] to ban an admin/owner with confirmation.', ['run-command', 'owner']);
+  emit('@account [unban] (user "username")', 'Unbans a user account, restoring login access.', ['run-command', 'owner']);
+  emit('@account [set] <admin> (user "username")', 'Promotes a user to admin/owner status.', ['run-command', 'owner']);
+  emit('@account [set] <password> (user "username") ("newPassword")', 'Resets a user\'s password to the given new value (stored hashed).', ['run-command', 'owner']);
+  emit('@account [list]', 'Lists all accounts with admin and ban status.', ['run-command', 'owner']);
+  emit('@help', 'Lists all available commands.', ['run-command']);
+  output.scrollTop = output.scrollHeight;
+}
+
+// ===== ACCOUNT ADMIN COMMANDS =====
+async function handleAccountCommand(input, output) {
+  if (!isOwnerOrAdmin(currentUser)) {
+    output.appendChild(err('Permission denied: owner/admin only.'));
+    return;
+  }
+  await refreshAccountState();
+
+  const mList = /^@account\s+\[list\]/i.exec(input);
+  if (mList) {
+    const accounts = await getAllAccounts();
+    if (!accounts.length) {
+      output.appendChild(ok('No accounts found.'));
+      return;
+    }
+    output.appendChild(ok('Accounts (' + accounts.length + '):'));
+    accounts.forEach(a => {
+      const line = document.createElement('div');
+      line.className = 'run-line';
+      line.textContent = '  ' + a.username + ' — ' + (a.admin ? 'admin' : 'member') + ' — ' + (a.banned ? 'banned' : 'active');
+      output.appendChild(line);
+    });
+    const log = getAuditLog().slice(0, 5);
+    if (log.length) {
+      output.appendChild(ok('Recent account actions:'));
+      log.forEach(l => {
+        const line = document.createElement('div');
+        line.className = 'run-line';
+        line.textContent = '  ' + new Date(l.at).toLocaleString() + ' — ' + l.actor + ' — ' + l.action + (l.target ? ' ' + l.target : '');
+        output.appendChild(line);
+      });
+    }
+    return;
+  }
+
+  const mBan = /^@account\s+\[ban\](\s+\[force\])?\s+\(user\s+"([^"]+)"\)/i.exec(input);
+  if (mBan) {
+    const target = mBan[2];
+    const force = !!mBan[1];
+    if (!(await userExists(target))) {
+      output.appendChild(err('Error: user "' + target + '" does not exist.'));
+      return;
+    }
+    if (isBanned(target)) {
+      output.appendChild(ok('User "' + target + '" is already banned.'));
+      return;
+    }
+    if (getAdmins().includes(target) && !force) {
+      output.appendChild(err('Cannot ban admin/owner "' + target + '" without confirmation. Re-run with [force] to confirm.'));
+      return;
+    }
+    saveBanned([...getBanned(), target]);
+    logAdminAction(currentUser, 'ban', target, force ? 'confirmed with [force] (admin target)' : '');
+    output.appendChild(ok('Banned "' + target + '". They can no longer log in.'));
+    return;
+  }
+
+  const mUnban = /^@account\s+\[unban\]\s+\(user\s+"([^"]+)"\)/i.exec(input);
+  if (mUnban) {
+    const target = mUnban[1];
+    if (!(await userExists(target))) {
+      output.appendChild(err('Error: user "' + target + '" does not exist.'));
+      return;
+    }
+    if (!isBanned(target)) {
+      output.appendChild(ok('User "' + target + '" is not banned.'));
+      return;
+    }
+    saveBanned(getBanned().filter(u => u !== target));
+    logAdminAction(currentUser, 'unban', target, '');
+    output.appendChild(ok('Unbanned "' + target + '". Access restored.'));
+    return;
+  }
+
+  const mSet = /^@account\s+\[set\]\s+<(password|admin|owner)>\s+\(user\s+"([^"]+)"\)(?:\s+\("([^"]*)"\))?/i.exec(input);
+  if (mSet) {
+    const action = mSet[1].toLowerCase();
+    const target = mSet[2];
+    const newPw = mSet[3];
+    if (!(await userExists(target))) {
+      output.appendChild(err('Error: user "' + target + '" does not exist.'));
+      return;
+    }
+    if (action === 'password') {
+      if (newPw === undefined || !newPw) {
+        output.appendChild(err('Usage: @account [set] <password> (user "username") ("newPassword")'));
+        return;
+      }
+      const users = getUsers();
+      users[target] = await hashPassword(newPw);
+      saveUsers(users);
+      logAdminAction(currentUser, 'password-reset', target, '');
+      output.appendChild(ok('Password for "' + target + '" has been reset. (Stored hashed; never logged in plaintext.)'));
+      return;
+    }
+    if (getAdmins().includes(target)) {
+      output.appendChild(ok('User "' + target + '" is already an admin.'));
+      return;
+    }
+    saveAdmins([...getAdmins(), target]);
+    logAdminAction(currentUser, 'promote-admin', target, 'promoted to ' + action);
+    output.appendChild(ok('Promoted "' + target + '" to ' + action + '. They can now use owner/admin commands.'));
+    return;
+  }
+
+  output.appendChild(err('Unknown @account command. Try: @account [list] / @account [ban] (user "name") / @account [unban] (user "name") / @account [set] <admin|password> (user "name") ("value")'));
+}
 
 function openDevTools() {
   const existing = document.getElementById('devToolsOverlay');
@@ -3089,7 +3316,7 @@ function openDevTools() {
       'Screen: ' + screen.width + 'x' + screen.height,
       'Viewport: ' + window.innerWidth + 'x' + window.innerHeight,
       'Current User: ' + (currentUser || '(not logged in)'),
-      'Is Owner: ' + OWNERS.includes(currentUser),
+      'Is Owner: ' + isOwnerOrAdmin(currentUser),
       'Theme: ' + (localStorage.getItem(THEME_KEY) || '(default)'),
       'Projects: ' + (getProjects().length || 0),
     ];
@@ -3185,7 +3412,7 @@ document.getElementById('chatInput').addEventListener('keydown', function(e) {
 // ===== TAB SWITCHING =====
 function switchTab(tabId) {
   const tabBtn = document.querySelector('.topbar-tab[data-tab="' + tabId + '"]');
-  if (tabBtn && tabBtn.classList.contains('owner-only') && !OWNERS.includes(currentUser)) return;
+  if (tabBtn && tabBtn.classList.contains('owner-only') && !isOwnerOrAdmin(currentUser)) return;
   document.querySelectorAll('.topbar-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.tab === tabId);
   });
@@ -3226,7 +3453,7 @@ var SEARCH_NAV_ITEMS = [
 
 function openSearchNav(query) {
   var list = SEARCH_NAV_ITEMS.filter(function(item) {
-    if (item.ownerOnly && !OWNERS.includes(currentUser)) return false;
+    if (item.ownerOnly && !isOwnerOrAdmin(currentUser)) return false;
     if (!query) return true;
     return item.label.toLowerCase().indexOf(query) >= 0 || item.tab.indexOf(query) >= 0;
   });
@@ -3272,7 +3499,7 @@ document.getElementById('navSearchInput').addEventListener('keydown', function(e
 document.querySelectorAll('.topbar-tab').forEach(tab => {
   tab.addEventListener('click', function() {
     const tabId = this.dataset.tab;
-    if (this.classList.contains('owner-only') && !OWNERS.includes(currentUser)) return;
+    if (this.classList.contains('owner-only') && !isOwnerOrAdmin(currentUser)) return;
     switchTab(tabId);
     if (tabId === 'database') renderDB();
     if (tabId === 'courses') renderCourses();
@@ -3963,7 +4190,7 @@ function deleteCourse(id) {
 
 function renderCourses() {
   var list = getCourses();
-  var isOwner = OWNERS.includes(currentUser);
+  var isOwner = isOwnerOrAdmin(currentUser);
   var sidebar = document.getElementById('coursesList');
   var content = document.getElementById('coursesContent');
   if (!sidebar) return;
@@ -4021,7 +4248,7 @@ function renderCourses() {
 var selectedCourseId = null;
 
 function showCourseForm(editId) {
-  if (!OWNERS.includes(currentUser)) return;
+  if (!isOwnerOrAdmin(currentUser)) return;
   var list = getCourses();
   var course = editId ? list.find(function(c) { return c.id === editId; }) : null;
   var html = '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Course Title</label>' +
@@ -4060,7 +4287,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var newBtn = document.getElementById('newCourseBtn');
   if (newBtn) {
     newBtn.addEventListener('click', function() {
-      if (!OWNERS.includes(currentUser)) return;
+      if (!isOwnerOrAdmin(currentUser)) return;
       showCourseForm(null);
     });
   }
@@ -4123,7 +4350,7 @@ function getMathSubject(p) {
 
 function renderMath() {
   var allList = getMathProblems();
-  var isOwner = OWNERS.includes(currentUser);
+  var isOwner = isOwnerOrAdmin(currentUser);
   var sidebar = document.getElementById('mathList');
   var content = document.getElementById('mathContent');
   if (!sidebar) return;
@@ -4260,7 +4487,7 @@ function renderMathProblem(problem, isOwner) {
 }
 
 function showMathForm(editId) {
-  if (!OWNERS.includes(currentUser)) return;
+  if (!isOwnerOrAdmin(currentUser)) return;
   var list = getMathProblems();
   var problem = editId ? list.find(function(p) { return p.id === editId; }) : null;
   var answers = (problem && problem.answers) ? problem.answers : [''];
@@ -4342,7 +4569,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var newBtn = document.getElementById('newMathBtn');
   if (newBtn) {
     newBtn.addEventListener('click', function() {
-      if (!OWNERS.includes(currentUser)) return;
+      if (!isOwnerOrAdmin(currentUser)) return;
       showMathForm(null);
     });
   }
@@ -6699,7 +6926,7 @@ function getAllTags(db) {
 
 function renderDB() {
   const db = getDB();
-  const isOwner = OWNERS.includes(currentUser);
+  const isOwner = isOwnerOrAdmin(currentUser);
   document.getElementById('dbAddBtn').style.display = isOwner ? '' : 'none';
 
   // Render tags
@@ -7512,7 +7739,7 @@ function mpRenderDashboard() {
       '</div>';
   });
   document.getElementById('mpDashTopics').innerHTML = html;
-  if (OWNERS.includes(currentUser)) {
+  if (isOwnerOrAdmin(currentUser)) {
     var customs = getMPCustomProblems();
     var listHtml = customs.length ? customs.map(function(p) {
       return '<div class="mp-custom-row">' +
@@ -7686,7 +7913,7 @@ function mpCloseReference() {
 let mpFormEditId = null;
 
 function mpShowProblemForm(editId) {
-  if (!OWNERS.includes(currentUser)) return;
+  if (!isOwnerOrAdmin(currentUser)) return;
   mpFormEditId = editId || null;
   var p = null;
   if (editId) p = getMPCustomProblems().find(function(x) { return x.id === editId; });

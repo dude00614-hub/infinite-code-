@@ -1126,7 +1126,8 @@ const suggestionList = [
   { label: '@transportation [type("walk")] (WASD)', desc: 'bind movement keys for the player (WASD or arrow keys)' },
   { label: '@recharge [set] <weapon> (mouse right click)', desc: 'bind a weapon reload to right mouse button' },
   { label: '@shoot [set] <weapon> (mouse left click)', desc: 'bind a weapon shoot to left mouse button' },
-  { label: '@view [set] (bird\'s eye view)', desc: 'set the camera view mode' },
+  { label: '@view [set] (bird\'s eye view)', desc: 'set the camera to a top-down bird\'s eye view' },
+  { label: '@view [set] (first person view)', desc: 'set a first-person camera following the player' },
   { label: '@color [fill] (id=("entity")) (Head) [color("red")]', desc: 'set a body part color (Head/Body/Legs/Boots/Arms/Full)' },
   { label: '@emote [set] (id=("entity")) ("wave") [duration(2)]', desc: 'play a named emote animation for a duration' },
   { label: '@open [web] [settrue]', desc: 'allow the project to open external web content' },
@@ -6033,6 +6034,7 @@ function gameModTuple(mods, key) {
 function gameNormalizeView(raw) {
   const s = String(raw).toLowerCase().trim();
   if (s === 'bird' || s === "bird's eye" || s === "bird's eye view" || s === 'birds eye' || s === 'birds-eye' || s === 'birdseye' || s === 'top-down' || s === 'top down' || s === 'topdown' || s === 'top view') return 'birdsEye';
+  if (s === 'first person' || s === 'first person view' || s === 'firstperson' || s === 'firstpersonview' || s === 'first' || s === 'fps') return 'firstPerson';
   return s.replace(/[^a-z0-9]/g, '');
 }
 
@@ -6569,6 +6571,20 @@ const GAME_CAMERA_MODES = {
     cam.position.set(700, 1500, 700);
     cam.up.set(0, 1, 0);
     cam.lookAt(0, 0, 0);
+  },
+  firstPerson: function(cam, player) {
+    cam.up.set(0, 1, 0);
+    if (player && player.group) {
+      const g = player.group;
+      g.visible = false;
+      const eyeY = g.position.y + 80;
+      cam.position.set(g.position.x, eyeY, g.position.z);
+      const ry = g.rotation ? g.rotation.y : 0;
+      cam.lookAt(g.position.x + Math.sin(ry) * 20, eyeY, g.position.z + Math.cos(ry) * 20);
+    } else {
+      cam.position.set(0, 80, 0);
+      cam.lookAt(20, 80, 0);
+    }
   }
 };
 
@@ -6649,6 +6665,21 @@ function gameAnimate(world) {
       world.player.group.position.z += (dz / len) * speed;
       world.player.group.rotation.y = Math.atan2(dx, dz);
     }
+  }
+
+  if (world.viewMode === 'firstPerson') {
+    const ref = world.playerRef;
+    if (ref && ref.group) {
+      const g = ref.group;
+      if (g.visible) g.visible = false;
+      const eyeY = g.position.y + 80;
+      world.camera.position.set(g.position.x, eyeY, g.position.z);
+      const ry = g.rotation ? g.rotation.y : 0;
+      world.camera.up.set(0, 1, 0);
+      world.camera.lookAt(g.position.x + Math.sin(ry) * 20, eyeY, g.position.z + Math.cos(ry) * 20);
+    }
+  } else if (world.playerRef && world.playerRef.group && world.playerRef.group.visible === false && world.viewMode !== 'firstPerson') {
+    world.playerRef.group.visible = true;
   }
 
   world.renderer.render(world.scene, world.camera);
@@ -6797,7 +6828,9 @@ function runGameWorld(parsed, outputEl, previewPanel) {
   });
 
   const viewMode = (parsed.view && GAME_CAMERA_MODES[parsed.view.mode]) ? parsed.view.mode : 'birdsEye';
-  (GAME_CAMERA_MODES[viewMode] || GAME_CAMERA_MODES.birdsEye)(camera);
+  world.viewMode = viewMode;
+  world.playerRef = world.player || (parsed.players.length ? entities[parsed.players[0].id] : null);
+  (GAME_CAMERA_MODES[viewMode] || GAME_CAMERA_MODES.birdsEye)(camera, world.playerRef);
 
   world.keydown = function(e) {
     if (gameWorld !== world) return;
@@ -6896,7 +6929,7 @@ function getDefaultDB() {
     { id: 50, command: '@transportation [type("walk")] (WASD)', description: 'Defines a movement control scheme for the player (WASD or arrow keys).', tags: ['project', 'game', 'controls'], addedBy: 'system' },
     { id: 51, command: '@recharge [set] <weapon> (mouse right click)', description: 'Binds a weapon reload action to the right mouse button.', tags: ['project', 'game', 'weapon'], addedBy: 'system' },
     { id: 52, command: '@shoot [set] <weapon> (mouse left click)', description: 'Binds a weapon shoot action to the left mouse button.', tags: ['project', 'game', 'weapon'], addedBy: 'system' },
-    { id: 53, command: '@view [set] (bird\'s eye view)', description: 'Sets the camera view mode. New view modes can be added without restructuring.', tags: ['project', 'game', 'camera'], addedBy: 'system' },
+    { id: 53, command: '@view [set] (bird\'s eye view) / @view [set] (first person view)', description: 'Sets the camera view mode: top-down bird\'s eye, or a first-person camera that follows the player.', tags: ['project', 'game', 'camera'], addedBy: 'system' },
     { id: 54, command: '@color [fill] (id=("entity")) (BodyPart) [color("name")]', description: 'Sets the color of a body part (Head, Body, Legs, Boots, Arms, or Full) on an entity.', tags: ['project', 'game', 'customize'], addedBy: 'system' },
     { id: 55, command: '@emote [set] (id=("entity")) ("wave") [duration(2)]', description: 'Plays a named emote animation (wave, breakdancing, twerk, squat) for a duration in seconds.', tags: ['project', 'game', 'customize'], addedBy: 'system' },
     { id: 56, command: '@open [web] [settrue]', description: 'Project-level permission flag allowing the project to open external web content.', tags: ['project', 'game', 'web'], addedBy: 'system' },
